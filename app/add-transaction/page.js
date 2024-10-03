@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState } from 'react';
 import axios from 'axios';
@@ -11,15 +11,47 @@ export default function AddTransaction() {
     Description: ''
   });
   const [message, setMessage] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true); 
+
     try {
-      const response = await axios.post('http://localhost/API/getBalance.php', formData);
+      const response = await axios.post('http://localhost/API/getBalance.php?action=add_transaction', formData, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
       setMessage(response.data.success || response.data.error);
+      setIsSuccess(response.data.success);
+
+      if (response.data.success) {
+        setTimeout(() => {
+          resetForm(); 
+        }, 3000);
+      }
+      
     } catch (error) {
-      setMessage('Error adding transaction');
+      setMessage('Error adding transaction. Please try again.');
+      setIsSuccess(false);
+      console.error('Error details:', error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      CustomerID: '',
+      TransactionType: 'Credit',
+      Amount: '',
+      Description: ''
+    });
+    setMessage('');
+    setIsSuccess(false);
   };
 
   const handleChange = (e) => {
@@ -79,12 +111,17 @@ export default function AddTransaction() {
           </div>
           <button 
             type="submit" 
-            className="w-full py-2 mt-4 bg-blue-600 hover:bg-blue-500 transition rounded-md"
+            className={`w-full py-2 mt-4 ${loading ? 'bg-gray-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500'} transition rounded-md`}
+            disabled={loading}
           >
-            Add Transaction
+            {loading ? 'Adding...' : 'Add Transaction'}
           </button>
         </form>
-        {message && <p className="mt-4 text-center">{message}</p>}
+        {message && (
+          <p className={`mt-4 text-center ${isSuccess ? 'text-green-400' : 'text-red-400'}`}>
+            {message}
+          </p>
+        )}
       </div>
     </div>
   );

@@ -6,16 +6,34 @@ import axios from 'axios';
 export default function AddCustomer() {
   const [formData, setFormData] = useState({ CustomerName: '', Email: '', ContactDetails: '' });
   const [message, setMessage] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost/API/getBalance.php', formData);
+      const response = await axios.post('http://localhost/API/getBalance.php?action=add_customer', formData, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
       setMessage(response.data.success || response.data.error);
+      setIsSuccess(response.data.success ? true : false);
+
+      if (response.data.success) {
+        setTimeout(() => {
+          setMessage('');
+          setIsSuccess(false);
+          setFormData({ CustomerName: '', Email: '', ContactDetails: '' }); 
+        }, 3000); 
+      }
+      
     } catch (error) {
       setMessage('Error adding customer');
+      setIsSuccess(false);
+      console.error('Error details:', error); // Log error for debugging
     }
-  };
+  };  
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -66,7 +84,11 @@ export default function AddCustomer() {
             Add Customer
           </button>
         </form>
-        {message && <p className="mt-4 text-center">{message}</p>}
+        {message && (
+          <p className={`mt-4 text-center ${isSuccess ? 'text-green-400' : 'text-red-400'}`}>
+            {message}
+          </p>
+        )}
       </div>
     </div>
   );
