@@ -1,5 +1,5 @@
 <?php
-header("Access-Control-Allow-Origin: http://localhost:3000");
+header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS, DELETE");
 header("Access-Control-Allow-Headers: Content-Type");
 header("Content-Type: application/json");
@@ -85,10 +85,10 @@ function addTransaction($pdo)
 {
     $input = json_decode(file_get_contents('php://input'), true);
     
-    error_log(print_r($input, true));
+    error_log(print_r($input, true)); // Log input for debugging
 
-    if (empty($input['CustomerID']) || empty($input['TransactionType']) || empty($input['Amount'])) {
-        echo json_encode(['error' => 'Missing required fields: CustomerID, TransactionType, and Amount are required']);
+    if (empty($input['CustomerName']) || empty($input['TransactionType']) || empty($input['Amount'])) {
+        echo json_encode(['error' => 'Missing required fields: CustomerName, TransactionType, and Amount are required']);
         return;
     }
 
@@ -97,10 +97,23 @@ function addTransaction($pdo)
         return;
     }
 
+    // Get CustomerID from CustomerName
+    $stmtCustomer = $pdo->prepare("SELECT CustomerID FROM Customers WHERE CustomerName = ?");
+    $stmtCustomer->execute([$input['CustomerName']]);
+    $customerID = $stmtCustomer->fetchColumn();
+
+    // Log for debugging
+    error_log("Looking for CustomerName: " . $input['CustomerName'] . " - Found CustomerID: " . $customerID);
+
+    if (!$customerID) {
+        echo json_encode(['error' => 'Customer not found']);
+        return;
+    }
+
     $stmt = $pdo->prepare("INSERT INTO AccountsReceivable (CustomerID, TransactionType, Amount, TransactionDate, Description) VALUES (?, ?, ?, NOW(), ?)");
     
     $params = [
-        $input['CustomerID'],
+        $customerID,
         $input['TransactionType'],
         $input['Amount'],
         $input['Description'] ?? null,
@@ -111,35 +124,32 @@ function addTransaction($pdo)
         return;
     }
 
-    $newBalance = updateBalance($pdo, $input['CustomerID'], $input['TransactionType'], $input['Amount'], $input['Description'] ?? null);
+    $newBalance = updateBalance($pdo, $customerID, $input['TransactionType'], $input['Amount'], $input['Description'] ?? null);
 
     $stmtHistory = $pdo->prepare("INSERT INTO AccountsReceivableHistory (CustomerID, TransactionType, Amount, TransactionDate, Description) VALUES (?, ?, ?, NOW(), ?)");
-    $stmtHistory->execute([$input['CustomerID'], $input['TransactionType'], $input['Amount'], $input['Description'] ?? null]);
+    $stmtHistory->execute([$customerID, $input['TransactionType'], $input['Amount'], $input['Description'] ?? null]);
 
     echo json_encode(['success' => 'Transaction added successfully', 'new_balance' => $newBalance]);
 }
 
-if (!function_exists('updateBalance')) {
-    function updateBalance($pdo, $customerID, $transactionType, $amount, $description = null)
-    {
-        $stmt = $pdo->prepare("SELECT CurrentBalance FROM balance WHERE CustomerID = ?");
-        $stmt->execute([$customerID]);
-        $currentBalance = $stmt->fetchColumn();
 
-        if ($transactionType === 'Credit') {
-            $newBalance = $currentBalance + $amount;
-        } elseif ($transactionType === 'Debit') {
-            $newBalance = $currentBalance - $amount;
-        } else {
-            throw new Exception('Invalid transaction type');
-        }
 
-        $stmtUpdate = $pdo->prepare("UPDATE balance SET CurrentBalance = ?, TransactionType = ?, Description = ? WHERE CustomerID = ?");
-        $stmtUpdate->execute([$newBalance, $transactionType, $description, $customerID]);
-
-        return $newBalance;
-    }
+function getCustomers($pdo)
+{
+    $stmt = $pdo->query("SELECT CustomerID AS id, CustomerName AS name FROM customers");
+    $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode($customers);
 }
+
+function getProducts($pdo)
+{
+    $stmt = $pdo->query("SELECT ProductID AS ProductID, ProductName AS ProductName, Price FROM Products");
+    $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode($products);
+}
+
 
 
 ini_set('display_errors', 1);
@@ -147,41 +157,42 @@ error_reporting(E_ALL);
 
 function viewBalance($pdo)
 {
-    if (isset($_GET['CustomerID'])) {
-        $customerID = $_GET['CustomerID'];
-
-        // Log the incoming CustomerID
-        error_log("Fetching balance for CustomerID: " . $customerID);
+    if (isset($_GET['CustomerName'])) {
+        $customerName = $_GET['CustomerName'];
 
         // Prepare statements
-        $stmtBalance = $pdo->prepare("SELECT CurrentBalance FROM Balance WHERE CustomerID = ?");
-        $stmtBalance->execute([$customerID]);
-        $balance = $stmtBalance->fetch();
+        $stmtCustomer = $pdo->prepare("SELECT * FROM customers WHERE CustomerName = ?");
+        $stmtCustomer->execute([$customerName]);
+        $customer = $stmtCustomer->fetch();
 
-        $stmtHistory = $pdo->prepare("SELECT * FROM AccountsReceivableHistory WHERE CustomerID = ? ORDER BY TransactionDate DESC");
-        $stmtHistory->execute([$customerID]);
-        $history = $stmtHistory->fetchAll();
+        if ($customer) {
+            $customerID = $customer['CustomerID'];
 
-        // Log the fetched balance and history
-        error_log("Fetched Balance: " . json_encode($balance));
-        error_log("Fetched History: " . json_encode($history));
+            $stmtBalance = $pdo->prepare("SELECT CurrentBalance FROM Balance WHERE CustomerID = ?");
+            $stmtBalance->execute([$customerID]);
+            $balance = $stmtBalance->fetch();
 
-        // Prepare the response
-        $response = [
-            'balance' => $balance['CurrentBalance'] ?? 0,
-            'history' => $history ?: [] // Ensure history is an array
-        ];
+            $stmtHistory = $pdo->prepare("SELECT * FROM AccountsReceivableHistory WHERE CustomerID = ? ORDER BY TransactionDate DESC");
+            $stmtHistory->execute([$customerID]);
+            $history = $stmtHistory->fetchAll();
 
-        echo json_encode($response);
+            // Prepare the response
+            $response = [
+                'balance' => $balance['CurrentBalance'] ?? 0,
+                'history' => $history ?: [],
+                'customer' => $customer ?? 0
+            ];
+
+            echo json_encode($response);
+        } else {
+            echo json_encode(['error' => 'Customer not found']);
+        }
         return; // Exit after sending the response
     } else {
-        // If CustomerID is missing, return an error
-        error_log("Missing CustomerID");
-        echo json_encode(['error' => 'Missing CustomerID']);
+        echo json_encode(['error' => 'Missing CustomerName']);
         return; // Exit after sending the error response
     }
 }
-    
 
 
 
@@ -236,6 +247,119 @@ function login($pdo)
     }
 }
 
+function getInvoices($pdo)
+{
+    $stmt = $pdo->query("
+        SELECT i.InvoiceID, c.CustomerName, i.TotalAmount, i.InvoiceDate, i.PaymentStatus
+        FROM Invoices i
+        JOIN Customers c ON i.CustomerID = c.CustomerID
+        ORDER BY i.InvoiceDate DESC
+    ");
+    $invoices = $stmt->fetchAll();
+    
+    echo json_encode($invoices);
+}
+
+
+function getAgingReport($pdo)
+{
+    $stmt = $pdo->query("
+        SELECT c.CustomerName, SUM(i.TotalAmount) AS TotalDue,
+        DATEDIFF(CURDATE(), i.InvoiceDate) AS DaysOutstanding
+        FROM Invoices i
+        JOIN Customers c ON i.CustomerID = c.CustomerID
+        WHERE i.PaymentStatus = 'Unpaid'
+        GROUP BY c.CustomerName
+    ");
+    $agingReport = $stmt->fetchAll();
+
+    echo json_encode($agingReport);
+}
+
+
+function markInvoiceAsPaid($pdo)
+{
+    // Get the input data
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    // Validate the input
+    if (empty($input['InvoiceID'])) {
+        http_response_code(400); // Bad Request
+        echo json_encode(['error' => 'InvoiceID is required']);
+        return;
+    }
+
+    // Prepare the SQL statement
+    try {
+        $stmt = $pdo->prepare("UPDATE Invoices SET PaymentStatus = 'Paid' WHERE InvoiceID = ?");
+        $stmt->execute([$input['InvoiceID']]);
+        
+        // Check if any rows were affected
+        if ($stmt->rowCount() > 0) {
+            http_response_code(200); // OK
+            echo json_encode(['success' => 'Invoice marked as paid']);
+        } else {
+            http_response_code(404); // Not Found
+            echo json_encode(['error' => 'Failed to mark invoice as paid or Invoice not found']);
+        }
+    } catch (PDOException $e) {
+        // Handle any database errors
+        http_response_code(500); // Internal Server Error
+        echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+    }
+}
+
+
+function sendPaymentReminders($pdo)
+{
+    $stmt = $pdo->query("
+        SELECT c.Email, c.CustomerName, i.InvoiceID, i.TotalAmount 
+        FROM Invoices i
+        JOIN Customers c ON i.CustomerID = c.CustomerID
+        WHERE i.PaymentStatus = 'Unpaid' AND DATEDIFF(CURDATE(), i.InvoiceDate) > 30
+    ");
+    $reminders = $stmt->fetchAll();
+
+    foreach ($reminders as $reminder) {
+        // Implement email sending logic here using mail() or a mail library
+        error_log("Sending reminder to: " . $reminder['Email'] . " for InvoiceID: " . $reminder['InvoiceID']);
+    }
+
+    echo json_encode(['success' => 'Payment reminders sent']);
+}
+
+
+function addProduct($pdo)
+{
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    // Check if ProductID and Quantity are provided
+    if (empty($input['ProductID']) || empty($input['Quantity']) || empty($input['CustomerID'])) {
+        echo json_encode(['error' => 'ProductID, Quantity, and CustomerID are required']);
+        return;
+    }
+
+    try {
+        // Insert or update the product in the inventory
+        $stmtInventory = $pdo->prepare("INSERT INTO Inventory (ProductID, Quantity) VALUES (?, ?) ON DUPLICATE KEY UPDATE Quantity = Quantity + ?");
+        $stmtInventory->execute([$input['ProductID'], $input['Quantity'], $input['Quantity']]);
+
+        // Update Customer Balance
+        $stmtBalance = $pdo->prepare("UPDATE Balance SET CurrentBalance = CurrentBalance + ? WHERE CustomerID = ?");
+        $stmtBalance->execute([$input['Quantity'], $input['CustomerID']]);
+
+        // Record transaction in history
+        $stmtHistory = $pdo->prepare("INSERT INTO AccountsReceivableHistory (CustomerID, TransactionType, Amount, TransactionDate, Description) VALUES (?, ?, ?, NOW(), ?)");
+        $stmtHistory->execute([$input['CustomerID'], 'Borrow', $input['Quantity'], 'Product borrowed']);
+
+        echo json_encode(['success' => 'Product added successfully']);
+    } catch (Exception $e) {
+        echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+    }
+}
+
+
+
 // Main logic to handle different API actions
 if (isset($_GET['action'])) {
     $action = $_GET['action'];
@@ -248,9 +372,23 @@ if (isset($_GET['action'])) {
         viewBalance($pdo);
     } elseif ($action == 'get_transactions') {
         getTransactionsWithCustomerDetails($pdo);
+    } elseif ($action == 'get_customers') {
+        getCustomers($pdo);
+    } elseif ($_GET['action'] === 'get_products') {
+        getProducts($pdo);
     } elseif ($action == 'login') {
         login($pdo);
-    } else {
+    } elseif ($action == 'add_product') {
+        addProduct($pdo);
+    } elseif ($action == 'get_invoices') {
+        getInvoices($pdo);
+    } elseif ($action == 'mark_invoice_paid') {
+        markInvoiceAsPaid($pdo);
+    } elseif ($action == 'get_aging_report') {
+        getAgingReport($pdo);
+    } elseif ($action == 'send_payment_reminders') {
+        sendPaymentReminders($pdo);
+    }else {
         echo json_encode(['error' => 'Invalid action']);
     }
 } else {
