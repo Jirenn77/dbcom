@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import BackButton from '../components/BackButton'; // Adjust path as necessary
+import BackButton from '../components/BackButton';
 
 export default function ViewBalance() {
   const [customerName, setCustomerName] = useState('');
   const [balance, setBalance] = useState(null);
   const [history, setHistory] = useState([]);
-  const [customerInfo, setCustomerInfo] = useState(null); // State for customer info
-  const [customers, setCustomers] = useState([]); // State for customers
+  const [customerInfo, setCustomerInfo] = useState(null);
+  const [customers, setCustomers] = useState([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -17,9 +17,23 @@ export default function ViewBalance() {
     const fetchCustomers = async () => {
       try {
         const response = await axios.get('http://localhost/API/getBalance.php?action=get_customers');
-        setCustomers(response.data);
+
+        if (response.data.error) {
+          console.error('Error from API:', response.data.error);
+          setCustomers([]);
+          return;
+        }
+
+
+        if (Array.isArray(response.data)) {
+          setCustomers(response.data);
+        } else {
+          console.error('Expected an array but got:', response.data);
+          setCustomers([]);
+        }
       } catch (error) {
         console.error('Error fetching customers:', error);
+        setCustomers([]);
       }
     };
 
@@ -31,10 +45,10 @@ export default function ViewBalance() {
     setMessage('');
     setBalance(null);
     setHistory([]);
-    setCustomerInfo(null); // Reset customer info
+    setCustomerInfo(null);
     setLoading(true);
 
-    // Validate customerName
+
     if (!customerName) {
       setMessage('Please select a valid Customer Name');
       setLoading(false);
@@ -46,7 +60,6 @@ export default function ViewBalance() {
     try {
       const response = await axios.get(`http://localhost/API/getBalance.php?action=view_balance&CustomerName=${customerName}`);
       console.log('API Response:', response.data);
-
       if (response.data.error) {
         setMessage(response.data.error);
       } else {
@@ -63,10 +76,10 @@ export default function ViewBalance() {
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-900 text-white p-6">
+    <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white p-6">
       <div className="bg-gray-800 rounded-lg shadow-lg p-8 max-w-3xl w-full">
-        <h2 className="text-2xl font-bold mb-6 text-center">View Balance & History</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <h2 className="text-2xl font-bold mb-4 text-center">View Balance</h2>
+        <form onSubmit={handleSubmit} className="mb-6">
           <div>
             <label className="block mb-1" htmlFor="CustomerName">Customer Name</label>
             <select
@@ -100,43 +113,46 @@ export default function ViewBalance() {
           </div>
         )}
 
-        {balance !== null && (
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold">
-              Current Balance: ₱{balance !== undefined ? balance.toFixed(2) : '0.00'}
-            </h3>
-            <h4 className="text-md font-semibold mt-4">Transaction History:</h4>
-            {history.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full mt-2 bg-gray-700 rounded-lg">
-                  <thead>
-                    <tr>
-                      <th className="px-4 py-2">Transaction ID</th>
-                      <th className="px-4 py-2">Type</th>
-                      <th className="px-4 py-2">Amount</th>
-                      <th className="px-4 py-2">Date</th>
-                      <th className="px-4 py-2">Description</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {history.map((transaction) => (
-                      <tr key={transaction.TransactionID} className="border-b border-gray-600">
-                        <td className="px-4 py-2">{transaction.TransactionID}</td>
-                        <td className="px-4 py-2">{transaction.TransactionType}</td>
-                        <td className="px-4 py-2">₱{parseFloat(transaction.Amount).toFixed(2)}</td>
-                        <td className="px-4 py-2">{new Date(transaction.TransactionDate).toLocaleString()}</td>
-                        <td className="px-4 py-2">{transaction.Description}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="mt-2 text-center">No transaction history available.</p>
-            )}
-          </div>
-        )}
+        <div className="bg-gray-700 rounded-md p-4 mb-6">
+          <h3 className="text-lg font-semibold">Current Balance</h3>
+          <p className="text-xl">₱{balance !== null ? balance.toFixed(2) : '0.00'}</p>
+        </div>
 
+        <div className="bg-gray-700 rounded-md p-4 mb-6">
+          <h3 className="text-lg font-semibold">Transaction History</h3>
+          {history.length > 0 ? (
+            <div className="max-h-60 overflow-y-auto">
+              <table className="min-w-full mt-2 table-auto">
+                <thead>
+                  <tr>
+                    <th className="px-2 py-1 text-left">Transaction ID</th>
+                    <th className="px-2 py-1 text-left">Type</th>
+                    <th className="px-2 py-1 text-left">Product Name</th>
+                    <th className="px-2 py-1 text-left">Product Price</th>
+                    <th className="px-2 py-1 text-left">Quantity</th> {/* This will now display Quantity */}
+                    <th className="px-2 py-1 text-left">Date</th>
+                    <th className="px-2 py-1 text-left">Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((transaction) => (
+                    <tr key={transaction.TransactionID} className="border-b border-gray-600">
+                      <td className="px-2 py-1">{transaction.TransactionID}</td>
+                      <td className="px-2 py-1">{transaction.TransactionType}</td>
+                      <td className="px-2 py-1">{transaction.ProductName || 'N/A'}</td>
+                      <td className="px-2 py-1">₱{transaction.Price ? parseFloat(transaction.Price).toFixed(2) : 'N/A'}</td>
+                      <td className="px-2 py-1">{transaction.Quantity || 0}</td> {/* Displaying the Quantity here */}
+                      <td className="px-2 py-1">{new Date(transaction.TransactionDate).toLocaleString()}</td>
+                      <td className="px-2 py-1">{transaction.Description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p>No transaction history available.</p>
+          )}
+        </div>
         <div className="mt-6 text-center">
           <BackButton />
         </div>

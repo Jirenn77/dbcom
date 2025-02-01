@@ -25,7 +25,7 @@ export default function AddProduct() {
                 } else {
                     console.error('Invalid data format:', data);
                     setProducts([]); 
-                }
+                }   
             } catch (error) {
                 console.error('Error fetching products:', error);
             }

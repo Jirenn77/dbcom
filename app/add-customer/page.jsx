@@ -13,23 +13,37 @@ export default function AddCustomer() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost/API/getBalance.php?action=add_customer', formData, {
-        headers: { 'Content-Type': 'application/json' },
-      });
+        // First, check the customer's balance
+        const balanceResponse = await axios.post('http://localhost/API/getBalance.php?action=check_balance', {
+            CustomerName: formData.CustomerName,
+        }, {
+            headers: { 'Content-Type': 'application/json' },
+        });
 
-      setMessage(response.data.success || response.data.error);
-      setIsSuccess(response.data.success);
+        if (balanceResponse.data.canOwe === false) {
+            toast.error('This customer cannot owe money or products.');
+            return;
+        }
 
-      if (response.data.success) {
-        toast.success('Customer added successfully!');
-        setFormData({ CustomerName: '', Email: '', ContactDetails: '' });
-      }
+        // Proceed to add the customer
+        const response = await axios.post('http://localhost/API/getBalance.php?action=add_customer', formData, {
+            headers: { 'Content-Type': 'application/json' },
+        });
+
+        setMessage(response.data.success || response.data.error);
+        setIsSuccess(response.data.success);
+
+        if (response.data.success) {
+            toast.success('Customer added successfully!');
+            setFormData({ CustomerName: '', Email: '', ContactDetails: '' });
+        }
 
     } catch (error) {
-      setMessage('Error adding customer');
-      console.error('Error details:', error);
+        setMessage('Error adding customer');
+        console.error('Error details:', error);
     }
-  };
+};
+
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

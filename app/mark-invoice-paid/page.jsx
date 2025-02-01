@@ -6,38 +6,64 @@ import BackButton from '../components/BackButton';
 import { Toaster, toast } from 'sonner';
 
 export default function MarkInvoicePaid() {
-  const [invoices, setInvoices] = useState([]); // Initialize as an array
+  const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState('');
 
   useEffect(() => {
     const fetchInvoices = async () => {
       try {
-        const response = await axios.get('http://localhost/API/getBalance.php?action=get_invoices');
-
-        // Log the response to verify its structure
-        console.log("Invoices Response:", response.data);
-
-        // Check if the response data is an array
-        if (Array.isArray(response.data)) {
-          setInvoices(response.data);
-        } else {
-          toast.error('Unexpected response format. Expected an array of invoices.');
-        }
+          const response = await axios.get('http://localhost/API/getBalance.php?action=get_invoices');
+          console.log('Response data:', response.data); // Debugging line
+  
+          // If the response is an object (not an array), convert it to an array
+          const data = response.data;
+          const invoicesArray = Array.isArray(data) ? data : Object.values(data);
+  
+          if (Array.isArray(invoicesArray)) {
+              // Filter out paid invoices
+              const unpaidInvoices = invoicesArray.filter(invoice => invoice.PaymentStatus !== 'Paid');
+              setInvoices(unpaidInvoices);
+          } else {
+              toast.error('Unexpected response format. Expected an array of invoices.');
+          }
       } catch (error) {
-        toast.error('Error fetching invoices.');
+          console.error('Error details:', error); // Debugging line
+          toast.error('Error fetching invoices.');
       } finally {
-        setLoading(false);
+          setLoading(false);
       }
-    };
+  };
+    
 
     fetchInvoices();
   }, []);
 
   const handleMarkAsPaid = async (e) => {
     e.preventDefault();
-    // Handle the logic for marking the invoice as paid here
-    // For example, send a request to the backend to update the invoice status
+
+    if (!selectedInvoice) {
+      toast.error('Please select an invoice.');
+      return;
+    }
+
+    try {
+      const response = await axios.post('http://localhost/API/getBalance.php?action=mark_invoice_paid', {
+        InvoiceID: selectedInvoice,
+      });
+
+      if (response.data && response.data.success) {
+        toast.success('Invoice marked as paid successfully!');
+        // Remove the marked invoice from the state
+        setInvoices(invoices.filter(invoice => invoice.InvoiceID !== selectedInvoice));
+        setSelectedInvoice('');
+      } else {
+        toast.error(response.data.error || 'Failed to mark invoice as paid.');
+      }
+    } catch (error) {
+      console.error('Error details:', error.response ? error.response.data : error);
+      toast.error('Error marking invoice as paid. Please try again.');
+    }
   };
 
   return (
@@ -59,9 +85,9 @@ export default function MarkInvoicePaid() {
                 className="w-full p-2 rounded-md bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="" disabled>Select an invoice</option>
-                {Array.isArray(invoices) && invoices.map((invoice) => (
-                  <option key={invoice.id} value={invoice.id}>
-                    Invoice ID: {invoice.id} - {invoice.CustomerName}
+                {invoices.map((invoice) => (
+                  <option key={invoice.InvoiceID} value={invoice.InvoiceID}>
+                    Invoice ID: {invoice.InvoiceID} - {invoice.CustomerName}
                   </option>
                 ))}
               </select>

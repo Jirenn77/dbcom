@@ -18,10 +18,14 @@ export default function Login() {
                 email,
                 password,
             }));
-
-            if (res.data !== false) {
+        
+            if (res.data.role) {
                 toast.success('Login successful!');
-                router.push('/home'); 
+                if (res.data.role === 'admin') {
+                    router.push('/home'); // Route to admin dashboard
+                } else {
+                    router.push('/customer-home'); // Route to customer dashboard
+                }
             } else {
                 setError(res.data.error || 'Login failed');
                 toast.error('Login failed. Please try again.');
@@ -31,7 +35,7 @@ export default function Login() {
             setError('An error occurred. Please try again.');
             toast.error('An error occurred. Please try again.');
         }
-    };  
+    };      
 
     return (
         <div className="flex items-center justify-center h-screen bg-gray-900 text-white p-6">
@@ -67,6 +71,11 @@ export default function Login() {
                     <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 transition rounded-md py-2">
                         Login
                     </button>
+                    <div className="mt-4 text-center">
+                    <button onClick={() => router.push('/register')} className="text-blue-400 hover:underline">
+                        Need an account? Register
+                    </button>
+                </div>
                 </form>
             </div>
         </div>

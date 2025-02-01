@@ -26,12 +26,19 @@ export default function SendPaymentReminders() {
 
   const handleSendReminder = async (customerID) => {
     try {
-      await axios.post('http://localhost/API/getBalance.php?action=send_payment_reminder', { CustomerID: customerID });
-      toast.success('Payment reminder sent successfully!');
+        const response = await axios.post('http://localhost/API/getBalance.php?action=send_payment_reminders', {
+            CustomerID: customerID,
+        });
+        if (response.data.success) {
+            toast.success(response.data.success);
+        } else {
+            toast.error(response.data.error || 'Failed to send reminder. Please try again.');
+        }
     } catch (error) {
-      toast.error('Error sending payment reminder.');
+        toast.error('Error sending payment reminder: ' + (error.response?.data?.error || error.message));
     }
-  };
+};
+
 
   return (
     <div className="flex items-center justify-center h-screen bg-gray-900 text-white p-6">
