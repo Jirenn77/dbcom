@@ -1,82 +1,138 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation'; 
-import axios from 'axios';
-import { Toaster, toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
+import { Toaster, toast } from "sonner";
 
 export default function Login() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [captcha, setCaptcha] = useState("");
+    const [captchaQuestion, setCaptchaQuestion] = useState("");
+    const [correctCaptchaAnswer, setCorrectCaptchaAnswer] = useState(0);
+    const [error, setError] = useState("");
+    const [loginAttempts, setLoginAttempts] = useState(0);
+    const MAX_ATTEMPTS = 5;
     const router = useRouter();
 
-    const handleSubmit = async (e) => { 
+    useEffect(() => {
+        generateCaptcha();
+    }, []);
+
+    const generateCaptcha = () => {
+        let num1 = Math.floor(Math.random() * 10); 
+        let num2 = Math.floor(Math.random() * 10); 
+        setCorrectCaptchaAnswer(num1 + num2);
+        setCaptchaQuestion(`${num1} + ${num2} = ?`);
+    };
+
+    const sanitizeInput = (input) => {
+        return input.replace(/[<>/'";(){}]/g, "").trim();
+    };
+
+    const validateEmail = (email) => {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (loginAttempts >= MAX_ATTEMPTS) {
+            toast.error("Too many failed attempts. Please try again later.");
+            return;
+        }
+
+        let sanitizedEmail = sanitizeInput(email);
+        if (!validateEmail(sanitizedEmail)) {
+            toast.error("Invalid email format.");
+            return;
+        }
+
+        if (parseInt(captcha) !== correctCaptchaAnswer) {
+            toast.error("Incorrect CAPTCHA answer. Try again.");
+            generateCaptcha();
+            return;
+        }
+
         try {
-            const res = await axios.post('http://localhost/API/getBalance.php?action=login', new URLSearchParams({
-                email,
-                password,
-            }));
-        
+            const res = await axios.post(
+                "https://localhost/API/getBalance.php?action=login",
+                new URLSearchParams({ email: sanitizedEmail, password })
+            );
+
             if (res.data.role) {
-                toast.success('Login successful!');
-                if (res.data.role === 'admin') {
-                    router.push('/home'); // Route to admin dashboard
-                } else {
-                    router.push('/customer-home'); // Route to customer dashboard
-                }
+                toast.success("Login successful!");
+                localStorage.setItem("loginAttempts", 0);
+                router.push(res.data.role === "admin" ? "/home" : "/customer-home");
             } else {
-                setError(res.data.error || 'Login failed');
-                toast.error('Login failed. Please try again.');
+                setLoginAttempts(prev => {
+                    const newAttempts = prev + 1;
+                    localStorage.setItem("loginAttempts", newAttempts);
+                    return newAttempts;
+                });
+                toast.error("Login failed. Please try again.");
             }
         } catch (err) {
-            console.error(err);
-            setError('An error occurred. Please try again.');
-            toast.error('An error occurred. Please try again.');
+            toast.error("An error occurred. Please try again.");
         }
-    };      
+    };
 
     return (
-        <div className="flex items-center justify-center h-screen bg-gray-900 text-white p-6">
+        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-lime-200 via-lime-300 to-lime-400 p-6">
             <Toaster />
-            <div className="bg-gray-800 rounded-lg shadow-lg p-8 max-w-md w-full">
-                <h1 className="text-2xl font-bold mb-6 text-center">Login</h1>
-                {error && <p className="text-red-500 mb-4">{error}</p>}
+            <div className="bg-white bg-opacity-90 rounded-2xl shadow-lg p-10 max-w-md w-full">
+                <h1 className="text-3xl font-bold mb-6 text-center text-lime-600">Login</h1>
+                {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label className="block mb-2" htmlFor="email">Email</label>
                         <input
                             type="email"
-                            id="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full p-2 rounded-md bg-gray-700 border border-gray-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transform hover:scale-105 focus:scale-105"
-                            placeholder="Enter your email"
+                            className="w-full p-3 rounded-lg bg-lime-100 border border-lime-300 focus:ring-2 focus:ring-lime-500 placeholder-gray-600 text-gray-700"
+                            placeholder="Email"
                             required
                         />
                     </div>
                     <div className="mb-4">
-                        <label className="block mb-2" htmlFor="password">Password</label>
                         <input
                             type="password"
-                            id="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full p-2 rounded-md bg-gray-700 border border-gray-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transform hover:scale-105 focus:scale-105"
-                            placeholder="Enter your password"
+                            className="w-full p-3 rounded-lg bg-lime-100 border border-lime-300 focus:ring-2 focus:ring-lime-500 placeholder-gray-600 text-gray-700"
+                            placeholder="Password"
                             required
                         />
                     </div>
-                    <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 transition rounded-md py-2">
+                    <div className="mb-4">
+                        <label className="block text-gray-700 mb-2">{captchaQuestion}</label>
+                        <input
+                            type="text"
+                            value={captcha}
+                            onChange={(e) => setCaptcha(e.target.value)}
+                            className="w-full p-3 rounded-lg bg-lime-100 border border-lime-300 focus:ring-2 focus:ring-lime-500 placeholder-gray-600 text-gray-700"
+                            placeholder="Enter the answer"
+                            required
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        className="w-full py-3 bg-lime-600 hover:bg-lime-500 text-white rounded-lg font-bold transition-all text-sm"
+                    >
                         Login
                     </button>
-                    <div className="mt-4 text-center">
-                    <button onClick={() => router.push('/register')} className="text-blue-400 hover:underline">
-                        Need an account? Register
+                </form>
+                <div className="mt-4 text-center text-gray-600">
+                    Need an account?{" "}
+                    <button
+                        onClick={() => router.push("/register")}
+                        className="text-lime-600 hover:underline text-sm"
+                    >
+                        Sign up here
                     </button>
                 </div>
-                </form>
             </div>
         </div>
     );
