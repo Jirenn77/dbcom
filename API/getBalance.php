@@ -16,24 +16,18 @@ $user = 'root';
 $pass = '';
 $charset = 'utf8mb4';
 
+$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+$options = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES => false,
+];
 
-$pdo = connectDatabase($host, $db, $user, $pass, $charset);
-
-function connectDatabase($host, $db, $user, $pass, $charset)
-{
-    $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-    $options = [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ];
-
-    try {
-        return new PDO($dsn, $user, $pass, $options);
-    } catch (PDOException $e) {
-        echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
-        exit();
-    }
+try {
+    $pdo = new PDO($dsn, $user, $pass, $options);
+} catch (PDOException $e) {
+    echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
+    exit();
 }
 
 
@@ -420,47 +414,84 @@ function login($pdo) {
 }
 
 
-function register($pdo)
-{
-    error_log(print_r($_POST, true)); // Log incoming POST data
+function register() {
+    // Log the incoming request payload
+    $rawData = file_get_contents('php://input');
+    error_log("Raw request data: " . $rawData);
 
-    if (isset($_POST['email'], $_POST['password'], $_POST['role'])) {
-        $email = $_POST['email'];
-        $password = $_POST['password'];
-        $role = $_POST['role'];
+    $data = json_decode($rawData, true);
+
+    error_log("Decoded data: " . print_r($data, true));
+
+    if (!isset($data['email'], $data['password'], $data['role'], $data['captchaToken'])) {
+        echo json_encode(['error' => 'Missing parameters']);
+        return;
+    }
+
+    // Validate ReCAPTCHA
+    $captchaToken = $data['captchaToken'];
+    $secretKey = "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe"; // Replace with your actual secret key
+    $url = "https://www.google.com/recaptcha/api/siteverify?secret=$secretKey&response=$captchaToken";
+    $response = file_get_contents($url);
+    $responseKeys = json_decode($response, true);
+
+    if (intval($responseKeys["success"])) {
+        // ReCAPTCHA validation passed
+    } else {
+        echo json_encode(['error' => 'Invalid CAPTCHA']);
+        return;
+    }
+
+    // Sanitize inputs
+    $email = filter_var($data['email'], FILTER_SANITIZE_EMAIL);
+    $password = $data['password'];
+    $role = $data['role'];
+
+    // Validate email
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        echo json_encode(['error' => 'Invalid email format']);
+        return;
+    }
+
+    // Validate password
+    if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/', $password)) {
+        echo json_encode(['error' => 'Password must be at least 8 characters long, include uppercase, lowercase, a number, and a special character.']);
+        return;
+    }
+
+    // Hash password
+    $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
+
+    // Insert into database
+    try {
+        $host = 'localhost';
+        $db = 'dbcom';
+        $user = 'root';
+        $pass = '';
+        $charset = 'utf8mb4';
+
+        $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ];
+
+        $pdo = new PDO($dsn, $user, $pass, $options);
 
         if ($role === 'customer') {
             $stmt = $pdo->prepare("INSERT INTO users (email, password) VALUES (?, ?)");
-            $stmt->execute([$email, $password]); // Store plain text password
+            $stmt->execute([$email, $hashedPassword]);
             echo json_encode(['success' => 'Customer registered successfully']);
         } else {
             $stmt = $pdo->prepare("INSERT INTO admin (email, password, role) VALUES (?, ?, ?)");
-            $stmt->execute([$email, $password, $role]);
+            $stmt->execute([$email, $hashedPassword, $role]);
             echo json_encode(['success' => ucfirst($role) . ' registered successfully']);
         }
-    } else {
-        echo json_encode(['error' => 'Missing parameters']);
+    } catch (PDOException $e) {
+        echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
     }
 }
-
-
-function getAgingReport($pdo)
-{
-    $stmt = $pdo->query("
-        SELECT 
-            c.CustomerName,
-            SUM(CASE WHEN i.PaymentStatus = 'Unpaid' THEN i.TotalAmount ELSE 0 END) AS TotalAmountDue,
-            DATEDIFF(CURDATE(), MAX(i.InvoiceDate)) AS DaysOutstanding
-        FROM invoices i
-        JOIN customers c ON i.CustomerID = c.CustomerID
-        GROUP BY c.CustomerName
-    ");
-
-    $agingReport = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    echo json_encode($agingReport);
-}
-
 
 
 function markInvoiceAsPaid($pdo)
@@ -607,8 +638,6 @@ if (isset($_GET['action'])) {
         deleteInvoice($pdo, $GET['id']);
     } elseif ($action == 'mark_invoice_paid') {
         markInvoiceAsPaid($pdo);
-    } elseif ($action == 'get_aging_report') {
-        getAgingReport($pdo);
     } elseif ($action == 'send_payment_reminders') {
         sendPaymentReminders($pdo);
     } else {
