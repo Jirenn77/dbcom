@@ -13,9 +13,9 @@ import {
 } from "lucide-react";
 
 const mockServices = [
-  { id: 1, name: "Facial Treatment", duration: "60 mins", price: "₱800" },
-  { id: 2, name: "Microdermabrasion", duration: "45 mins", price: "₱1000" },
-  { id: 3, name: "Chemical Peel", duration: "30 mins", price: "₱790" },
+  { id: 1, name: "Facial Treatment", duration: "60 mins", price: "₱80" },
+  { id: 2, name: "Microdermabrasion", duration: "45 mins", price: "₱120" },
+  { id: 3, name: "Chemical Peel", duration: "30 mins", price: "₱90" },
 ];
 
 // Simulating backend data fetch
@@ -344,11 +344,11 @@ export default function ServiceOrderPage() {
             </Menu.Button>
             <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
               {[
-                { href: "/servicess", label: "All Services", icon: <Layers size={20} /> },
-                { href: "/membership", label: "Memberships", icon: <UserPlus size={20} /> },
-                { href: "/membership-report", label: "Membership Report", icon: <BarChart3 size={20} /> },
-                { href: "/items", label: "Beauty Deals", icon: <Tag size={20} /> },
-                { href: "/serviceorder", label: "Service Acquire", icon: <ClipboardList size={20} /> },
+                { href: "/servicess2", label: "All Services", icon: <Layers size={20} /> },
+                { href: "/membership2", label: "Memberships", icon: <UserPlus size={20} /> },
+                { href: "/membership-report2", label: "Membership Report", icon: <BarChart3 size={20} /> },
+                { href: "/items2", label: "Beauty Deals", icon: <Tag size={20} /> },
+                { href: "/serviceorder2", label: "Service Acquire", icon: <ClipboardList size={20} /> },
               ].map((link) => (
                 <Menu.Item key={link.href}>
                   {({ active }) => (
@@ -368,8 +368,8 @@ export default function ServiceOrderPage() {
             </Menu.Button>
             <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
               {[
-                { href: "/customers", label: "Customers", icon: <Users size={20} /> },
-                { href: "/invoices", label: "Invoices", icon: <FileText size={20} /> },
+                { href: "/customers2", label: "Customers", icon: <Users size={20} /> },
+                { href: "/invoices2", label: "Invoices", icon: <FileText size={20} /> },
               ].map((link) => (
                 <Menu.Item key={link.href}>
                   {({ active }) => (

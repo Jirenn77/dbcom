@@ -1,13 +1,10 @@
 "use client";
 
-import React from "react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu } from "@headlessui/react";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 import {
   BarChart, Home, Users, FileText, CreditCard, Package, Layers, ShoppingCart,
   Settings, LogOut, Plus, User, UserPlus, Tag, Factory, ClipboardList, Folder, ShoppingBag, BarChart3
@@ -24,7 +21,6 @@ export default function InvoicesPage() {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(null);
 
   useEffect(() => {
     const fetchInvoices = async () => {
@@ -137,48 +133,27 @@ export default function InvoicesPage() {
     window.location.href = "/";
   };
 
-  const filterInvoicesByCustomDate = (date) => {
-    setSelectedDate(date);
-
-    if (!date) {
-      setFilteredInvoices(invoices); // Reset
-      return;
-    }
-
-    const filtered = invoices.filter((invoice) => {
-      const invoiceDate = new Date(invoice.dateIssued);
-      return (
-        invoiceDate.toDateString() === new Date(date).toDateString()
-      );
-    });
-
-    setFilteredInvoices(filtered);
-    toast.success(`Showing invoices on ${date.toDateString()}`);
-  };
-
   const filterInvoicesByPeriod = (period) => {
-    const now = new Date();
+    const today = new Date();
     let filtered = [...invoices]; // Start with a copy of all invoices
 
     if (period === 'week') {
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday of this week
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday of this week
       filtered = invoices.filter(invoice => {
         const invoiceDate = new Date(invoice.dateIssued);
         return invoiceDate >= startOfWeek;
       });
     }
-
-
     else if (period === 'month') {
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       filtered = invoices.filter(invoice => {
         const invoiceDate = new Date(invoice.dateIssued);
         return invoiceDate >= startOfMonth;
       });
     }
     else if (period === 'year') {
-      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      const startOfYear = new Date(today.getFullYear(), 0, 1);
       filtered = invoices.filter(invoice => {
         const invoiceDate = new Date(invoice.dateIssued);
         return invoiceDate >= startOfYear;
@@ -270,11 +245,11 @@ export default function InvoicesPage() {
             </Menu.Button>
             <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
               {[
-                { href: "/servicess", label: "All Services", icon: <Layers size={20} /> },
-                { href: "/membership", label: "Memberships", icon: <UserPlus size={20} /> },
-                { href: "/membership-report", label: "Membership Report", icon: <BarChart3 size={20} /> },
-                { href: "/items", label: "Beauty Deals", icon: <Tag size={20} /> },
-                { href: "/serviceorder", label: "Service Acquire", icon: <ClipboardList size={20} /> },
+                { href: "/servicess2", label: "All Services", icon: <Layers size={20} /> },
+                { href: "/membership2", label: "Memberships", icon: <UserPlus size={20} /> },
+                { href: "/membership-report2", label: "Membership Report", icon: <BarChart3 size={20} /> },
+                { href: "/items2", label: "Beauty Deals", icon: <Tag size={20} /> },
+                { href: "/serviceorder2", label: "Service Acquire", icon: <ClipboardList size={20} /> },
               ].map((link) => (
                 <Menu.Item key={link.href}>
                   {({ active }) => (
@@ -294,8 +269,8 @@ export default function InvoicesPage() {
             </Menu.Button>
             <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
               {[
-                { href: "/customers", label: "Customers", icon: <Users size={20} /> },
-                { href: "/invoices", label: "Invoices", icon: <FileText size={20} /> },
+                { href: "/customers2", label: "Customers", icon: <Users size={20} /> },
+                { href: "/invoices2", label: "Invoices", icon: <FileText size={20} /> },
               ].map((link) => (
                 <Menu.Item key={link.href}>
                   {({ active }) => (
@@ -344,13 +319,6 @@ export default function InvoicesPage() {
               >
                 <span>This Year</span>
               </motion.button>
-              <DatePicker
-                selected={selectedDate}
-                onChange={(date) => filterInvoicesByCustomDate(date)}
-                placeholderText="Pick a date"
-                className="border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                dateFormat="MMM d, yyyy"
-              />
             </div>
           </motion.div>
 
@@ -394,7 +362,6 @@ export default function InvoicesPage() {
                 Retry
               </button>
             </div>
-
           ) : (
             <div className="flex">
               {/* Invoice List */}

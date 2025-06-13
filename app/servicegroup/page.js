@@ -5,9 +5,9 @@ import { useState, useEffect } from "react";
 import { Toaster, toast } from "sonner";
 import { Menu } from "@headlessui/react";
 import { EllipsisVerticalIcon } from "@heroicons/react/24/solid";
-import { BarChart, Pencil, Trash2, ArrowLeft } from "lucide-react";
-import { Folder, ClipboardList, Factory, ShoppingBag } from "lucide-react";
-import { Home, Users, FileText, CreditCard, Package, Layers, ShoppingCart, Settings, LogOut, Plus } from "lucide-react";
+import { BarChart, Pencil, Trash2, ArrowLeft, BarChart3 } from "lucide-react";
+import { Folder, ClipboardList, Factory, ShoppingBag, Tag } from "lucide-react";
+import { Home, Users, FileText, CreditCard, Package, Layers, ShoppingCart, Settings, LogOut, UserPlus } from "lucide-react";
 
 const navLinks = [
     { href: "/servicess", label: "Services", icon: "💆‍♀️" },
@@ -206,32 +206,32 @@ export default function ServiceGroupsPage() {
                     />
                     <button
                         onClick={handleSearch}
-                        className="px-3 py-1.5 bg-[#5BBF5B] rounded-lg hover:bg-[#4CAF4C] text-gray-800 text-md"
+                        className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-md"
                     >
                         Search
                     </button>
                 </div>
 
                 <div className="flex items-center space-x-4 relative">
-                    <div 
+                    <div
                         className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg font-bold cursor-pointer"
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
                     >
                         A
                     </div>
                     {isProfileOpen && (
-                        <div className="bg-[#6CAE5E] absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
+                        <div className="bg-green-500 absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
                             <Link href="/acc-settings">
-                            <button className="flex items-center gap-2 px-4 py-2 hover:bg-[#467750] rounded w-full justify-start">
-                                <Users size={16} /> Edit Profile
-                            </button>
+                                <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
+                                    <User size={16} /> Edit Profile
+                                </button>
                             </Link>
                             <Link href="/settings">
-                                <button className="flex items-center gap-2 px-4 py-2 hover:bg-[#467750] rounded w-full justify-start">
+                                <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
                                     <Settings size={16} /> Settings
                                 </button>
                             </Link>
-                            <button className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-700 text-white rounded justify-start" onClick={handleLogout}>
+                            <button className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded justify-start" onClick={handleLogout}>
                                 <LogOut size={16} /> Logout
                             </button>
                         </div>
@@ -260,13 +260,15 @@ export default function ServiceGroupsPage() {
 
                     <Menu as="div" className="relative w-full px-4 mt-4">
                         <Menu.Button className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center">
-                            <ShoppingCart className="mr-2" size={20} /> POS ▾
+                            <Layers className="mr-2" size={20} /> Services ▾
                         </Menu.Button>
                         <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
                             {[
-                                { href: "/servicess", label: "Services", icon: <Layers size={20} /> },
-                                { href: "/price-list", label: "Price List", icon: <FileText size={20} /> },
-                                { href: "/service-groups", label: "Service Groups", icon: <Package size={20} /> },
+                                { href: "/servicess", label: "All Services", icon: <Layers size={20} /> },
+                                { href: "/membership", label: "Memberships", icon: <UserPlus size={20} /> }, // or <Users />
+                                { href: "/items", label: "Beauty Deals", icon: <Tag size={20} /> },
+                                { href: "/serviceorder", label: "Service Orders", icon: <ClipboardList size={20} /> },
+                                { href: "/servicegroup", label: "Service Groups", icon: <Folder size={20} /> }, // or <Layers />
                             ].map((link) => (
                                 <Menu.Item key={link.href}>
                                     {({ active }) => (
@@ -288,32 +290,6 @@ export default function ServiceGroupsPage() {
                             {[
                                 { href: "/customers", label: "Customers", icon: <Users size={20} /> },
                                 { href: "/invoices", label: "Invoices", icon: <FileText size={20} /> },
-                                { href: "/payments", label: "Payments", icon: <CreditCard size={20} /> },
-                            ].map((link) => (
-                                <Menu.Item key={link.href}>
-                                    {({ active }) => (
-                                        <Link href={link.href} className={`flex items-center space-x-4 p-3 rounded-lg ${active ? 'bg-[#2A3F3F] text-white' : ''}`}>
-                                            {link.icon}
-                                            <span className="font-normal md:font-bold">{link.label}</span>
-                                        </Link>
-                                    )}
-                                </Menu.Item>
-                            ))}
-                        </Menu.Items>
-                    </Menu>
-
-                    {/* Inventory Menu */}
-                    <Menu as="div" className="relative w-full px-4 mt-4">
-                        <Menu.Button className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center">
-                            <Package className="mr-2" size={20} /> Inventory ▾
-                        </Menu.Button>
-                        <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
-                            {[
-                                { href: "/products", label: "Products", icon: <Package size={20} /> },
-                                { href: "/categories", label: "Product Category", icon: <Folder size={20} /> },
-                                { href: "/stocks", label: "Stock Levels", icon: <ClipboardList size={20} /> },
-                                { href: "/suppliers", label: "Supplier Management", icon: <Factory size={20} /> },
-                                { href: "/purchase", label: "Purchase Order", icon: <ShoppingBag size={20} /> },
                             ].map((link) => (
                                 <Menu.Item key={link.href}>
                                     {({ active }) => (
@@ -327,111 +303,112 @@ export default function ServiceGroupsPage() {
                         </Menu.Items>
                     </Menu>
                 </nav>
-                {/* Main Content */}
-            <main className="flex-1 p-6 bg-white text-gray-900 ml-64">
-                {/* Header section */}
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold">All Services Groups</h2>
-                    <div className="flex space-x-2">
-                        <button
-                            className="px-4 py-2 bg-[#5BBF5B] text-white rounded-lg hover:bg-[#56AE57]"
-                            onClick={handleAddGroup}
-                        >
-                            New Group List
-                        </button>
-                        <button className="px-4 py-2 bg-gray-300 rounded-lg">
-                            <EllipsisVerticalIcon className="w-5 h-5" />
-                        </button>
-                    </div>
-                </div>
 
-                {/* Service Groups Table */}
-                <div className="p-6 bg-white rounded-lg shadow-lg border border-gray-400">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-gray-300">
-                                <th className="py-2 px-4 font-medium">Name and Description</th>
-                                <th className="py-2 px-4 font-medium">Number of Services</th>
-                                <th className="py-2 px-4 font-medium">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {groups.map((group, index) => (
-                                <tr key={index} className="border-b border-gray-300">
-                                    <td className="py-2 px-4">
-                                        {editingGroupIndex === index ? (
-                                            <input
-                                                type="text"
-                                                name="name"
-                                                value={editedGroup.name}
-                                                onChange={handleEditChange}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2"
-                                            />
-                                        ) : (
-                                            <h3 className="font-semibold">{group.name}</h3>
-                                        )}
-                                        {editingGroupIndex === index ? (
-                                            <textarea
-                                                name="description"
-                                                value={editedGroup.description}
-                                                onChange={handleEditChange}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                            />
-                                        ) : (
-                                            <p className="text-sm text-gray-600">{group.description}</p>
-                                        )}
-                                    </td>
-                                    <td className="py-2 px-4">
-                                        {editingGroupIndex === index ? (
-                                            <input
-                                                type="text"
-                                                name="services"
-                                                value={editedGroup.services}
-                                                onChange={handleEditChange}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                            />
-                                        ) : (
-                                            group.services
-                                        )}
-                                    </td>
-                                    <td className="py-2 px-4">
-                                        {editingGroupIndex === index ? (
-                                            <div className="flex space-x-2">
-                                                <button
-                                                    onClick={() => handleSaveEdit(index)}
-                                                    className="p-2 text-white bg-green-500 rounded-lg hover:bg-green-600"
-                                                >
-                                                    <Pencil className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={handleCancelEdit}
-                                                    className="p-2 text-white bg-gray-500 rounded-lg hover:bg-gray-600"
-                                                >
-                                                    <ArrowLeft className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex space-x-2">
-                                                <button
-                                                    onClick={() => handleEditClick(index)}
-                                                    className="p-2 text-white bg-blue-500 rounded-lg hover:bg-blue-600"
-                                                >
-                                                    <Pencil className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteGroup(index)}
-                                                    className="p-2 text-white bg-red-500 rounded-lg hover:bg-red-600"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </td>
+                {/* Main Content */}
+                <main className="flex-1 p-6 bg-white text-gray-900 ml-64">
+                    {/* Header section */}
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold">All Services Groups</h2>
+                        <div className="flex space-x-2">
+                            <button
+                                className="px-4 py-2 bg-[#5BBF5B] text-white rounded-lg hover:bg-[#56AE57]"
+                                onClick={handleAddGroup}
+                            >
+                                New Group List
+                            </button>
+                            <button className="px-4 py-2 bg-gray-300 rounded-lg">
+                                <EllipsisVerticalIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Service Groups Table */}
+                    <div className="p-6 bg-white rounded-lg shadow-lg border border-gray-400">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-gray-300">
+                                    <th className="py-2 px-4 font-medium">Name and Description</th>
+                                    <th className="py-2 px-4 font-medium">Number of Services</th>
+                                    <th className="py-2 px-4 font-medium">Actions</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                                {groups.map((group, index) => (
+                                    <tr key={index} className="border-b border-gray-300">
+                                        <td className="py-2 px-4">
+                                            {editingGroupIndex === index ? (
+                                                <input
+                                                    type="text"
+                                                    name="name"
+                                                    value={editedGroup.name}
+                                                    onChange={handleEditChange}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2"
+                                                />
+                                            ) : (
+                                                <h3 className="font-semibold">{group.name}</h3>
+                                            )}
+                                            {editingGroupIndex === index ? (
+                                                <textarea
+                                                    name="description"
+                                                    value={editedGroup.description}
+                                                    onChange={handleEditChange}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                                />
+                                            ) : (
+                                                <p className="text-sm text-gray-600">{group.description}</p>
+                                            )}
+                                        </td>
+                                        <td className="py-2 px-4">
+                                            {editingGroupIndex === index ? (
+                                                <input
+                                                    type="text"
+                                                    name="services"
+                                                    value={editedGroup.services}
+                                                    onChange={handleEditChange}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                                />
+                                            ) : (
+                                                group.services
+                                            )}
+                                        </td>
+                                        <td className="py-2 px-4">
+                                            {editingGroupIndex === index ? (
+                                                <div className="flex space-x-2">
+                                                    <button
+                                                        onClick={() => handleSaveEdit(index)}
+                                                        className="p-2 text-white bg-green-500 rounded-lg hover:bg-green-600"
+                                                    >
+                                                        <Pencil className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={handleCancelEdit}
+                                                        className="p-2 text-white bg-gray-500 rounded-lg hover:bg-gray-600"
+                                                    >
+                                                        <ArrowLeft className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex space-x-2">
+                                                    <button
+                                                        onClick={() => handleEditClick(index)}
+                                                        className="p-2 text-white bg-blue-500 rounded-lg hover:bg-blue-600"
+                                                    >
+                                                        <Pencil className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteGroup(index)}
+                                                        className="p-2 text-white bg-red-500 rounded-lg hover:bg-red-600"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
 
                     {/* Edit Group Modal */}
                     {isModalOpen && (

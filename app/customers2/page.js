@@ -251,7 +251,7 @@ export default function CustomersPage() {
             className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg font-bold cursor-pointer"
             onClick={() => setIsProfileOpen(!isProfileOpen)}
           >
-            A
+            R
           </div>
           {isProfileOpen && (
             <div className="bg-green-500 absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
@@ -284,7 +284,7 @@ export default function CustomersPage() {
 
           {/* Home Menu Button */}
           <Menu as="div" className="relative w-full px-4 mt-4">
-            <Link href="/home" passHref>
+            <Link href="/home2" passHref>
               <Menu.Button as="div" className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center cursor-pointer">
                 <Home className="text-2xl"></Home>
                 <span className="ml-2">Dashboard</span>
@@ -298,11 +298,11 @@ export default function CustomersPage() {
             </Menu.Button>
             <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
               {[
-                { href: "/servicess", label: "All Services", icon: <Layers size={20} /> },
-                { href: "/membership", label: "Memberships", icon: <UserPlus size={20} /> },
-                { href: "/membership-report", label: "Membership Report", icon: <BarChart3 size={20} /> },
-                { href: "/items", label: "Beauty Deals", icon: <Tag size={20} /> },
-                { href: "/serviceorder", label: "Service Acquire", icon: <ClipboardList size={20} /> },
+                { href: "/servicess2", label: "All Services", icon: <Layers size={20} /> },
+                { href: "/membership2", label: "Memberships", icon: <UserPlus size={20} /> },
+                { href: "/membership-report2", label: "Membership Report", icon: <BarChart3 size={20} /> },
+                { href: "/items2", label: "Beauty Deals", icon: <Tag size={20} /> },
+                { href: "/serviceorder2", label: "Service Acquire", icon: <ClipboardList size={20} /> },
               ].map((link) => (
                 <Menu.Item key={link.href}>
                   {({ active }) => (
@@ -322,8 +322,8 @@ export default function CustomersPage() {
             </Menu.Button>
             <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
               {[
-                { href: "/customers", label: "Customers", icon: <Users size={20} /> },
-                { href: "/invoices", label: "Invoices", icon: <FileText size={20} /> },
+                { href: "/customers2", label: "Customers", icon: <Users size={20} /> },
+                { href: "/invoices2", label: "Invoices", icon: <FileText size={20} /> },
               ].map((link) => (
                 <Menu.Item key={link.href}>
                   {({ active }) => (
@@ -481,7 +481,7 @@ export default function CustomersPage() {
                           {/* Actions Column */}
                           <td className="px-4 py-3 text-sm text-gray-500">
                             <div className="flex space-x-2">
-                              {customer.membership_status === "None" ? (
+                              {/* {customer.membership_status === "None" ? (
                                 <motion.button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -505,8 +505,8 @@ export default function CustomersPage() {
                                 >
                                   <RefreshCw size={16} />
                                 </motion.button>
-                              )}
-                              <motion.button
+                              )} */}
+                              {/* <motion.button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   // Edit functionality
@@ -516,7 +516,7 @@ export default function CustomersPage() {
                                 whileTap={{ scale: 0.9 }}
                               >
                                 <Edit size={16} />
-                              </motion.button>
+                              </motion.button> */}
                               <motion.button
                                 onClick={() => setSelectedCustomer(customer)}
                                 className="text-gray-600 hover:text-gray-800"
@@ -610,7 +610,7 @@ export default function CustomersPage() {
                           </div>
                         )}
                       </motion.div>
-                      <div className="mt-2">
+                      {/* <div className="mt-2">
                         {selectedCustomer.membership === "None" ? (
                           <motion.button
                             onClick={() => handleAddMembershipClick(selectedCustomer)}
@@ -630,7 +630,7 @@ export default function CustomersPage() {
                             Renew Membership
                           </motion.button>
                         )}
-                      </div>
+                      </div> */}
                     </div>
 
                     {/* Recent Transactions */}

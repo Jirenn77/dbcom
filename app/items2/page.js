@@ -1,22 +1,40 @@
 "use client";
 
-import { useRouter, } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu } from "@headlessui/react";
-import { BarChart } from "lucide-react";
+import { BarChart, BarChart3 } from "lucide-react";
 import { Folder, ClipboardList, Factory, ShoppingBag, Tag } from "lucide-react";
 import { Home, Users, FileText, CreditCard, Package, Layers, ShoppingCart, Settings, LogOut, UserPlus } from "lucide-react";
 
 export default function BeautyDeals() {
     const router = useRouter();
-    const [deals, setDeals] = useState([]);
-    const [discounts, setDiscounts] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
-    
+    const [deals, setDeals] = useState([
+        {
+            type: "Membership",
+            name: "Facial Spa + Footspa",
+            description: "Bundled Promo",
+            validFrom: "01/10/25",
+            validTo: "01/25/25",
+            status: "active"
+        },
+        {
+            type: "Beauty Deals",
+            name: "Hair Rebond + Haircut",
+            description: "Bundled Promo for 1000 only",
+            validFrom: "01/10/25",
+            validTo: "01/25/25",
+            status: "active"
+        }
+    ]);
+    const [discounts, setDiscounts] = useState([
+        { name: "Holloween Discount", description: "Input customers", status: "active" },
+        { name: "Holiday Discount", description: "10% off", status: "active" },
+        // { name: "Granel", description: "Calendar", status: "active" }
+    ]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedDeal, setSelectedDeal] = useState(null);
@@ -34,28 +52,7 @@ export default function BeautyDeals() {
         value: "",
         status: "active"
     });
-
-    // Fetch data from backend
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const response = await fetch('http://localhost/API/getPromosAndDiscounts.php');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const data = await response.json();
-                setDeals(data.promos);
-                setDiscounts(data.discounts);
-            } catch (error) {
-                setError(error.message);
-                toast.error('Failed to fetch data: ' + error.message);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        
-        fetchData();
-    }, []);
+    const [activeSection, setActiveSection] = useState("promo");
 
     const handleAddItem = (type) => {
         setNewItem({
@@ -72,39 +69,29 @@ export default function BeautyDeals() {
         setIsAddModalOpen(true);
     };
 
-    const handleAddItemSubmit = async (e) => {
+    const handleAddItemSubmit = (e) => {
         e.preventDefault();
-        try {
-            if (newItem.type === "promo") {
-                // Here you would send a POST request to your backend
-                // For now, we'll simulate it by updating the state
-                const newDeal = {
-                    type: newItem.promoType,
-                    name: newItem.name,
-                    description: newItem.description,
-                    validFrom: newItem.validFrom,
-                    validTo: newItem.validTo,
-                    status: newItem.status
-                };
-                
-                setDeals(prev => [...prev, newDeal]);
-                toast.success("Promo added successfully!");
-            } else {
-                const newDiscount = {
-                    name: newItem.name,
-                    description: newItem.description,
-                    discountType: newItem.discountType,
-                    value: newItem.value,
-                    status: newItem.status
-                };
-                
-                setDiscounts(prev => [...prev, newDiscount]);
-                toast.success("Discount added successfully!");
-            }
-            setIsAddModalOpen(false);
-        } catch (error) {
-            toast.error('Failed to add item: ' + error.message);
+        if (newItem.type === "promo") {
+            setDeals(prev => [...prev, {
+                type: newItem.promoType,
+                name: newItem.name,
+                description: newItem.description,
+                validFrom: newItem.validFrom,
+                validTo: newItem.validTo,
+                status: newItem.status
+            }]);
+            toast.success("Promo added successfully!");
+        } else {
+            setDiscounts(prev => [...prev, {
+                name: newItem.name,
+                description: newItem.description,
+                discountType: newItem.discountType,
+                value: newItem.value,
+                status: newItem.status
+            }]);
+            toast.success("Discount added successfully!");
         }
+        setIsAddModalOpen(false);
     };
 
     const handleEditDeal = (index) => {
@@ -117,93 +104,65 @@ export default function BeautyDeals() {
         setIsEditModalOpen(true);
     };
 
-    const handleSaveEdit = async () => {
-        try {
-            if (selectedDeal) {
-                // Here you would send a PUT request to your backend
-                setDeals(prev => {
-                    const updated = [...prev];
-                    updated[selectedDeal.index] = {
-                        type: selectedDeal.type,
-                        name: selectedDeal.name,
-                        description: selectedDeal.description,
-                        validFrom: selectedDeal.validFrom,
-                        validTo: selectedDeal.validTo,
-                        status: selectedDeal.status
-                    };
-                    return updated;
-                });
-                toast.success("Deal updated successfully!");
-            } else if (selectedDiscount) {
-                setDiscounts(prev => {
-                    const updated = [...prev];
-                    updated[selectedDiscount.index] = {
-                        name: selectedDiscount.name,
-                        description: selectedDiscount.description,
-                        discountType: selectedDiscount.discountType,
-                        value: selectedDiscount.value,
-                        status: selectedDiscount.status
-                    };
-                    return updated;
-                });
-                toast.success("Discount updated successfully!");
-            }
-            setIsEditModalOpen(false);
-        } catch (error) {
-            toast.error('Failed to update: ' + error.message);
+    const handleSaveEdit = () => {
+        if (selectedDeal) {
+            setDeals(prev => {
+                const updated = [...prev];
+                updated[selectedDeal.index] = {
+                    type: selectedDeal.type,
+                    name: selectedDeal.name,
+                    description: selectedDeal.description,
+                    validFrom: selectedDeal.validFrom,
+                    validTo: selectedDeal.validTo,
+                    status: selectedDeal.status
+                };
+                return updated;
+            });
+            toast.success("Deal updated successfully!");
+        } else if (selectedDiscount) {
+            setDiscounts(prev => {
+                const updated = [...prev];
+                updated[selectedDiscount.index] = {
+                    name: selectedDiscount.name,
+                    description: selectedDiscount.description,
+                    discountType: selectedDiscount.discountType,
+                    value: selectedDiscount.value,
+                    status: selectedDiscount.status
+                };
+                return updated;
+            });
+            toast.success("Discount updated successfully!");
         }
+        setIsEditModalOpen(false);
     };
 
-    const handleDeleteDeal = async (index) => {
-        try {
-            // Here you would send a DELETE request to your backend
-            setDeals(prev => prev.filter((_, i) => i !== index));
-            toast.success("Deal deleted successfully!");
-        } catch (error) {
-            toast.error('Failed to delete deal: ' + error.message);
-        }
+    const handleDeleteDeal = (index) => {
+        setDeals(prev => prev.filter((_, i) => i !== index));
+        toast.success("Deal deleted successfully!");
     };
 
-    const handleDeleteDiscount = async (index) => {
-        try {
-            // Here you would send a DELETE request to your backend
-            setDiscounts(prev => prev.filter((_, i) => i !== index));
-            toast.success("Discount deleted successfully!");
-        } catch (error) {
-            toast.error('Failed to delete discount: ' + error.message);
-        }
+    const handleDeleteDiscount = (index) => {
+        setDiscounts(prev => prev.filter((_, i) => i !== index));
+        toast.success("Discount deleted successfully!");
     };
 
-    const handleToggleStatus = async (index, isDeal) => {
-        try {
-            if (isDeal) {
-                // Here you would send a PATCH request to your backend
-                setDeals(prev => {
-                    const updated = [...prev];
-                    updated[index].status = updated[index].status === "active" ? "inactive" : "active";
-                    return updated;
-                });
-                toast.success(`Deal marked as ${deals[index].status === "active" ? "inactive" : "active"}`);
-            } else {
-                setDiscounts(prev => {
-                    const updated = [...prev];
-                    updated[index].status = updated[index].status === "active" ? "inactive" : "active";
-                    return updated;
-                });
-                toast.success(`Discount marked as ${discounts[index].status === "active" ? "inactive" : "active"}`);
-            }
-        } catch (error) {
-            toast.error('Failed to update status: ' + error.message);
+    const handleToggleStatus = (index, isDeal) => {
+        if (isDeal) {
+            setDeals(prev => {
+                const updated = [...prev];
+                updated[index].status = updated[index].status === "active" ? "inactive" : "active";
+                return updated;
+            });
+            toast.success(`Deal marked as ${deals[index].status === "active" ? "inactive" : "active"}`);
+        } else {
+            setDiscounts(prev => {
+                const updated = [...prev];
+                updated[index].status = updated[index].status === "active" ? "inactive" : "active";
+                return updated;
+            });
+            toast.success(`Discount marked as ${discounts[index].status === "active" ? "inactive" : "active"}`);
         }
     };
-
-    if (isLoading) {
-        return (
-            <main className="flex-1 p-6 bg-white text-gray-900 ml-64 flex items-center justify-center">
-                <div>Loading...</div>
-            </main>
-        );
-    }
 
     const handleSearch = () => {
         toast.success(`Searching for "${searchQuery}"...`);
@@ -249,7 +208,7 @@ export default function BeautyDeals() {
                         className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg font-bold cursor-pointer"
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
                     >
-                        A
+                        R
                     </div>
                     {isProfileOpen && (
                         <div className="bg-green-500 absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
@@ -282,7 +241,7 @@ export default function BeautyDeals() {
 
                     {/* Home Menu Button */}
                     <Menu as="div" className="relative w-full px-4 mt-4">
-                        <Link href="/home" passHref>
+                        <Link href="/home2" passHref>
                             <Menu.Button as="div" className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center cursor-pointer">
                                 <Home className="text-2xl"></Home>
                                 <span className="ml-2">Dashboard</span>
@@ -296,11 +255,11 @@ export default function BeautyDeals() {
                         </Menu.Button>
                         <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
                             {[
-                                { href: "/servicess", label: "All Services", icon: <Layers size={20} /> },
-                                { href: "/membership", label: "Memberships", icon: <UserPlus size={20} /> }, // or <Users />
-                                { href: "/items", label: "Beauty Deals", icon: <Tag size={20} /> },
-                                { href: "/serviceorder", label: "Service Acquire", icon: <ClipboardList size={20} /> },
-                                // { href: "/servicegroup", label: "Service Groups", icon: <Folder size={20} /> }, // or <Layers />
+                                { href: "/servicess2", label: "All Services", icon: <Layers size={20} /> },
+                                { href: "/membership2", label: "Memberships", icon: <UserPlus size={20} /> },
+                                { href: "/membership-report2", label: "Membership Report", icon: <BarChart3 size={20} /> },
+                                { href: "/items2", label: "Beauty Deals", icon: <Tag size={20} /> },
+                                { href: "/serviceorder2", label: "Service Acquire", icon: <ClipboardList size={20} /> },
                             ].map((link) => (
                                 <Menu.Item key={link.href}>
                                     {({ active }) => (
@@ -320,8 +279,8 @@ export default function BeautyDeals() {
                         </Menu.Button>
                         <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
                             {[
-                                { href: "/customers", label: "Customers", icon: <Users size={20} /> },
-                                { href: "/invoices", label: "Invoices", icon: <FileText size={20} /> },
+                                { href: "/customers2", label: "Customers", icon: <Users size={20} /> },
+                                { href: "/invoices2", label: "Invoices", icon: <FileText size={20} /> },
                             ].map((link) => (
                                 <Menu.Item key={link.href}>
                                     {({ active }) => (
@@ -337,7 +296,7 @@ export default function BeautyDeals() {
                 </nav>
 
                 {/* Main Content */}
-<main className="flex-1 p-6 bg-white text-gray-900 ml-64">
+                <main className="flex-1 p-6 bg-white text-gray-900 ml-64">
                     <motion.div
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}

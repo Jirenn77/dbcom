@@ -210,7 +210,7 @@ export default function ServiceGroupsPage() {
             className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg font-bold cursor-pointer"
             onClick={() => setIsProfileOpen(!isProfileOpen)}
           >
-            A
+            R
           </div>
           {isProfileOpen && (
             <div className="bg-green-500 absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
@@ -243,7 +243,7 @@ export default function ServiceGroupsPage() {
 
           {/* Home Menu Button */}
           <Menu as="div" className="relative w-full px-4 mt-4">
-            <Link href="/home" passHref>
+            <Link href="/home2" passHref>
               <Menu.Button as="div" className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center cursor-pointer">
                 <Home className="text-2xl"></Home>
                 <span className="ml-2">Dashboard</span>
@@ -257,11 +257,11 @@ export default function ServiceGroupsPage() {
             </Menu.Button>
             <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
               {[
-                { href: "/servicess", label: "All Services", icon: <Layers size={20} /> },
-                { href: "/membership", label: "Memberships", icon: <UserPlus size={20} /> },
-                { href: "/membership-report", label: "Membership Report", icon: <BarChart3 size={20} /> },
-                { href: "/items", label: "Beauty Deals", icon: <Tag size={20} /> },
-                { href: "/serviceorder", label: "Service Acquire", icon: <ClipboardList size={20} /> },
+                { href: "/servicess2", label: "All Services", icon: <Layers size={20} /> },
+                { href: "/membership2", label: "Memberships", icon: <UserPlus size={20} /> },
+                { href: "/membership-report2", label: "Membership Report", icon: <BarChart3 size={20} /> },
+                { href: "/items2", label: "Beauty Deals", icon: <Tag size={20} /> },
+                { href: "/serviceorder2", label: "Service Acquire", icon: <ClipboardList size={20} /> },
               ].map((link) => (
                 <Menu.Item key={link.href}>
                   {({ active }) => (
@@ -281,8 +281,8 @@ export default function ServiceGroupsPage() {
             </Menu.Button>
             <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
               {[
-                { href: "/customers", label: "Customers", icon: <Users size={20} /> },
-                { href: "/invoices", label: "Invoices", icon: <FileText size={20} /> },
+                { href: "/customers2", label: "Customers", icon: <Users size={20} /> },
+                { href: "/invoices2", label: "Invoices", icon: <FileText size={20} /> },
               ].map((link) => (
                 <Menu.Item key={link.href}>
                   {({ active }) => (
@@ -306,7 +306,7 @@ export default function ServiceGroupsPage() {
             className="flex justify-between items-center mb-4"
           >
             <h1 className="text-xl font-bold">All Service Groups</h1>
-            <motion.button
+            {/* <motion.button
               onClick={() => setIsAddGroupModalOpen(true)}
               className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg transition-colors text-sm font-medium shadow-sm"
               whileHover={{ scale: 1.05 }}
@@ -314,7 +314,7 @@ export default function ServiceGroupsPage() {
             >
               <Plus size={18} />
               <span>New Group List</span>
-            </motion.button>
+            </motion.button> */}
           </motion.div>
 
           <div className="flex">
@@ -376,7 +376,7 @@ export default function ServiceGroupsPage() {
 
                         <td className="px-4 py-3 text-sm text-gray-500">
                           <div className="flex space-x-2">
-                            <motion.button
+                            {/* <motion.button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setEditMode(true);
@@ -387,7 +387,7 @@ export default function ServiceGroupsPage() {
                               whileTap={{ scale: 0.9 }}
                             >
                               <Edit size={16} />
-                            </motion.button>
+                            </motion.button> */}
                             <motion.button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -475,13 +475,13 @@ export default function ServiceGroupsPage() {
                     >
                       <div className="flex justify-between items-center mb-2">
                         <h3 className="text-sm font-semibold text-gray-500">Services</h3>
-                        <motion.button
+                        {/* <motion.button
                           onClick={() => setIsAddModalOpen(true)}
                           className="text-xs text-green-600 hover:text-green-800"
                           whileHover={{ scale: 1.1 }}
                         >
                           + Add Service
-                        </motion.button>
+                        </motion.button> */}
                       </div>
 
                       <motion.div
@@ -513,13 +513,6 @@ export default function ServiceGroupsPage() {
                                   <td className="px-3 py-2 text-sm text-gray-500">₱{service.price}</td>
                                   <td className="px-3 py-2 text-sm text-gray-500">{service.duration} mins</td>
                                   <td className="px-3 py-2 text-sm text-gray-500 text-right">
-                                    <motion.button
-                                      className="text-blue-600 hover:text-blue-800"
-                                      whileHover={{ scale: 1.2 }}
-                                      whileTap={{ scale: 0.9 }}
-                                    >
-                                      <Edit2 size={16} />
-                                    </motion.button>
                                   </td>
                                 </motion.tr>
                               ))

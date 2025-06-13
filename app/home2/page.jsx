@@ -8,7 +8,7 @@ import { Dialog } from "@headlessui/react";
 import { Menu } from "@headlessui/react";
 import { BarChart, BarChart3 } from "lucide-react";
 import { User, Settings, LogOut, Tag } from "lucide-react";
-import { Folder, ClipboardList, Factory, Calendar } from "lucide-react";
+import { Folder, ClipboardList, Factory, ShoppingBag } from "lucide-react";
 import { Home, Users, FileText, CreditCard, Package, Layers, ShoppingCart, UserPlus } from "lucide-react";
 
 export default function Dashboard() {
@@ -16,45 +16,30 @@ export default function Dashboard() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [period, setPeriod] = useState('day');
-    const [customDate, setCustomDate] = useState(new Date());
-    const [dateRange, setDateRange] = useState({
-        startDate: new Date(),
-        endDate: new Date()
-    });
 
     const [dashboardData, setDashboardData] = useState({
         topServices: [],
         revenueByService: [],
         branches: [],
         revenueDistribution: [],
-        loading: true
+        loading: true,
+        period: 'day' // default period
     });
 
     useEffect(() => {
         const fetchDashboardData = async () => {
-            setDashboardData(prev => ({ ...prev, loading: true }));
-
-            const queryParams = new URLSearchParams({
-                action: 'dashboard',
-                period: period,
-            });
-
-            if (period === 'custom') {
-                queryParams.append('date', customDate.toISOString().slice(0, 10));
-            }
-
             try {
-                const response = await fetch(`http://localhost/API/home.php?${queryParams.toString()}`);
+                const response = await fetch(`http://localhost/API/home.php?action=dashboard&period=${dashboardData.period}`);
                 const data = await response.json();
 
-                setDashboardData({
+                setDashboardData(prev => ({
+                    ...prev,
                     topServices: data.top_services || [],
                     revenueByService: data.revenue_by_service || [],
                     branches: data.branches || [],
                     revenueDistribution: data.revenue_distribution || [],
                     loading: false
-                });
+                }));
             } catch (error) {
                 toast.error("Error fetching dashboard data");
                 console.error("Error:", error);
@@ -63,35 +48,13 @@ export default function Dashboard() {
         };
 
         fetchDashboardData();
-        const interval = setInterval(fetchDashboardData, 60000);
+        const interval = setInterval(fetchDashboardData, 60000); // Refresh every minute
         return () => clearInterval(interval);
-    }, [period, customDate]);
-
-
-    const handlePeriodChange = (newPeriod) => {
-        setPeriod(newPeriod);
-
-        const today = new Date();
-        let updatedDate = new Date(today);
-
-        if (newPeriod === 'day') {
-            updatedDate = today;
-        } else if (newPeriod === 'week') {
-            const firstDayOfWeek = new Date(today);
-            firstDayOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
-            updatedDate = firstDayOfWeek;
-        } else if (newPeriod === 'month') {
-            updatedDate = new Date(today.getFullYear(), today.getMonth(), 1); // 1st of month
-        } else if (newPeriod === 'year') {
-            updatedDate = new Date(today.getFullYear(), 0, 1); // Jan 1
-        }
-
-        setCustomDate(updatedDate);
-    };
+    }, [dashboardData.period]); // Re-run when period changes
 
     const handleSearch = async () => {
         if (searchQuery.trim()) {
-            const res = await fetch(`http://localhost/API/home.php?q=${searchQuery}`);
+            const res = await fetch(`http://localhost/API/search.php?q=${searchQuery}`);
             const data = await res.json();
             console.log("Search Results:", data);
             toast(`Searching for: ${searchQuery}`);
@@ -151,7 +114,7 @@ export default function Dashboard() {
                         className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg font-bold cursor-pointer"
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
                     >
-                        A
+                        R
                     </div>
                     {isProfileOpen && (
                         <div className="bg-green-500 absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
@@ -198,11 +161,11 @@ export default function Dashboard() {
                         </Menu.Button>
                         <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
                             {[
-                                { href: "/servicess", label: "All Services", icon: <Layers size={20} /> },
-                                { href: "/membership", label: "Memberships", icon: <UserPlus size={20} /> },
-                                { href: "/membership-report", label: "Membership Report", icon: <BarChart3 size={20} /> },
-                                { href: "/items", label: "Beauty Deals", icon: <Tag size={20} /> },
-                                { href: "/serviceorder", label: "Service Acquire", icon: <ClipboardList size={20} /> },
+                                { href: "/servicess2", label: "All Services", icon: <Layers size={20} /> },
+                                { href: "/membership2", label: "Memberships", icon: <UserPlus size={20} /> },
+                                { href: "/membership-report2", label: "Membership Report", icon: <BarChart3 size={20} /> },
+                                { href: "/items2", label: "Beauty Deals", icon: <Tag size={20} /> },
+                                { href: "/serviceorder2", label: "Service Acquire", icon: <ClipboardList size={20} /> },
                             ].map((link) => (
                                 <Menu.Item key={link.href}>
                                     {({ active }) => (
@@ -222,8 +185,8 @@ export default function Dashboard() {
                         </Menu.Button>
                         <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
                             {[
-                                { href: "/customers", label: "Customers", icon: <Users size={20} /> },
-                                { href: "/invoices", label: "Invoices", icon: <FileText size={20} /> },
+                                { href: "/customers2", label: "Customers", icon: <Users size={20} /> },
+                                { href: "/invoices2", label: "Invoices", icon: <FileText size={20} /> },
                             ].map((link) => (
                                 <Menu.Item key={link.href}>
                                     {({ active }) => (
@@ -240,43 +203,22 @@ export default function Dashboard() {
 
                 <main className="flex-1 p-8 max-w-screen-xl mx-auto ml-64 bg-white min-h-screen">
                     {/* Time Period Filter Buttons */}
-                    <div className="flex justify-end mt-6 mb-2 space-x-4">
+                    <div className="flex justify-end mt-6 mb-2">
                         <div className="flex space-x-2">
-                            {['day', 'week', 'month', 'year'].map((p) => (
+                            {['day', 'week', 'month', 'year'].map((period) => (
                                 <motion.button
-                                    key={p}
-                                    onClick={() => handlePeriodChange(p)}
-                                    className={`text-xs px-3 py-1 rounded transition ${period === p
-                                        ? 'bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-sm'
+                                    key={period}
+                                    onClick={() => setDashboardData(prev => ({ ...prev, period, loading: true }))}
+                                    className={`text-xs px-3 py-1 rounded transition ${dashboardData.period === period
+                                        ? 'bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-sm text-white'
                                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                         }`}
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                 >
-                                    This {p}
+                                    This {period}
                                 </motion.button>
                             ))}
-                        </div>
-
-                        {/* Custom Date Filter */}
-                        <div className="flex items-center space-x-2">
-                            <input
-                                type="date"
-                                value={customDate.toISOString().slice(0, 10)}
-                                onChange={(e) => {
-                                    setCustomDate(new Date(e.target.value));
-                                    setPeriod('custom');
-                                }}
-                                className="border px-3 py-1 rounded"
-                            />
-                            <motion.button
-                                onClick={() => setPeriod('custom')}
-                                className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                            >
-                                Apply Date
-                            </motion.button>
                         </div>
                     </div>
 
@@ -308,14 +250,9 @@ export default function Dashboard() {
                                             <span className="font-bold">{service.count}</span>
                                         </motion.div>
                                     ))}
-
-                                    {/* Optional label if this is fallback data (e.g., all fixed values) */}
-                                    {dashboardData.topServices.every(s => [15, 12, 10, 8, 7].includes(s.count)) && (
-                                        <p className="text-xs text-gray-400 italic mt-2">* Sample data shown</p>
-                                    )}
                                 </div>
                             ) : (
-                                <p className="text-gray-500">No top services found</p>
+                                <p className="text-gray-500">No data available</p>
                             )}
                         </motion.div>
 
@@ -352,127 +289,7 @@ export default function Dashboard() {
                         </motion.div>
                     </div>
 
-                    {/* Branches and Revenue Section */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 pb-6">
-                        {/* Branches List */}
-                        <motion.div
-                            className="p-6 bg-white rounded-lg shadow-md border border-gray-400"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.2 }}
-                        >
-                            <h2 className="text-2xl font-bold mb-4">Branches</h2>
-                            {dashboardData.loading ? (
-                                <div className="flex justify-center items-center h-20">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-                                </div>
-                            ) : dashboardData.branches.length > 0 ? (
-                                <div className="space-y-4">
-                                    {dashboardData.branches.map((branch, index) => (
-                                        <motion.div
-                                            key={index}
-                                            className="flex items-center space-y-2"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: index * 0.1 }}
-                                        >
-                                            <span
-                                                className="w-3 h-3 rounded-full mr-2"
-                                                style={{ backgroundColor: branch.color_code || '#3B82F6' }}
-                                            ></span>
-                                            <span>{branch.name}</span>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-gray-500">No branches found</p>
-                            )}
-                        </motion.div>
 
-                        {/* Total Revenue Distribution with Pie Chart */}
-                        <motion.div
-                            className="p-6 bg-white rounded-lg shadow-md border border-gray-400"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.3 }}
-                        >
-                            <h2 className="text-xl font-bold mb-4">Total Revenue Distribution</h2>
-                            {dashboardData.loading ? (
-                                <div className="flex justify-center items-center h-64">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                                </div>
-                            ) : dashboardData.revenueDistribution.length > 0 ? (
-                                <div className="flex flex-col items-center h-50">
-                                    {/* Animated Pie chart */}
-                                    <motion.div
-                                        className="relative w-50 h-50"
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        transition={{ type: "spring", stiffness: 100, damping: 10 }}
-                                    >
-                                        <svg viewBox="0 0 100 100" className="w-full h-full">
-                                            {dashboardData.revenueDistribution.reduce((acc, branch, index) => {
-                                                const startAngle = acc.currentAngle;
-                                                const endAngle = startAngle + (branch.percentage / 100) * 360;
-                                                const largeArcFlag = branch.percentage > 50 ? 1 : 0;
-
-                                                const x1 = 50 + 50 * Math.cos(Math.PI * startAngle / 180);
-                                                const y1 = 50 + 50 * Math.sin(Math.PI * startAngle / 180);
-                                                const x2 = 50 + 50 * Math.cos(Math.PI * endAngle / 180);
-                                                const y2 = 50 + 50 * Math.sin(Math.PI * endAngle / 180);
-
-                                                acc.paths.push(
-                                                    <motion.path
-                                                        key={index}
-                                                        d={`M50,50 L${x1},${y1} A50,50 0 ${largeArcFlag},1 ${x2},${y2} Z`}
-                                                        fill={branch.color_code || '#3B82F6'}
-                                                        className="hover:opacity-90 transition-opacity"
-                                                        initial={{ pathLength: 0, opacity: 0 }}
-                                                        animate={{ pathLength: 1, opacity: 1 }}
-                                                        transition={{
-                                                            duration: 1,
-                                                            delay: index * 0.2,
-                                                            ease: "easeInOut"
-                                                        }}
-                                                        whileHover={{ scale: 1.05 }}
-                                                    />
-                                                );
-
-                                                acc.currentAngle = endAngle;
-                                                return acc;
-                                            }, { paths: [], currentAngle: 0 }).paths}
-                                        </svg>
-                                    </motion.div>
-
-                                    {/* Labels under pie */}
-                                    <motion.div
-                                        className="mt-4 flex flex-wrap justify-center gap-3 text-xs"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: 0.8 }}
-                                    >
-                                        {dashboardData.revenueDistribution.map((branch, index) => (
-                                            <motion.div
-                                                key={index}
-                                                className="flex items-center"
-                                                whileHover={{ scale: 1.1 }}
-                                            >
-                                                <span
-                                                    className="w-3 h-3 rounded-full mr-1"
-                                                    style={{ backgroundColor: branch.color_code || '#3B82F6' }}
-                                                ></span>
-                                                <span>{branch.branch_name} {branch.percentage}%</span>
-                                            </motion.div>
-                                        ))}
-                                    </motion.div>
-                                </div>
-                            ) : (
-                                <div className="flex justify-center items-center h-64 text-gray-500">
-                                    No revenue data available
-                                </div>
-                            )}
-                        </motion.div>
-                    </div>
                 </main>
             </div>
 

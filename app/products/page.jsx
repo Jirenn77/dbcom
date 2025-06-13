@@ -73,7 +73,7 @@ export default function InventoryPage() {
 
     const handleEditSubmit = async (e) => {
         e.preventDefault();
-    
+
         const payload = {
             action: "edit_item",
             id: selectedItem.id, // Ensure selectedItem is defined and has an id
@@ -86,7 +86,7 @@ export default function InventoryPage() {
             unitPrice: selectedItem.unitPrice,
             supplier: selectedItem.supplier,
         };
-    
+
         try {
             const response = await fetch("http://localhost/API/addItem.php", {
                 method: "POST",
@@ -95,9 +95,9 @@ export default function InventoryPage() {
                 },
                 body: JSON.stringify(payload),
             });
-    
+
             const data = await response.json();
-    
+
             if (data.success) {
                 toast.success("Item updated successfully!");
                 setIsModalOpen(false);
@@ -286,152 +286,128 @@ export default function InventoryPage() {
             <Toaster />
 
             {/* Header */}
-<header className="flex items-center justify-between bg-[#89C07E] text-white p-4 w-full h-16 pl-64 relative">
-    <div className="flex items-center space-x-4">
-        {/* Home icon removed from here */}
-    </div>
+            <header className="flex items-center justify-between bg-[#89C07E] text-white p-4 w-full h-16 pl-64 relative">
+                <div className="flex items-center space-x-4">
+                    {/* Home icon removed from here */}
+                </div>
 
-    <div className="flex items-center space-x-4 flex-grow justify-center">
-        <button className="text-2xl" onClick={() => setIsModalOpen(true)}>
-            ➕
-        </button>
-        <input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-4 py-2 rounded-lg bg-white text-gray-900 w-64 focus:outline-none"
-        />
-        <button
-            onClick={handleSearch}
-            className="px-3 py-1.5 bg-[#5BBF5B] rounded-lg hover:bg-[#4CAF4C] text-gray-800 text-md"
-        >
-            Search
-        </button>
-    </div>
-
-    <div className="flex items-center space-x-4 relative">
-        <div 
-            className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg font-bold cursor-pointer"
-            onClick={() => setIsProfileOpen(!isProfileOpen)}
-        >
-            A
-        </div>
-        {isProfileOpen && (
-            <div className="bg-[#6CAE5E] absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
-                <Link href="/acc-settings">
-                <button className="flex items-center gap-2 px-4 py-2 hover:bg-[#467750] rounded w-full justify-start">
-                    <User size={16} /> Edit Profile
-                </button>
-                </Link>
-                <Link href="/settings">
-                    <button className="flex items-center gap-2 px-4 py-2 hover:bg-[#467750] rounded w-full justify-start">
-                        <Settings size={16} /> Settings
+                <div className="flex items-center space-x-4 flex-grow justify-center">
+                    <button className="text-2xl" onClick={() => setIsModalOpen(true)}>
+                        ➕
                     </button>
-                </Link>
-                <button className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-700 text-white rounded justify-start" onClick={handleLogout}>
-                    <LogOut size={16} /> Logout
-                </button>
-            </div>
-        )}
-    </div>
-</header>
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="px-4 py-2 rounded-lg bg-white text-gray-900 w-64 focus:outline-none"
+                    />
+                    <button
+                        onClick={handleSearch}
+                        className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-md"
+                    >
+                        Search
+                    </button>
+                </div>
 
-{/* Sidebar */}
-<div className="flex flex-1">
-    <nav className="w-64 h-screen bg-gradient-to-b from-[#467750] to-[#56A156] text-gray-900 flex flex-col items-center py-6 fixed top-0 left-0">
-        <div className="flex items-center space-x-2 mb-4">
-            <h1 className="text-xl font-bold text-white flex items-center space-x-2">
-                <span>Lizly Skin Care Clinic</span>
-            </h1>
-        </div>
-
-        {/* Home Menu Button */}
-        <Menu as="div" className="relative w-full px-4 mt-4">
-            <Link href="/home" passHref>
-                <Menu.Button as="div" className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center cursor-pointer">
-                    <Home className="text-2xl"></Home>
-                    <span className="ml-2">Dashboard</span>
-                </Menu.Button>
-            </Link>
-        </Menu>
-
-        <Menu as="div" className="relative w-full px-4 mt-4">
-            <Menu.Button className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center">
-                <ShoppingCart className="mr-2" size={20} /> POS ▾
-            </Menu.Button>
-            <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
-                {[
-                    { href: "/servicess", label: "Services", icon: <Layers size={20} /> },
-                    { href: "/price-list", label: "Price List", icon: <FileText size={20} /> },
-                    { href: "/items", label: "Service Groups", icon: <Package size={20} /> },
-                ].map((link) => (
-                    <Menu.Item key={link.href}>
-                        {({ active }) => (
-                            <Link href={link.href} className={`flex items-center space-x-4 p-3 rounded-lg ${active ? 'bg-[#2A3F3F] text-white' : ''}`}>
-                                {link.icon}
-                                <span className="font-normal md:font-bold">{link.label}</span>
+                <div className="flex items-center space-x-4 relative">
+                    <div
+                        className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg font-bold cursor-pointer"
+                        onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    >
+                        A
+                    </div>
+                    {isProfileOpen && (
+                        <div className="bg-green-500 absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
+                            <Link href="/acc-settings">
+                                <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
+                                    <User size={16} /> Edit Profile
+                                </button>
                             </Link>
-                        )}
-                    </Menu.Item>
-                ))}
-            </Menu.Items>
-        </Menu>
-
-        <Menu as="div" className="relative w-full px-4 mt-4">
-            <Menu.Button className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center">
-                <BarChart className="mr-2" size={20} /> Sales ▾
-            </Menu.Button>
-            <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
-                {[
-                    { href: "/customers", label: "Customers", icon: <Users size={20} /> },
-                    { href: "/invoices", label: "Invoices", icon: <FileText size={20} /> },
-                    { href: "/payments", label: "Payments", icon: <CreditCard size={20} /> },
-                ].map((link) => (
-                    <Menu.Item key={link.href}>
-                        {({ active }) => (
-                            <Link href={link.href} className={`flex items-center space-x-4 p-3 rounded-lg ${active ? 'bg-[#2A3F3F] text-white' : ''}`}>
-                                {link.icon}
-                                <span className="font-normal md:font-bold">{link.label}</span>
+                            <Link href="/settings">
+                                <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
+                                    <Settings size={16} /> Settings
+                                </button>
                             </Link>
-                        )}
-                    </Menu.Item>
-                ))}
-            </Menu.Items>
-        </Menu>
+                            <button className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded justify-start" onClick={handleLogout}>
+                                <LogOut size={16} /> Logout
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </header>
 
-        {/* Inventory Menu */}
-        <Menu as="div" className="relative w-full px-4 mt-4">
-            <Menu.Button className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center">
-                <Package className="mr-2" size={20} /> Inventory ▾
-            </Menu.Button>
-            <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
-                {[
-                    { href: "/products", label: "Products", icon: <Package size={20} /> },
-                    { href: "/categories", label: "Product Category", icon: <Folder size={20} /> },
-                    { href: "/stocks", label: "Stock Levels", icon: <ClipboardList size={20} /> },
-                    { href: "/suppliers", label: "Supplier Management", icon: <Factory size={20} /> },
-                    { href: "/purchase", label: "Purchase Order", icon: <ShoppingBag size={20} /> },
-                ].map((link) => (
-                    <Menu.Item key={link.href}>
-                        {({ active }) => (
-                            <Link href={link.href} className={`flex items-center space-x-4 p-3 rounded-lg ${active ? 'bg-[#2A3F3F] text-white' : ''}`}>
-                                {link.icon}
-                                <span className="font-normal md:font-bold">{link.label}</span>
-                            </Link>
-                        )}
-                    </Menu.Item>
-                ))}
-            </Menu.Items>
-        </Menu>
-    </nav>
+            {/* Sidebar */}
+            <div className="flex flex-1">
+                <nav className="w-64 h-screen bg-gradient-to-b from-[#467750] to-[#56A156] text-gray-900 flex flex-col items-center py-6 fixed top-0 left-0">
+                    <div className="flex items-center space-x-2 mb-4">
+                        <h1 className="text-xl font-bold text-white flex items-center space-x-2">
+                            <span>Lizly Skin Care Clinic</span>
+                        </h1>
+                    </div>
+
+                    {/* Home Menu Button */}
+                    <Menu as="div" className="relative w-full px-4 mt-4">
+                        <Link href="/home" passHref>
+                            <Menu.Button as="div" className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center cursor-pointer">
+                                <Home className="text-2xl"></Home>
+                                <span className="ml-2">Dashboard</span>
+                            </Menu.Button>
+                        </Link>
+                    </Menu>
+
+                    <Menu as="div" className="relative w-full px-4 mt-4">
+                        <Menu.Button className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center">
+                            <Layers className="mr-2" size={20} /> Services ▾
+                        </Menu.Button>
+                        <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
+                            {[
+                                { href: "/servicess", label: "All Services", icon: <Layers size={20} /> },
+                                { href: "/membership", label: "Memberships", icon: <UserPlus size={20} /> }, // or <Users />
+                                { href: "/items", label: "Beauty Deals", icon: <Tag size={20} /> },
+                                { href: "/serviceorder", label: "Service Orders", icon: <ClipboardList size={20} /> },
+                                { href: "/servicegroup", label: "Service Groups", icon: <Folder size={20} /> }, // or <Layers />
+                            ].map((link) => (
+                                <Menu.Item key={link.href}>
+                                    {({ active }) => (
+                                        <Link href={link.href} className={`flex items-center space-x-4 p-3 rounded-lg ${active ? 'bg-[#2A3F3F] text-white' : ''}`}>
+                                            {link.icon}
+                                            <span className="font-normal md:font-bold">{link.label}</span>
+                                        </Link>
+                                    )}
+                                </Menu.Item>
+                            ))}
+                        </Menu.Items>
+                    </Menu>
+
+                    <Menu as="div" className="relative w-full px-4 mt-4">
+                        <Menu.Button className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center">
+                            <BarChart className="mr-2" size={20} /> Sales ▾
+                        </Menu.Button>
+                        <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
+                            {[
+                                { href: "/customers", label: "Customers", icon: <Users size={20} /> },
+                                { href: "/invoices", label: "Invoices", icon: <FileText size={20} /> },
+                            ].map((link) => (
+                                <Menu.Item key={link.href}>
+                                    {({ active }) => (
+                                        <Link href={link.href} className={`flex items-center space-x-4 p-3 rounded-lg ${active ? 'bg-[#2A3F3F] text-white' : ''}`}>
+                                            {link.icon}
+                                            <span className="font-normal md:font-bold">{link.label}</span>
+                                        </Link>
+                                    )}
+                                </Menu.Item>
+                            ))}
+                        </Menu.Items>
+                    </Menu>
+                </nav>
 
                 {/* Main Content */}
                 <main className="flex-1 p-8 p-6 bg-white max-w-screen-xl mx-auto ml-64">
                     {/* Table Section */}
                     <div className={`flex-1 pr-4 transition-all ${selectedItem ? "w-[calc(100%-300px)]" : "w-full"}`}>
-                    <div className="flex justify-between items-center mb-4">
-                        <h1 className="text-2xl font-bold">All Items</h1>
+                        <div className="flex justify-between items-center mb-4">
+                            <h1 className="text-2xl font-bold">All Items</h1>
                             <button
                                 onClick={handleAddItem}
                                 className="bg-[#5BBF5B] text-white py-2 px-4 rounded hover:bg-[#56AE57]"
@@ -550,107 +526,107 @@ export default function InventoryPage() {
 
             {/* Add Item Modal */}
             {isAddItemModalOpen && (
-    <Dialog open={isAddItemModalOpen} onClose={() => setIsAddItemModalOpen(false)} className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-        <Dialog.Panel className="bg-white bg-opacity-100 p-6 rounded-lg shadow-xl w-96">
-            <Dialog.Title className="text-lg font-bold mb-4 text-gray-800">Add New Item</Dialog.Title>
-            <form onSubmit={handleAddItemSubmit}>
-                <div className="space-y-4">
-                    {/* Row for each form field */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Name</label>
-                            <input
-                                type="text"
-                                name="name"
-                                value={newItem.name}
-                                onChange={handleNewItemChange}
-                                className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Category</label>
-                            <input
-                                type="text"
-                                name="category"
-                                value={newItem.category}
-                                onChange={handleNewItemChange}
-                                className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
-                                required
-                            />
-                        </div>
-                    </div>
+                <Dialog open={isAddItemModalOpen} onClose={() => setIsAddItemModalOpen(false)} className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                    <Dialog.Panel className="bg-white bg-opacity-100 p-6 rounded-lg shadow-xl w-96">
+                        <Dialog.Title className="text-lg font-bold mb-4 text-gray-800">Add New Item</Dialog.Title>
+                        <form onSubmit={handleAddItemSubmit}>
+                            <div className="space-y-4">
+                                {/* Row for each form field */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Name</label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={newItem.name}
+                                            onChange={handleNewItemChange}
+                                            className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Category</label>
+                                        <input
+                                            type="text"
+                                            name="category"
+                                            value={newItem.category}
+                                            onChange={handleNewItemChange}
+                                            className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
+                                            required
+                                        />
+                                    </div>
+                                </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Type</label>
-                            <input
-                                type="text"
-                                name="type"
-                                value={newItem.type}
-                                onChange={handleNewItemChange}
-                                className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Stock Quantity</label>
-                            <input
-                                type="number"
-                                name="stockQty"
-                                value={newItem.stockQty}
-                                onChange={handleNewItemChange}
-                                className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
-                                required
-                            />
-                        </div>
-                    </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Type</label>
+                                        <input
+                                            type="text"
+                                            name="type"
+                                            value={newItem.type}
+                                            onChange={handleNewItemChange}
+                                            className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Stock Quantity</label>
+                                        <input
+                                            type="number"
+                                            name="stockQty"
+                                            value={newItem.stockQty}
+                                            onChange={handleNewItemChange}
+                                            className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
+                                            required
+                                        />
+                                    </div>
+                                </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Unit Price</label>
-                            <input
-                                type="number"
-                                name="unitPrice"
-                                value={newItem.unitPrice}
-                                onChange={handleNewItemChange}
-                                className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Supplier</label>
-                            <input
-                                type="text"
-                                name="supplier"
-                                value={newItem.supplier}
-                                onChange={handleNewItemChange}
-                                className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
-                                required
-                            />
-                        </div>
-                    </div>
-                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Unit Price</label>
+                                        <input
+                                            type="number"
+                                            name="unitPrice"
+                                            value={newItem.unitPrice}
+                                            onChange={handleNewItemChange}
+                                            className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Supplier</label>
+                                        <input
+                                            type="text"
+                                            name="supplier"
+                                            value={newItem.supplier}
+                                            onChange={handleNewItemChange}
+                                            className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            </div>
 
-                <div className="flex justify-end space-x-2 mt-4">
-                    <button
-                        type="button"
-                        onClick={() => setIsAddItemModalOpen(false)}
-                        className="px-4 py-2 bg-gray-200 text-gray-900 rounded hover:bg-gray-300"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        onClick={() => handleAddItemSubmit}
-                        className="px-4 py-2 bg-[#5BBF5B] text-white rounded hover:bg-[#4CAF4C]"
-                    >
-                        Add Item
-                    </button>
-                </div>
-            </form>
-        </Dialog.Panel>
-    </Dialog>
+                            <div className="flex justify-end space-x-2 mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddItemModalOpen(false)}
+                                    className="px-4 py-2 bg-gray-200 text-gray-900 rounded hover:bg-gray-300"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    onClick={() => handleAddItemSubmit}
+                                    className="px-4 py-2 bg-[#5BBF5B] text-white rounded hover:bg-[#4CAF4C]"
+                                >
+                                    Add Item
+                                </button>
+                            </div>
+                        </form>
+                    </Dialog.Panel>
+                </Dialog>
             )}
 
             {/* More Button Modal */}
@@ -722,108 +698,108 @@ export default function InventoryPage() {
                 </Dialog>
             )}
 
-{isModalOpen && modalType === "edit" && (
-    <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-        <Dialog.Panel className="bg-white p-6 rounded-lg shadow-lg w-96">
-            <Dialog.Title className="text-lg font-bold mb-4 text-gray-800">Edit Item</Dialog.Title>
-            <form onSubmit={handleEditSubmit}>
-                <div className="space-y-4">
-                    {/* Row for each form field */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Name</label>
-                            <input
-                                type="text"
-                                name="name"
-                                value={selectedItem?.name || ""}
-                                onChange={(e) => setSelectedItem({ ...selectedItem, name: e.target.value })}
-                                className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Category</label>
-                            <input
-                                type="text"
-                                name="category"
-                                value={selectedItem?.category || ""}
-                                onChange={(e) => setSelectedItem({ ...selectedItem, category: e.target.value })}
-                                className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
-                                required
-                            />
-                        </div>
-                    </div>
+            {isModalOpen && modalType === "edit" && (
+                <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                    <Dialog.Panel className="bg-white p-6 rounded-lg shadow-lg w-96">
+                        <Dialog.Title className="text-lg font-bold mb-4 text-gray-800">Edit Item</Dialog.Title>
+                        <form onSubmit={handleEditSubmit}>
+                            <div className="space-y-4">
+                                {/* Row for each form field */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Name</label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={selectedItem?.name || ""}
+                                            onChange={(e) => setSelectedItem({ ...selectedItem, name: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Category</label>
+                                        <input
+                                            type="text"
+                                            name="category"
+                                            value={selectedItem?.category || ""}
+                                            onChange={(e) => setSelectedItem({ ...selectedItem, category: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
+                                            required
+                                        />
+                                    </div>
+                                </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Type</label>
-                            <input
-                                type="text"
-                                name="type"
-                                value={selectedItem?.type || ""}
-                                onChange={(e) => setSelectedItem({ ...selectedItem, type: e.target.value })}
-                                className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Stock Quantity</label>
-                            <input
-                                type="number"
-                                name="stockQty"
-                                value={selectedItem?.stockQty || 0}
-                                onChange={(e) => setSelectedItem({ ...selectedItem, stockQty: e.target.value })}
-                                className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
-                                required
-                            />
-                        </div>
-                    </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Type</label>
+                                        <input
+                                            type="text"
+                                            name="type"
+                                            value={selectedItem?.type || ""}
+                                            onChange={(e) => setSelectedItem({ ...selectedItem, type: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Stock Quantity</label>
+                                        <input
+                                            type="number"
+                                            name="stockQty"
+                                            value={selectedItem?.stockQty || 0}
+                                            onChange={(e) => setSelectedItem({ ...selectedItem, stockQty: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
+                                            required
+                                        />
+                                    </div>
+                                </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Unit Price</label>
-                            <input
-                                type="number"
-                                name="unitPrice"
-                                value={selectedItem?.unitPrice || 0}
-                                onChange={(e) => setSelectedItem({ ...selectedItem, unitPrice: e.target.value })}
-                                className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Supplier</label>
-                            <input
-                                type="text"
-                                name="supplier"
-                                value={selectedItem?.supplier || ""}
-                                onChange={(e) => setSelectedItem({ ...selectedItem, supplier: e.target.value })}
-                                className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
-                                required
-                            />
-                        </div>
-                    </div>
-                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Unit Price</label>
+                                        <input
+                                            type="number"
+                                            name="unitPrice"
+                                            value={selectedItem?.unitPrice || 0}
+                                            onChange={(e) => setSelectedItem({ ...selectedItem, unitPrice: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Supplier</label>
+                                        <input
+                                            type="text"
+                                            name="supplier"
+                                            value={selectedItem?.supplier || ""}
+                                            onChange={(e) => setSelectedItem({ ...selectedItem, supplier: e.target.value })}
+                                            className="w-full px-3 py-2 border rounded-lg bg-lime-200 text-gray-900 border border-lime-400"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            </div>
 
-                <div className="flex justify-end space-x-2 mt-4">
-                    <button
-                        type="button"
-                        onClick={() => setIsModalOpen(false)}
-                        className="px-4 py-2 bg-gray-200 text-gray-900 rounded hover:bg-gray-300"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        onClick={() => handleEditSubmit}
-                        className="px-4 py-2 bg-[#5BBF5B] text-white rounded hover:bg-[#4CAF4C]"
-                    >
-                        Save Changes
-                    </button>
-                </div>
-            </form>
-        </Dialog.Panel>
-    </Dialog>
+                            <div className="flex justify-end space-x-2 mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="px-4 py-2 bg-gray-200 text-gray-900 rounded hover:bg-gray-300"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    onClick={() => handleEditSubmit}
+                                    className="px-4 py-2 bg-[#5BBF5B] text-white rounded hover:bg-[#4CAF4C]"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </Dialog.Panel>
+                </Dialog>
             )}
         </div>
     );
