@@ -1,46 +1,53 @@
 <?php
-header("Content-Type: application/json");
+
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
+header("Content-Type: application/json");
+
+// --- Handle Preflight Requests (Important for CORS) ---
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
 require_once 'db.php';
 
 try {
     $pdo = new PDO("mysql:host=localhost;dbname=dbcom", 'root', '');
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Get action and period from query parameters
-    $action = isset($_GET['action']) ? $_GET['action'] : 'dashboard';
-    $period = isset($_GET['period']) ? $_GET['period'] : 'day';
-    $date = isset($_GET['date']) ? $_GET['date'] : null;
+    $action = $_GET['action'] ?? 'dashboard';
+$period = $_GET['period'] ?? 'day';
+$startDate = $_GET['start_date'] ?? null;
+$endDate = $_GET['end_date'] ?? null;
 
-    // Handle different endpoints
     switch ($action) {
-    case 'dashboard':
-        echo json_encode(getDashboardData($pdo, $period, $date));
-        break;
-    default:
-        http_response_code(404);
-        echo json_encode(['error' => 'Endpoint not found']);
-}
+        case 'dashboard':
+            echo json_encode(getDashboardData($pdo, $period, $startDate, $endDate));
+            break;
+        default:
+            http_response_code(404);
+            echo json_encode(['error' => 'Endpoint not found']);
+    }
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
 }
 
-function getDashboardData($pdo, $period, $date = null) {
+function getDashboardData($pdo, $period, $startDate = null, $endDate = null) {
     return [
-        'top_services' => getTopServicesData($pdo, $period, $date),
-        'revenue_by_service' => getRevenueByServiceData($pdo, $period, $date),
+        'top_services' => getTopServicesData($pdo, $period, $startDate, $endDate),
+        'revenue_by_service' => getRevenueByServiceData($pdo, $period, $startDate, $endDate),
         'branches' => getBranchesData($pdo),
-        'revenue_distribution' => getRevenueDistributionData($pdo, $period, $date)
+        'revenue_distribution' => getRevenueDistributionData($pdo, $period, $startDate, $endDate),
     ];
 }
 
 
 // Get top 5 ordered services (UPDATED)
-function getTopServicesData($pdo, $period, $date = null) {
-    $dateCondition = getDateCondition($period, 'o', $date);
+function getTopServicesData($pdo, $period, $startDate = null, $endDate = null) {
+    $dateCondition = getDateCondition($period, 'o', $startDate, $endDate);
     
     $query = "SELECT 
                 s.name, 
@@ -90,8 +97,8 @@ function getTopServicesData($pdo, $period, $date = null) {
 }
 
 // Get top 5 revenue generating services (UPDATED)
-function getRevenueByServiceData($pdo, $period) {
-    $dateCondition = getDateCondition($period, 'o');
+function getRevenueByServiceData($pdo, $period, $startDate = null, $endDate = null) {
+    $dateCondition = getDateCondition($period, 'o', $startDate, $endDate);
     
     $query = "SELECT 
                 s.name, 
@@ -155,14 +162,14 @@ function getBranchesData($pdo) {
 
     return $result;
 }
-function getRevenueDistributionData($pdo, $period) {
+function getRevenueDistributionData($pdo, $period, $startDate = null, $endDate = null) {
     try {
         // 1. Get branches
         $branches = $pdo->query("SELECT id, name, color_code FROM branches")->fetchAll(PDO::FETCH_ASSOC);
         if (empty($branches)) return [];
 
         // 2. Get date condition
-        $dateCondition = getDateCondition($period, 'orders');
+        $dateCondition = getDateCondition($period, 'orders', $startDate, $endDate);
         
         // 3. Calculate totals
         $totalStmt = $pdo->prepare("SELECT SUM(amount) FROM orders WHERE $dateCondition");
@@ -201,26 +208,31 @@ function getRevenueDistributionData($pdo, $period) {
     }
 }
 
-function getDateCondition($period, $tableAlias, $date = null) {
-    $column = "$tableAlias.created_at";
+function getDateCondition($period, $tableAlias, $startDate = null, $endDate = null) {
+    $column = "$tableAlias.order_date";
+    $today = date('Y-m-d');
 
     switch ($period) {
         case 'day':
-            return "$column >= CURDATE()";
+            return "$column >= '$today 00:00:00' AND $column <= '$today 23:59:59'";
         case 'week':
-            return "$column >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)";
+            $monday = date('Y-m-d', strtotime('monday this week'));
+            $sunday = date('Y-m-d', strtotime('sunday this week'));
+            return "$column >= '$monday 00:00:00' AND $column <= '$sunday 23:59:59'";
         case 'month':
-            return "$column >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)";
+            $firstDay = date('Y-m-01');
+            $lastDay = date('Y-m-t');
+            return "$column >= '$firstDay 00:00:00' AND $column <= '$lastDay 23:59:59'";
         case 'year':
-            return "$column >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)";
+            $firstDay = date('Y-01-01');
+            $lastDay = date('Y-12-31');
+            return "$column >= '$firstDay 00:00:00' AND $column <= '$lastDay 23:59:59'";
         case 'custom':
-            if ($date) {
-                return "$column BETWEEN '{$date} 00:00:00' AND '{$date} 23:59:59'";
-            } else {
-                return "1=1"; // fallback to no filter
-            }
+            $start = date('Y-m-d', strtotime($startDate));
+            $end = date('Y-m-d', strtotime($endDate));
+            return "$column >= '$start 00:00:00' AND $column <= '$end 23:59:59'";
         default:
-            return "$column >= CURDATE()";
+            return "$column >= '$today 00:00:00' AND $column <= '$today 23:59:59'";
     }
 }
 
