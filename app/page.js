@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
+import './globals.css'; // adjust the path if necessary
+
 
 export default function Login() {
     const [email, setEmail] = useState("");

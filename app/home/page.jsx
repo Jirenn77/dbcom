@@ -19,8 +19,8 @@ export default function Dashboard() {
     const [period, setPeriod] = useState('day');
     const [customDate, setCustomDate] = useState(new Date());
     const [dateRange, setDateRange] = useState({
-        startDate: new Date(),
-        endDate: new Date()
+        start: new Date(),
+        end: new Date()
     });
 
     const [dashboardData, setDashboardData] = useState({
@@ -35,17 +35,18 @@ export default function Dashboard() {
         const fetchDashboardData = async () => {
             setDashboardData(prev => ({ ...prev, loading: true }));
 
-            const queryParams = new URLSearchParams({
+            const params = new URLSearchParams({
                 action: 'dashboard',
                 period: period,
             });
 
             if (period === 'custom') {
-                queryParams.append('date', customDate.toISOString().slice(0, 10));
+                params.append('start_date', dateRange.start.toISOString().slice(0, 10));
+                params.append('end_date', dateRange.end.toISOString().slice(0, 10));
             }
 
             try {
-                const response = await fetch(`http://localhost/API/home.php?${queryParams.toString()}`);
+                const response = await fetch(`http://localhost/API/home.php?${params.toString()}`);
                 const data = await response.json();
 
                 setDashboardData({
@@ -56,37 +57,42 @@ export default function Dashboard() {
                     loading: false
                 });
             } catch (error) {
-                toast.error("Error fetching dashboard data");
                 console.error("Error:", error);
                 setDashboardData(prev => ({ ...prev, loading: false }));
             }
         };
 
         fetchDashboardData();
-        const interval = setInterval(fetchDashboardData, 60000);
-        return () => clearInterval(interval);
-    }, [period, customDate]);
-
+    }, [period, dateRange]); // Add dateRange to dependencies
 
     const handlePeriodChange = (newPeriod) => {
         setPeriod(newPeriod);
-
         const today = new Date();
-        let updatedDate = new Date(today);
+        let startDate = new Date(today);
+        let endDate = new Date(today);
 
         if (newPeriod === 'day') {
-            updatedDate = today;
+            // Today only
+            startDate = new Date(today);
+            endDate = new Date(today);
         } else if (newPeriod === 'week') {
-            const firstDayOfWeek = new Date(today);
-            firstDayOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
-            updatedDate = firstDayOfWeek;
+            // Current week (Monday to Sunday)
+            const day = today.getDay();
+            const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+            startDate = new Date(today.setDate(diff));
+            endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 6);
         } else if (newPeriod === 'month') {
-            updatedDate = new Date(today.getFullYear(), today.getMonth(), 1); // 1st of month
+            // Current month
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
         } else if (newPeriod === 'year') {
-            updatedDate = new Date(today.getFullYear(), 0, 1); // Jan 1
+            // Current year
+            startDate = new Date(today.getFullYear(), 0, 1);
+            endDate = new Date(today.getFullYear(), 11, 31);
         }
 
-        setCustomDate(updatedDate);
+        setDateRange({ start: startDate, end: endDate });
     };
 
     const handleSearch = async () => {
@@ -155,7 +161,7 @@ export default function Dashboard() {
                     </div>
                     {isProfileOpen && (
                         <div className="bg-green-500 absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
-                            <Link href="/acc-settings">
+                            <Link href="/edit-profile">
                                 <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
                                     <User size={16} /> Edit Profile
                                 </button>
@@ -178,6 +184,7 @@ export default function Dashboard() {
                 <nav className="w-64 h-screen bg-gradient-to-b from-[#467750] to-[#56A156] text-gray-900 flex flex-col items-center py-6 fixed top-0 left-0">
                     <div className="flex items-center space-x-2 mb-4">
                         <h1 className="text-xl font-bold text-white flex items-center space-x-2">
+                            <img src="/path-to-your-image/2187693(1)(1).png" alt="Lizly Logo" className="w-10 h-10 object-contain" />
                             <span>Lizly Skin Care Clinic</span>
                         </h1>
                     </div>
@@ -242,10 +249,10 @@ export default function Dashboard() {
                     {/* Time Period Filter Buttons */}
                     <div className="flex justify-end mt-6 mb-2 space-x-4">
                         <div className="flex space-x-2">
-                            {['day', 'week', 'month', 'year'].map((p) => (
+                            {['day', 'week', 'month', 'year', 'custom'].map((p) => (
                                 <motion.button
                                     key={p}
-                                    onClick={() => handlePeriodChange(p)}
+                                    onClick={() => setPeriod(p)}
                                     className={`text-xs px-3 py-1 rounded transition ${period === p
                                         ? 'bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-sm'
                                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -253,31 +260,36 @@ export default function Dashboard() {
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                 >
-                                    This {p}
+                                    {p === 'custom' ? 'Custom Range' : `This ${p}`}
                                 </motion.button>
                             ))}
                         </div>
 
-                        {/* Custom Date Filter */}
-                        <div className="flex items-center space-x-2">
-                            <input
-                                type="date"
-                                value={customDate.toISOString().slice(0, 10)}
-                                onChange={(e) => {
-                                    setCustomDate(new Date(e.target.value));
-                                    setPeriod('custom');
-                                }}
-                                className="border px-3 py-1 rounded"
-                            />
-                            <motion.button
-                                onClick={() => setPeriod('custom')}
-                                className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                            >
-                                Apply Date
-                            </motion.button>
-                        </div>
+                        {/* Custom Date Filter - Only show when custom is selected */}
+                        {period === 'custom' && (
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="date"
+                                    value={dateRange.start.toISOString().slice(0, 10)}
+                                    onChange={(e) => setDateRange(prev => ({
+                                        ...prev,
+                                        start: new Date(e.target.value)
+                                    }))}
+                                    className="border px-3 py-1 rounded"
+                                />
+                                <span>to</span>
+                                <input
+                                    type="date"
+                                    value={dateRange.end.toISOString().slice(0, 10)}
+                                    onChange={(e) => setDateRange(prev => ({
+                                        ...prev,
+                                        end: new Date(e.target.value)
+                                    }))}
+                                    min={dateRange.start.toISOString().slice(0, 10)}
+                                    className="border px-3 py-1 rounded"
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* Services Section */}

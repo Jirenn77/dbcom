@@ -67,6 +67,8 @@ export default function ServiceOrderPage() {
   const [showMembershipSignup, setShowMembershipSignup] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const currentUser = { name: "Admin" }; // or hardcoded for now
   const [isCustomersLoading, setIsCustomersLoading] = useState(true);
   const [customersError, setCustomersError] = useState(null);
   const [newCustomer, setNewCustomer] = useState({
@@ -143,9 +145,50 @@ export default function ServiceOrderPage() {
     setShowConfirmation(true);
   };
 
-  const confirmSave = () => {
-    setShowConfirmation(false);
-    toast.success("Service Acquire saved successfully!");
+  const confirmSave = async () => {
+    if (!selectedCustomer || selectedServices.length === 0) {
+      alert("Please select a customer and at least one service.");
+      return;
+    }
+
+    const payload = {
+      customer_id: selectedCustomer.id,
+      services: selectedServices.map(service => ({
+        id: service.id,
+        name: service.name,
+        price: service.price,
+      })),
+      subtotal,
+      membershipReduction,
+      grand_total: subtotal - membershipReduction,
+      employee_name: currentUser?.name || "Unknown", // fallback if currentUser is not defined
+    };
+
+    try {
+      const response = await fetch("http://localhost/API/saveAcquire.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const text = await response.text();
+
+      try {
+        const result = JSON.parse(text);
+        if (result.success) {
+          alert("Saved successfully!");
+        } else {
+          alert(result.message || "Save failed");
+        }
+      } catch (jsonError) {
+        console.error("Invalid JSON from server:", text);
+        alert("Server returned invalid JSON:\n" + text);
+      }
+
+    } catch (err) {
+      console.error("Save failed", err);
+      alert("Network error occurred");
+    }
   };
 
   const handleClearAll = () => {
@@ -178,6 +221,7 @@ export default function ServiceOrderPage() {
     setCustomerName(customer.name);
     setMembershipType(customer.membershipType);
     setIsMember(customer.isMember);
+    setSelectedCustomer(customer);
     setIsCustomerModalOpen(false);
   };
 
@@ -266,58 +310,6 @@ export default function ServiceOrderPage() {
   return (
     <div className="flex flex-col h-screen bg-gray-100 text-gray-900">
       <Toaster />
-
-      {/* Header */}
-      <header className="flex items-center justify-between bg-[#89C07E] text-white p-4 w-full h-16 pl-64 relative">
-        <div className="flex items-center space-x-4">
-          {/* Home icon removed from here */}
-        </div>
-
-        {/* <div className="flex items-center space-x-4 flex-grow justify-center">
-          <button className="text-2xl" onClick={() => setIsNewCustomerModalOpen(true)}>
-            ➕
-          </button>
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-4 py-2 rounded-lg bg-white text-gray-900 w-64 focus:outline-none"
-          />
-          <button
-            onClick={handleSearch}
-            className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-md"
-          >
-            Search
-          </button>
-        </div> */}
-
-        <div className="flex items-center space-x-4 relative">
-          <div
-            className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg font-bold cursor-pointer"
-            onClick={() => setIsProfileOpen(!isProfileOpen)}
-          >
-            A
-          </div>
-          {isProfileOpen && (
-            <div className="bg-green-500 absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
-              <Link href="/acc-settings">
-                <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
-                  <User size={16} /> Edit Profile
-                </button>
-              </Link>
-              <Link href="/settings">
-                <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
-                  <Settings size={16} /> Settings
-                </button>
-              </Link>
-              <button className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded justify-start" onClick={handleLogout}>
-                <LogOut size={16} /> Logout
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
 
       {/* Sidebar */}
       <div className="flex flex-1">
@@ -842,15 +834,15 @@ export default function ServiceOrderPage() {
                 </motion.div>
               ) : (
                 <>
-                  {/* Category Tabs */}
-                  <div className="flex overflow-x-auto pb-2 mb-4">
+                  {/* Category Tabs - Wrapped layout */}
+                  <div className="flex flex-wrap gap-2 pb-2 mb-4">
                     {serviceCategories.map(category => (
                       <motion.button
                         key={category.id}
                         onClick={() => setActiveCategory(category.id)}
-                        className={`px-4 py-2 mr-2 rounded-lg whitespace-nowrap ${activeCategory === category.id
-                            ? 'bg-green-600 text-white'
-                            : 'bg-white text-gray-700 hover:bg-gray-200'
+                        className={`px-4 py-2 rounded-lg whitespace-nowrap text-sm ${activeCategory === category.id
+                          ? 'bg-green-600 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-200'
                           }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -862,9 +854,9 @@ export default function ServiceOrderPage() {
                     {isMember && (
                       <motion.button
                         onClick={() => setActiveCategory('members-exclusive')}
-                        className={`px-4 py-2 mr-2 rounded-lg whitespace-nowrap ${activeCategory === 'members-exclusive'
-                            ? 'bg-green-600 text-white'
-                            : 'bg-white text-gray-700 hover:bg-gray-200'
+                        className={`px-4 py-2 rounded-lg whitespace-nowrap text-sm ${activeCategory === 'members-exclusive'
+                          ? 'bg-green-600 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-200'
                           }`}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -874,16 +866,16 @@ export default function ServiceOrderPage() {
                     )}
                   </div>
 
-                  {/* Services Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Services Grid - Wrapped layout */}
+                  <div className="flex flex-wrap gap-4">
                     {activeCategory === 'members-exclusive' ? (
                       // Show mock services for members
                       mockServices.map(service => (
                         <motion.div
                           key={service.id}
-                          className={`p-4 border rounded-lg cursor-pointer transition-colors ${selectedServices.some(s => s.id === service.id)
-                              ? 'bg-green-100 border-green-500'
-                              : 'bg-white hover:bg-gray-50'
+                          className={`w-full sm:w-48 p-4 border rounded-lg cursor-pointer transition-colors ${selectedServices.some(s => s.id === service.id)
+                            ? 'bg-green-100 border-green-500'
+                            : 'bg-white hover:bg-gray-50'
                             }`}
                           onClick={() => handleServiceToggle(service)}
                           whileHover={{ scale: 1.02 }}
@@ -892,17 +884,17 @@ export default function ServiceOrderPage() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ type: "spring", stiffness: 300, damping: 20 }}
                         >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="font-medium">{service.name}</h3>
-                              <p className="text-sm text-gray-600">{service.duration}</p>
+                          <div className="flex flex-col h-full">
+                            <div className="flex-grow">
+                              <h3 className="font-medium text-sm">{service.name}</h3>
+                              <p className="text-xs text-gray-600 mt-1">{service.duration}</p>
                             </div>
-                            <span className="font-bold">{service.price}</span>
-                          </div>
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                              Members Exclusive
-                            </span>
+                            <div className="mt-2 flex justify-between items-end">
+                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                Members
+                              </span>
+                              <span className="font-bold text-sm">{service.price}</span>
+                            </div>
                           </div>
                         </motion.div>
                       ))
@@ -913,9 +905,9 @@ export default function ServiceOrderPage() {
                         ?.services.map(service => (
                           <motion.div
                             key={service.id}
-                            className={`p-4 border rounded-lg cursor-pointer transition-colors ${selectedServices.some(s => s.id === service.id)
-                                ? 'bg-green-100 border-green-500'
-                                : 'bg-white hover:bg-gray-50'
+                            className={`w-full sm:w-48 p-4 border rounded-lg cursor-pointer transition-colors ${selectedServices.some(s => s.id === service.id)
+                              ? 'bg-green-100 border-green-500'
+                              : 'bg-white hover:bg-gray-50'
                               }`}
                             onClick={() => handleServiceToggle(service)}
                             whileHover={{ scale: 1.02 }}
@@ -924,12 +916,14 @@ export default function ServiceOrderPage() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ type: "spring", stiffness: 300, damping: 20 }}
                           >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h3 className="font-medium">{service.name}</h3>
-                                <p className="text-sm text-gray-600">{service.duration}</p>
+                            <div className="flex flex-col h-full">
+                              <div className="flex-grow">
+                                <h3 className="font-medium text-sm">{service.name}</h3>
+                                <p className="text-xs text-gray-600 mt-1">{service.duration}</p>
                               </div>
-                              <span className="font-bold">₱{service.price.toLocaleString()}</span>
+                              <div className="mt-2 flex justify-end">
+                                <span className="font-bold text-sm">₱{service.price.toLocaleString()}</span>
+                              </div>
                             </div>
                           </motion.div>
                         ))
@@ -938,7 +932,7 @@ export default function ServiceOrderPage() {
                 </>
               )}
 
-              {/* Selected Services List */}
+              {/* Selected Services List - Fixed height with vertical scrolling */}
               {selectedServices.length > 0 && (
                 <motion.div
                   className="mt-6"
@@ -946,8 +940,16 @@ export default function ServiceOrderPage() {
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.3 }}
                 >
-                  <h3 className="font-medium mb-2">Selected Services ({selectedServices.length})</h3>
-                  <div className="space-y-2">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-medium">Selected Services ({selectedServices.length})</h3>
+                    <button
+                      onClick={() => setSelectedServices([])}
+                      className="text-xs text-red-500 hover:text-red-700"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
                     <AnimatePresence>
                       {selectedServices.map((service, index) => {
                         const isMemberService = mockServices.some(s => s.id === service.id);
@@ -967,14 +969,7 @@ export default function ServiceOrderPage() {
                             transition={{ delay: index * 0.05 }}
                             whileHover={{ scale: 1.005 }}
                           >
-                            <div>
-                              <span>{service.name}</span>
-                              <span className="text-xs text-gray-500 block">{category}</span>
-                            </div>
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">
-                                {isMemberService ? service.price : `₱${service.price.toLocaleString()}`}
-                              </span>
                               <motion.button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -986,7 +981,14 @@ export default function ServiceOrderPage() {
                               >
                                 <Trash2 size={16} />
                               </motion.button>
+                              <div>
+                                <span className="text-sm">{service.name}</span>
+                                <span className="text-xs text-gray-500 block">{category}</span>
+                              </div>
                             </div>
+                            <span className="font-medium text-sm">
+                              {isMemberService ? service.price : `₱${service.price.toLocaleString()}`}
+                            </span>
                           </motion.div>
                         );
                       })}
@@ -1249,10 +1251,12 @@ export default function ServiceOrderPage() {
                         Cancel
                       </motion.button>
                       <motion.button
-                        className="px-4 py-2 bg-[#5BBF5B] hover:bg-[#4CAF4C] text-white rounded-lg"
                         onClick={confirmSave}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                        className={`px-4 py-2 rounded-lg text-white ${!selectedCustomer || selectedServices.length === 0
+                          ? "bg-gray-400 cursor-not-allowed"
+                          : "bg-green-600 hover:bg-green-700"
+                          }`}
+                        disabled={!selectedCustomer || selectedServices.length === 0}
                       >
                         Yes
                       </motion.button>

@@ -2,12 +2,12 @@
 
 import { useRouter, } from "next/navigation";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu } from "@headlessui/react";
-import { BarChart } from "lucide-react";
-import { Folder, ClipboardList, Factory, ShoppingBag, Tag } from "lucide-react";
+import { Menu, Dialog, Transition } from "@headlessui/react";
+import { BarChart, Pencil, Trash2, Power } from "lucide-react";
+import { Folder, ClipboardList, Factory, ShoppingBag, Tag, XIcon } from "lucide-react";
 import { Home, Users, FileText, CreditCard, Package, Layers, ShoppingCart, Settings, LogOut, UserPlus } from "lucide-react";
 
 export default function BeautyDeals() {
@@ -16,7 +16,8 @@ export default function BeautyDeals() {
     const [discounts, setDiscounts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-    
+    const [isOpen, setIsOpen] = useState(false);
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedDeal, setSelectedDeal] = useState(null);
@@ -34,6 +35,15 @@ export default function BeautyDeals() {
         value: "",
         status: "active"
     });
+
+    function closeModal() {
+        setIsOpen(false)
+    }
+
+    function openModal(deal) {
+        setSelectedDeal(deal)
+        setIsOpen(true)
+    }
 
     // Fetch data from backend
     useEffect(() => {
@@ -53,7 +63,7 @@ export default function BeautyDeals() {
                 setIsLoading(false);
             }
         };
-        
+
         fetchData();
     }, []);
 
@@ -86,7 +96,7 @@ export default function BeautyDeals() {
                     validTo: newItem.validTo,
                     status: newItem.status
                 };
-                
+
                 setDeals(prev => [...prev, newDeal]);
                 toast.success("Promo added successfully!");
             } else {
@@ -97,7 +107,7 @@ export default function BeautyDeals() {
                     value: newItem.value,
                     status: newItem.status
                 };
-                
+
                 setDiscounts(prev => [...prev, newDiscount]);
                 toast.success("Discount added successfully!");
             }
@@ -177,25 +187,29 @@ export default function BeautyDeals() {
     const handleToggleStatus = async (index, isDeal) => {
         try {
             if (isDeal) {
-                // Here you would send a PATCH request to your backend
                 setDeals(prev => {
                     const updated = [...prev];
-                    updated[index].status = updated[index].status === "active" ? "inactive" : "active";
+                    const currentStatus = updated[index].status;
+                    const newStatus = currentStatus === "active" ? "inactive" : "active";
+                    updated[index].status = newStatus;
+                    toast.success(`Deal marked as ${newStatus}`);
                     return updated;
                 });
-                toast.success(`Deal marked as ${deals[index].status === "active" ? "inactive" : "active"}`);
             } else {
                 setDiscounts(prev => {
                     const updated = [...prev];
-                    updated[index].status = updated[index].status === "active" ? "inactive" : "active";
+                    const currentStatus = updated[index].status;
+                    const newStatus = currentStatus === "active" ? "inactive" : "active";
+                    updated[index].status = newStatus;
+                    toast.success(`Discount marked as ${newStatus}`);
                     return updated;
                 });
-                toast.success(`Discount marked as ${discounts[index].status === "active" ? "inactive" : "active"}`);
             }
         } catch (error) {
             toast.error('Failed to update status: ' + error.message);
         }
     };
+
 
     if (isLoading) {
         return (
@@ -204,6 +218,7 @@ export default function BeautyDeals() {
             </main>
         );
     }
+
 
     const handleSearch = () => {
         toast.success(`Searching for "${searchQuery}"...`);
@@ -337,7 +352,7 @@ export default function BeautyDeals() {
                 </nav>
 
                 {/* Main Content */}
-<main className="flex-1 p-6 bg-white text-gray-900 ml-64">
+                <main className="flex-1 p-6 bg-white text-gray-900 ml-64">
                     <motion.div
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -383,12 +398,16 @@ export default function BeautyDeals() {
                                     {deals.map((deal, index) => (
                                         <motion.div
                                             key={index}
-                                            className="grid grid-cols-5 items-center border-b pb-2"
+                                            className="grid grid-cols-5 items-center border-b pb-2 cursor-pointer"
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, x: -50 }}
                                             transition={{ delay: index * 0.05, type: "spring" }}
                                             whileHover={{ backgroundColor: "#f9fafb" }}
+                                            onClick={() => {
+                                                setSelectedDeal(deal);
+                                                setIsOpen(true);
+                                            }}
                                         >
                                             <div>
                                                 <div className="font-semibold">{deal.type}</div>
@@ -405,33 +424,43 @@ export default function BeautyDeals() {
                                                     {deal.status}
                                                 </motion.span>
                                             </div>
-                                            <div className="flex space-x-2 justify-end">
+                                            <div className="flex items-center justify-start space-x-3">
                                                 <motion.button
-                                                    onClick={() => handleEditDeal(index)}
-                                                    className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
-                                                    whileHover={{ scale: 1.1 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleEditDeal(index);
+                                                    }}
+                                                    className="text-blue-600 hover:text-blue-800"
+                                                    whileHover={{ scale: 1.2 }}
                                                     whileTap={{ scale: 0.9 }}
                                                 >
-                                                    Edit
+                                                    <Pencil size={18} title="Edit" />
                                                 </motion.button>
+
                                                 <motion.button
-                                                    onClick={() => handleToggleStatus(index, true)}
-                                                    className={`px-3 py-1 rounded text-sm ${deal.status === "active"
-                                                        ? "bg-yellow-500 hover:bg-yellow-600 text-white"
-                                                        : "bg-gray-500 hover:bg-gray-600 text-white"
-                                                        }`}
-                                                    whileHover={{ scale: 1.1 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleToggleStatus(index, true);
+                                                    }}
+                                                    className={deal.status === "active"
+                                                        ? "text-yellow-500 hover:text-yellow-700"
+                                                        : "text-gray-500 hover:text-gray-700"}
+                                                    whileHover={{ scale: 1.2 }}
                                                     whileTap={{ scale: 0.9 }}
                                                 >
-                                                    {deal.status === "active" ? "Deactivate" : "Activate"}
+                                                    <Power size={18} title={deal.status === "active" ? "Deactivate" : "Activate"} />
                                                 </motion.button>
+
                                                 <motion.button
-                                                    onClick={() => handleDeleteDeal(index)}
-                                                    className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm"
-                                                    whileHover={{ scale: 1.1 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteDeal(index);
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700"
+                                                    whileHover={{ scale: 1.2 }}
                                                     whileTap={{ scale: 0.9 }}
                                                 >
-                                                    Delete
+                                                    <Trash2 size={18} title="Delete" />
                                                 </motion.button>
                                             </div>
                                         </motion.div>
@@ -467,61 +496,82 @@ export default function BeautyDeals() {
                             <div className="grid grid-cols-4 font-bold mb-4 border-b pb-2">
                                 <div>Name and Description</div>
                                 <div>Details</div>
-                                <div>Status</div>
-                                <div>Actions</div>
+                                <div className="text-center">Status</div>
+                                <div className="text-center pr-3">Actions</div>
                             </div>
+
                             <div className="space-y-4">
                                 <AnimatePresence>
                                     {discounts.map((discount, index) => (
                                         <motion.div
                                             key={index}
-                                            className="grid grid-cols-4 items-center border-b pb-2"
+                                            className="grid grid-cols-4 items-center border-b pb-2 cursor-pointer"
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, x: -50 }}
                                             transition={{ delay: index * 0.05, type: "spring" }}
                                             whileHover={{ backgroundColor: "#f9fafb" }}
+                                            onClick={() => {
+                                                setSelectedDeal(discount);
+                                                setIsOpen(true);
+                                            }}
                                         >
                                             <div>
                                                 <div className="font-semibold">{discount.name}</div>
                                                 <div className="text-sm text-gray-600">{discount.description}</div>
                                             </div>
+
                                             <div>Details here</div>
-                                            <div>
+
+                                            {/* STATUS */}
+                                            <div className="flex justify-center">
                                                 <motion.span
-                                                    className={`px-2 py-1 rounded-full text-xs ${discount.status === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                                                    className={`px-2 py-1 rounded-full text-xs font-medium ${discount.status === "active"
+                                                        ? "bg-green-100 text-green-800"
+                                                        : "bg-red-100 text-red-800"
+                                                        }`}
                                                     whileHover={{ scale: 1.1 }}
                                                 >
                                                     {discount.status}
                                                 </motion.span>
                                             </div>
-                                            <div className="flex space-x-2 justify-end">
+                                            <div className="flex items-center justify-center space-x-3">
                                                 <motion.button
-                                                    onClick={() => handleEditDiscount(index)}
-                                                    className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
-                                                    whileHover={{ scale: 1.1 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleEditDiscount(index);
+                                                    }}
+                                                    className="text-blue-600 hover:text-blue-800"
+                                                    whileHover={{ scale: 1.2 }}
                                                     whileTap={{ scale: 0.9 }}
                                                 >
-                                                    Edit
+                                                    <Pencil size={18} title="Edit" />
                                                 </motion.button>
+
                                                 <motion.button
-                                                    onClick={() => handleToggleStatus(index, false)}
-                                                    className={`px-3 py-1 rounded text-sm ${discount.status === "active"
-                                                        ? "bg-yellow-500 hover:bg-yellow-600 text-white"
-                                                        : "bg-gray-500 hover:bg-gray-600 text-white"
-                                                        }`}
-                                                    whileHover={{ scale: 1.1 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleToggleStatus(index, false);
+                                                    }}
+                                                    className={discount.status === "active"
+                                                        ? "text-yellow-500 hover:text-yellow-700"
+                                                        : "text-gray-500 hover:text-gray-700"}
+                                                    whileHover={{ scale: 1.2 }}
                                                     whileTap={{ scale: 0.9 }}
                                                 >
-                                                    {discount.status === "active" ? "Deactivate" : "Activate"}
+                                                    <Power size={18} title={discount.status === "active" ? "Deactivate" : "Activate"} />
                                                 </motion.button>
+
                                                 <motion.button
-                                                    onClick={() => handleDeleteDiscount(index)}
-                                                    className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm"
-                                                    whileHover={{ scale: 1.1 }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteDiscount(index);
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700"
+                                                    whileHover={{ scale: 1.2 }}
                                                     whileTap={{ scale: 0.9 }}
                                                 >
-                                                    Delete
+                                                    <Trash2 size={18} title="Delete" />
                                                 </motion.button>
                                             </div>
                                         </motion.div>
@@ -532,6 +582,155 @@ export default function BeautyDeals() {
                     </motion.div>
                 </main>
             </div>
+
+            {/* Modal - Add this at the bottom of your component */}
+            <Transition appear show={isOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-10" onClose={() => setIsOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black bg-opacity-25" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <div className="flex justify-between items-start">
+                                        <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900">
+                                            {selectedDeal?.name || 'Deal Details'}
+                                        </Dialog.Title>
+                                        <button
+                                            type="button"
+                                            className="text-gray-400 hover:text-gray-500"
+                                            onClick={() => setIsOpen(false)}
+                                        >
+                                            <XIcon className="h-6 w-6" />
+                                        </button>
+                                    </div>
+
+                                    <div className="mt-4 space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <h4 className="font-medium text-gray-900">Description</h4>
+                                                <p className="text-sm text-gray-700 mt-1">
+                                                    {selectedDeal?.description || 'N/A'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <h4 className="font-medium text-gray-900">Status</h4>
+                                                <span className={`mt-1 px-2 py-1 rounded-full text-xs ${selectedDeal?.status === "active"
+                                                    ? "bg-green-100 text-green-800"
+                                                    : "bg-red-100 text-red-800"
+                                                    }`}>
+                                                    {selectedDeal?.status || 'N/A'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {selectedDeal?.validFrom && (
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <h4 className="font-medium text-gray-900">Valid From</h4>
+                                                    <p className="text-sm text-gray-800 mt-1">
+                                                        {selectedDeal?.validFrom || 'N/A'}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-medium text-gray-900">Valid To</h4>
+                                                    <p className="text-sm text-gray-800 mt-1">
+                                                        {selectedDeal?.validTo || 'N/A'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div>
+                                            <h4 className="font-semibold text-gray-900 mb-2">Included Services</h4>
+                                            <div className="overflow-x-auto">
+                                                <table className="min-w-full divide-y divide-gray-200">
+                                                    <thead className="bg-gray-50">
+                                                        <tr>
+                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Service</th>
+                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Category</th>
+                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Original Price</th>
+                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">Discounted Price</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="bg-white divide-y divide-gray-200">
+                                                        {selectedDeal?.services?.map((service, index) => (
+                                                            <tr key={index}>
+                                                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{service.name}</td>
+                                                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.category}</td>
+                                                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.originalPrice}</td>
+                                                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.discountedPrice}</td>
+                                                            </tr>
+                                                        ))}
+                                                        {(!selectedDeal?.services || selectedDeal.services.length === 0) && (
+                                                            <tr>
+                                                                <td colSpan="4" className="px-4 py-4 text-center text-sm text-gray-500">
+                                                                    No services included in this deal
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex justify-end space-x-3">
+                                        <motion.button
+                                            onClick={() => {
+                                                if (selectedDeal) {
+                                                    const index = deals.findIndex(d => d.id === selectedDeal.id) ??
+                                                        discounts.findIndex(d => d.id === selectedDeal.id);
+                                                    if (index !== -1) {
+                                                        if (deals.find(d => d.id === selectedDeal.id)) {
+                                                            handleEditDeal(index);
+                                                        } else {
+                                                            handleEditDiscount(index);
+                                                        }
+                                                    }
+                                                }
+                                                setIsOpen(false);
+                                            }}
+                                            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                        >
+                                            Edit Deal
+                                        </motion.button>
+                                        <motion.button
+                                            onClick={() => setIsOpen(false)}
+                                            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded text-sm"
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                        >
+                                            Close
+                                        </motion.button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
             {/* Add Promo Modal */}
             {isAddModalOpen && newItem.type === "promo" && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">

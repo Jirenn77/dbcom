@@ -189,6 +189,58 @@ export default function InvoicesPage() {
     toast.success(`Showing invoices from this ${period}`);
   };
 
+  // Group invoices by customer name (or customerId if that's better)
+  const groupedInvoices = filteredInvoices.reduce((acc, invoice) => {
+    if (!acc[invoice.name]) {
+      acc[invoice.name] = invoice;
+    } else {
+      // Optionally: update if newer invoice
+      if (new Date(invoice.dateIssued) > new Date(acc[invoice.name].dateIssued)) {
+        acc[invoice.name] = invoice;
+      }
+    }
+    return acc;
+  }, {});
+
+  const selectedCustomerName = selectedInvoice?.name;
+
+  const recentServicesForCustomer = filteredInvoices
+    .filter(inv => inv.name === selectedCustomerName)
+    .flatMap(inv => inv.services.map(service => ({
+      ...service,
+      invoiceDate: inv.dateIssued,
+      invoiceId: inv.invoiceNumber,
+      employee: service.employee || 'Staff' // fallback
+    })))
+    .sort((a, b) => new Date(b.invoiceDate) - new Date(a.invoiceDate));
+
+  const subtotal = recentServicesForCustomer.reduce((sum, service) => {
+    const price = typeof service.price === "string"
+      ? parseFloat(service.price.replace(/[₱,]/g, ''))
+      : service.price;
+    return sum + (price || 0);
+  }, 0);
+
+  const uniqueInvoices = Object.values(groupedInvoices);
+
+  // Group and sum all invoices by customer name
+  const invoiceTotalsByCustomer = filteredInvoices.reduce((acc, invoice) => {
+    const key = invoice.name;
+    const amount = typeof invoice.totalAmount === "string"
+      ? parseFloat(invoice.totalAmount.replace(/[₱,]/g, ''))
+      : invoice.totalAmount;
+
+    if (!acc[key]) acc[key] = 0;
+    acc[key] += amount || 0;
+    return acc;
+  }, {});
+
+  function formatCurrency(value) {
+    const num = typeof value === 'string' ? parseFloat(value.replace(/[₱,]/g, '')) : value;
+    if (isNaN(num)) return '₱0.00';
+    return `₱${num.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
+  }
+
   return (
     <div className="flex flex-col h-screen bg-[#77DD77] text-gray-900">
       <Toaster />
@@ -418,7 +470,7 @@ export default function InvoicesPage() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {filteredInvoices.length > 0 ? (
-                        filteredInvoices.map((invoice, index) => (
+                        uniqueInvoices.map((invoice, index) => (
                           <motion.tr
                             key={invoice.id}
                             className={`group hover:bg-gray-50 cursor-pointer transition-colors duration-200 ${selectedInvoice?.id === invoice.id ? "bg-[#E3F9E5]" : ""}`}
@@ -441,7 +493,7 @@ export default function InvoicesPage() {
                               {invoice.dateIssued}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                              {invoice.totalAmount}
+                              {formatCurrency(invoiceTotalsByCustomer[invoice.name])}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <motion.span
@@ -542,42 +594,40 @@ export default function InvoicesPage() {
                         </div>
                       </div>
 
-                      <div className="p-2 hover:bg-gray-50 rounded-lg transition-colors duration-200">
-                        <h3 className="text-md font-semibold mb-2">Services</h3>
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200 text-sm">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors">Service</th>
-                                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors">Price</th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {selectedInvoice.services.map((service, index) => (
-                                <motion.tr
-                                  key={index}
-                                  className="hover:bg-gray-100 transition-colors duration-150"
-                                  whileHover={{ backgroundColor: "rgba(243, 244, 246, 0.7)" }}
-                                >
-                                  <td className="px-2 py-2 whitespace-nowrap text-gray-900 hover:text-blue-600 transition-colors">
-                                    {service.name}
-                                  </td>
-                                  <td className="px-2 py-2 whitespace-nowrap text-gray-500">
-                                    {service.price}
-                                  </td>
-                                </motion.tr>
-                              ))}
-                            </tbody>
-                          </table>
+                      {/* Recent Services from all invoices of selected customer */}
+                      {selectedInvoice && (
+                        <div className="p-4">
+                          <h3 className="text-sm font-semibold text-gray-500 mb-2">
+                            Recent Services for {selectedInvoice.name}
+                          </h3>
+                          <div className="space-y-2">
+                            {recentServicesForCustomer.map((service, index) => (
+                              <motion.div
+                                key={index}
+                                className="border-b pb-2 last:border-0"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                              >
+                                <div className="flex justify-between">
+                                  <span className="font-medium text-sm text-gray-900">{service.name}</span>
+                                  <span className="text-sm text-gray-700">{service.price}</span>
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {service.invoiceDate} • {service.employee}
+                                </div>
+                              </motion.div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       <div className="p-2 hover:bg-gray-50 rounded-lg transition-colors duration-200">
                         <div className="flex justify-end items-center space-x-4">
                           <div className="w-full sm:w-64 space-y-2 text-sm">
                             <div className="flex justify-between py-1 border-b">
                               <span className="font-medium">Subtotal:</span>
-                              <span>{selectedInvoice.totalAmount}</span>
+                              <span>₱{subtotal.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between py-1 border-b">
                               <span className="font-medium">Tax:</span>
@@ -585,7 +635,7 @@ export default function InvoicesPage() {
                             </div>
                             <div className="flex justify-between py-1 font-bold">
                               <span>Total:</span>
-                              <span>{selectedInvoice.totalAmount}</span>
+                              <span>₱{subtotal.toFixed(2)}</span>
                             </div>
                           </div>
                         </div>

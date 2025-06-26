@@ -54,7 +54,7 @@ export default function MembershipExpirationReport() {
     const fetchCustomers = async (filter = 'all') => {
         try {
             setIsLoading(true);
-            const response = await fetch(`http://localhost/API/customers.php?filter=${filter}`);
+            const response = await fetch(`http://localhost/API/members.php?filter=${filter}`);
             if (!response.ok) throw new Error('Failed to fetch customers');
             const data = await response.json();
             setCustomers(data);
