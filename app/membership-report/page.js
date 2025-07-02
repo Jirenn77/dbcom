@@ -21,6 +21,10 @@ export default function MembershipExpirationReport() {
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [renewModalData, setRenewModalData] = useState(null);
+    const [selectedType, setSelectedType] = useState("standard");
+    const [paymentMethod, setPaymentMethod] = useState("cash");
+
 
     // Animation variants
     const fadeIn = {
@@ -34,6 +38,50 @@ export default function MembershipExpirationReport() {
         visible: { y: 0, opacity: 1, transition: { duration: 0.3 } },
         exit: { y: 50, opacity: 0, transition: { duration: 0.2 } }
     };
+
+    useEffect(() => {
+        fetchExpiringMemberships();
+        fetchCustomers(customerFilter);
+        fetchCustomerMemberships();
+    }, [customerFilter, daysThreshold]);
+
+    const membershipOptions = {
+        standard: { coverage: 5000, duration: 1 },
+        vip: { coverage: 10000, duration: 2 }
+    };
+
+    const { coverage, duration } = membershipOptions[selectedType];
+
+    function calculateDaysRemaining(dateStr) {
+        const today = new Date();
+        const target = new Date(dateStr);
+        const diffTime = target.getTime() - today.getTime();
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    const filteredCustomers = customers.filter((customer) => {
+        const membership = customerMemberships.find(m => m.customer_id === customer.id);
+        if (!membership || !membership.expire_date) return false;
+
+        const expireDate = new Date(membership.expire_date);
+        const today = new Date();
+        const daysRemaining = calculateDaysRemaining(membership.expire_date);
+
+        switch (customerFilter) {
+            case 'all':
+                // Show all customers with active membership only
+                return expireDate >= today;
+            case 'active':
+                return expireDate >= today;
+            case 'expiring':
+                return expireDate >= today && daysRemaining <= daysThreshold;
+            case 'expired':
+                return expireDate < today;
+            default:
+                return false;
+        }
+    });
+
 
     // Fetch expiring memberships
     const fetchExpiringMemberships = async () => {
@@ -120,7 +168,10 @@ export default function MembershipExpirationReport() {
         setIsDetailsOpen(true);
     };
 
-    const handleRenew = async (customerId, membershipId) => {
+    const handleRenew = async (customerId, membershipId, type = 'Standard', payment = 'cash') => {
+        const coverage = type === 'vip' ? 10000 : 5000;
+        const durationMonths = type === 'vip' ? 2 : 1;
+
         try {
             const response = await fetch(`http://localhost/API/members.php`, {
                 method: 'POST',
@@ -130,33 +181,42 @@ export default function MembershipExpirationReport() {
                 body: JSON.stringify({
                     customer_id: customerId,
                     membership_id: membershipId,
-                    action: 'renew'
+                    action: 'renew',
+                    type,
+                    coverage,
+                    duration: durationMonths,
+                    payment_method: payment
                 })
             });
 
             if (!response.ok) throw new Error('Failed to renew membership');
 
+            const updatedMembership = await response.json();
+            console.log("Updated Membership:", updatedMembership);
+
+            // ✅ Update the customerMemberships list
+            setCustomerMemberships(prev =>
+                prev.map(m =>
+                    m.customer_id === customerId ? { ...m, ...updatedMembership } : m
+                )
+            );
+
+            // ✅ Update the customers list (if necessary, e.g., to re-render expiration/status)
+            setCustomers(prev =>
+                prev.map(c =>
+                    c.id === customerId
+                        ? { ...c, membershipUpdatedAt: Date.now() } // force re-render if needed
+                        : c
+                )
+            );
+
             toast.success("Membership renewed successfully!");
-            fetchExpiringMemberships();
-            fetchCustomers(customerFilter);
-            fetchCustomerMemberships();
         } catch (error) {
             toast.error("Failed to renew membership.");
             console.error(error);
         }
     };
 
-    const handleSendReminder = async (customerId) => {
-        try {
-            await fetch(`http://localhost/API/memberships.php/remind/${customerId}`, {
-                method: 'POST'
-            });
-            toast.success("Reminder sent successfully!");
-        } catch (error) {
-            toast.error("Failed to send reminder.");
-            console.error(error);
-        }
-    };
 
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
@@ -164,28 +224,21 @@ export default function MembershipExpirationReport() {
         return new Date(dateString).toLocaleDateString(undefined, options);
     };
 
-    const calculateDaysRemaining = (endDate) => {
-        if (!endDate) return 'N/A';
-        const today = new Date();
-        const end = new Date(endDate);
-        const diffTime = end - today;
-        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    };
 
     const formatCurrency = (amount) => {
-    if (!amount) return 'N/A';
+        if (!amount) return 'N/A';
 
-    // If it's a string with commas, convert to number
-    if (typeof amount === 'string') {
-        amount = Number(amount.replace(/,/g, ''));
-    }
+        // If it's a string with commas, convert to number
+        if (typeof amount === 'string') {
+            amount = Number(amount.replace(/,/g, ''));
+        }
 
-    return new Intl.NumberFormat('en-PH', {
-        style: 'currency',
-        currency: 'PHP',
-        minimumFractionDigits: 2,
-    }).format(amount);
-};
+        return new Intl.NumberFormat('en-PH', {
+            style: 'currency',
+            currency: 'PHP',
+            minimumFractionDigits: 2,
+        }).format(amount);
+    };
 
 
     useEffect(() => {
@@ -229,14 +282,6 @@ export default function MembershipExpirationReport() {
                         className="px-4 py-2 rounded-lg bg-white text-gray-900 w-64 focus:outline-none"
                         whileFocus={{ scale: 1.02 }}
                     />
-                    <motion.button
-                        onClick={handleSearch}
-                        className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-md"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                    >
-                        Search
-                    </motion.button>
                 </div>
 
                 <div className="flex items-center space-x-4 relative">
@@ -367,7 +412,6 @@ export default function MembershipExpirationReport() {
                                             <option value="active">Active Memberships</option>
                                             <option value="expiring">Expiring Soon</option>
                                             <option value="expired">Expired</option>
-                                            <option value="non_member">Non-Members</option>
                                         </select>
                                     </div>
                                     <div className="flex items-center">
@@ -386,18 +430,6 @@ export default function MembershipExpirationReport() {
                                         </select>
                                     </div>
                                 </div>
-                                <motion.button
-                                    onClick={() => {
-                                        fetchExpiringMemberships();
-                                        fetchCustomers(customerFilter);
-                                        fetchCustomerMemberships();
-                                    }}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                >
-                                    Refresh
-                                </motion.button>
                             </div>
                         </div>
 
@@ -422,8 +454,14 @@ export default function MembershipExpirationReport() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {customers.length > 0 ? (
-                                            customers.map((customer) => {
+                                        {filteredCustomers.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="9" className="text-center py-6 text-gray-500">
+                                                    No customers found for this filter.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredCustomers.map((customer) => {
                                                 const membership = customerMemberships.find(m => m.customer_id === customer.id);
                                                 return (
                                                     <motion.tr
@@ -433,10 +471,7 @@ export default function MembershipExpirationReport() {
                                                         transition={{ duration: 0.2 }}
                                                     >
                                                         <td className="border px-2 py-2">
-                                                            <div
-                                                                className="font-medium text-blue-600 hover:underline cursor-pointer text-sm"
-                                                                onClick={() => handleCustomerRowClick(customer.id)}
-                                                            >
+                                                            <div className="font-medium text-sm text-gray-800">
                                                                 {customer.first_name || customer.name?.split(' ')[0]} {customer.last_name || customer.name?.split(' ')[1]}
                                                             </div>
                                                             <div className="text-xs text-gray-500">{customer.email}</div>
@@ -445,7 +480,11 @@ export default function MembershipExpirationReport() {
                                                             {customer.phone || customer.contact || 'N/A'}
                                                         </td>
                                                         <td className="border px-2 py-2 text-sm">
-                                                            {membership?.type || 'None'}
+                                                            {membership?.type === 'vip'
+                                                                ? 'VIP'
+                                                                : membership?.type
+                                                                    ? membership.type.charAt(0).toUpperCase() + membership.type.slice(1).toLowerCase()
+                                                                    : 'None'}
                                                         </td>
                                                         <td className="border px-2 py-2 text-sm">
                                                             {membership ? formatCurrency(membership.coverage) : 'N/A'}
@@ -470,43 +509,33 @@ export default function MembershipExpirationReport() {
                                                         </td>
                                                         <td className="border px-2 py-2">
                                                             <div className="flex flex-col space-y-1">
+                                                                <motion.button
+                                                                    onClick={() => handleCustomerRowClick(customer.id)}
+                                                                    className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-xs w-full"
+                                                                    whileHover={{ scale: 1.02 }}
+                                                                    whileTap={{ scale: 0.98 }}
+                                                                >
+                                                                    View
+                                                                </motion.button>
+
                                                                 {membership && (
-                                                                    <>
-                                                                        <motion.button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                handleSendReminder(customer.id);
-                                                                            }}
-                                                                            className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-xs w-full"
-                                                                            whileHover={{ scale: 1.02 }}
-                                                                            whileTap={{ scale: 0.98 }}
-                                                                        >
-                                                                            Remind
-                                                                        </motion.button>
-                                                                        <motion.button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                handleRenew(customer.id, membership.id);
-                                                                            }}
-                                                                            className="px-2 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 text-xs w-full"
-                                                                            whileHover={{ scale: 1.02 }}
-                                                                            whileTap={{ scale: 0.98 }}
-                                                                        >
-                                                                            Renew
-                                                                        </motion.button>
-                                                                    </>
+                                                                    <motion.button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setRenewModalData({ customerId: customer.id, membershipId: membership.id });
+                                                                        }}
+                                                                        className="px-2 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 text-xs w-full"
+                                                                        whileHover={{ scale: 1.02 }}
+                                                                        whileTap={{ scale: 0.98 }}
+                                                                    >
+                                                                        Renew
+                                                                    </motion.button>
                                                                 )}
                                                             </div>
                                                         </td>
                                                     </motion.tr>
                                                 );
                                             })
-                                        ) : (
-                                            <tr>
-                                                <td colSpan="9" className="border px-4 py-6 text-center text-gray-500">
-                                                    No customers found matching your criteria.
-                                                </td>
-                                            </tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -578,7 +607,14 @@ export default function MembershipExpirationReport() {
                                                     {selectedCustomer.membershipData?.length > 0 ? (
                                                         selectedCustomer.membershipData.map((membership) => (
                                                             <div key={membership.id} className="space-y-2 mb-4 border-b pb-4">
-                                                                <p><span className="font-semibold">Plan:</span> {membership.type}</p>
+                                                                <p>
+                                                                    <span className="font-semibold">Plan:</span>{" "}
+                                                                    {membership.type === 'vip'
+                                                                        ? 'VIP'
+                                                                        : membership.type
+                                                                            ? membership.type.charAt(0).toUpperCase() + membership.type.slice(1).toLowerCase()
+                                                                            : 'None'}
+                                                                </p>
                                                                 <p><span className="font-semibold">Coverage:</span> {formatCurrency(membership.coverage)}</p>
                                                                 <p><span className="font-semibold">Remaining Balance:</span> {formatCurrency(membership.remaining_balance)}</p>
                                                                 <p><span className="font-semibold">Registered:</span> {formatDate(membership.date_registered)}</p>
@@ -624,12 +660,14 @@ export default function MembershipExpirationReport() {
                                                                         <td className="border px-3 py-2 text-sm">{transaction.service || 'N/A'}</td>
                                                                         <td className="border px-3 py-2 text-sm">{formatCurrency(transaction.amount)}</td>
                                                                         <td className="border px-3 py-2 text-sm">
-                                                                            <span className={`px-2 py-1 rounded-full text-xs ${transaction.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                                                                transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                                                    'bg-gray-100 text-gray-800'
+                                                                            <span className={`px-2 py-1 rounded-full text-xs ${transaction.status === 'Paid'
+                                                                                    ? 'bg-green-100 text-green-800'
+                                                                                    : transaction.status === 'Pending'
+                                                                                        ? 'bg-yellow-100 text-yellow-800'
+                                                                                        : 'bg-gray-100 text-gray-800'
                                                                                 }`}>
                                                                                 {transaction.status || 'N/A'}
-                                                                            </span>
+                                                                            </span> 
                                                                         </td>
                                                                     </tr>
                                                                 ))}
@@ -646,27 +684,19 @@ export default function MembershipExpirationReport() {
                                                 transition={{ delay: 0.4 }}
                                             >
                                                 {selectedCustomer.membershipData?.length > 0 && (
-                                                    <>
-                                                        <motion.button
-                                                            onClick={() => handleSendReminder(selectedCustomer.id)}
-                                                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                                                            whileHover={{ scale: 1.05 }}
-                                                            whileTap={{ scale: 0.95 }}
-                                                        >
-                                                            Send Reminder
-                                                        </motion.button>
-                                                        <motion.button
-                                                            onClick={() => handleRenew(
-                                                                selectedCustomer.id,
-                                                                selectedCustomer.membershipData[0].id
-                                                            )}
-                                                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                                                            whileHover={{ scale: 1.05 }}
-                                                            whileTap={{ scale: 0.95 }}
-                                                        >
-                                                            Renew Membership
-                                                        </motion.button>
-                                                    </>
+                                                    <motion.button
+                                                        onClick={() =>
+                                                            setRenewModalData({
+                                                                customerId: selectedCustomer.id,
+                                                                membershipId: selectedCustomer.membershipData[0].id,
+                                                            })
+                                                        }
+                                                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                    >
+                                                        Renew Membership
+                                                    </motion.button>
                                                 )}
                                                 <motion.button
                                                     onClick={() => setIsDetailsOpen(false)}
@@ -679,6 +709,95 @@ export default function MembershipExpirationReport() {
                                             </motion.div>
                                         </>
                                     )}
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                    <AnimatePresence>
+                        {renewModalData && (
+                            <motion.div
+                                className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                            >
+                                <motion.div
+                                    className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md"
+                                    initial={{ y: 50, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    exit={{ y: 50, opacity: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-bold">Renew Membership</h3>
+                                        <button
+                                            onClick={() => setRenewModalData(null)}
+                                            className="text-gray-500 hover:text-gray-700"
+                                        >
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+
+                                    {/* Membership Type */}
+                                    <div className="mb-4">
+                                        <label className="block font-medium mb-1">Membership Type</label>
+                                        <select
+                                            value={selectedType}
+                                            onChange={(e) => setSelectedType(e.target.value)}
+                                            className="w-full px-4 py-2 border rounded-lg"
+                                        >
+                                            <option value="standard">Standard - ₱5,000 / 1 month</option>
+                                            <option value="vip">VIP - ₱10,000 / 2 months</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Payment Method */}
+                                    <div className="mb-4">
+                                        <label className="block font-medium mb-1">Payment Method</label>
+                                        <select
+                                            value={paymentMethod}
+                                            onChange={(e) => setPaymentMethod(e.target.value)}
+                                            className="w-full px-4 py-2 border rounded-lg"
+                                        >
+                                            <option value="cash">Cash</option>
+                                            <option value="e-wallet">E-Wallet</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Display Summary */}
+                                    <div className="mb-4 text-sm text-gray-700 space-y-1">
+                                        <p><strong>Coverage:</strong> ₱{coverage.toLocaleString()}</p>
+                                        <p><strong>Duration:</strong> {duration} {duration > 1 ? 'months' : 'month'}</p>
+                                        <p><strong>Payment:</strong> {paymentMethod}</p>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex justify-end space-x-4">
+                                        <motion.button
+                                            onClick={() => setRenewModalData(null)}
+                                            className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg"
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                        >
+                                            Cancel
+                                        </motion.button>
+                                        <motion.button
+                                            onClick={async () => {
+                                                await handleRenew(
+                                                    renewModalData.customerId,
+                                                    renewModalData.membershipId,
+                                                    selectedType,
+                                                    paymentMethod
+                                                );
+                                                setRenewModalData(null);
+                                            }}
+                                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                        >
+                                            Confirm Renewal
+                                        </motion.button>
+                                    </div>
                                 </motion.div>
                             </motion.div>
                         )}

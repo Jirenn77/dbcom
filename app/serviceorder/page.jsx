@@ -53,6 +53,7 @@ export default function ServiceOrderPage() {
   const [serviceCategories, setServiceCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState(null);
+  const [currentStep, setCurrentStep] = useState(1); // 1 = customer, 2 = services
 
   const [customerName, setCustomerName] = useState("Mrs Jefferson");
   const [membershipType, setMembershipType] = useState("Standard");
@@ -386,117 +387,642 @@ export default function ServiceOrderPage() {
           >
             <h1 className="text-2xl font-bold mb-6">Service Acquire</h1>
 
-            {/* Customer Section */}
-            <motion.div
-              className="mb-8 p-4 bg-gray-100 rounded-lg"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-            >
-              <h2 className="text-lg font-semibold mb-4">Customer</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">{customerName}</span>
-                    <div className="flex gap-2">
-                      <motion.button
-                        onClick={handleSelectCustomer}
-                        className="text-sm text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+            {/* Step Indicator */}
+            <div className="flex mb-8">
+              <div className={`flex items-center ${currentStep >= 1 ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 1 ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+                  1
+                </div>
+                <div className="ml-2">Customer</div>
+              </div>
+              <div className={`flex-1 border-t-2 mx-2 mt-4 ${currentStep >= 2 ? 'border-green-600' : 'border-gray-300'}`}></div>
+              <div className={`flex items-center ${currentStep >= 2 ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 2 ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+                  2
+                </div>
+                <div className="ml-2">Services</div>
+              </div>
+              <div className={`flex-1 border-t-2 mx-2 mt-4 ${currentStep >= 3 ? 'border-green-600' : 'border-gray-300'}`}></div>
+              <div className={`flex items-center ${currentStep >= 3 ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 3 ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+                  3
+                </div>
+                <div className="ml-2">Confirmation</div>
+              </div>
+            </div>
+
+            {/* Step 1: Customer Selection */}
+            {currentStep === 1 && (
+              <motion.div
+                className="mb-8 p-4 bg-gray-100 rounded-lg"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
+                <h2 className="text-lg font-semibold mb-4">Select Customer</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">{customerName || "No customer selected"}</span>
+                      <div className="flex gap-2">
+                        <motion.button
+                          onClick={handleSelectCustomer}
+                          className="text-sm text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          Select Customer
+                        </motion.button>
+                        <motion.button
+                          onClick={handleNewCustomer}
+                          className="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          New Customer
+                        </motion.button>
+                      </div>
+                    </div>
+
+                    {customerName && (
+                      <>
+                        {isMember ? (
+                          <>
+                            <motion.div
+                              className="flex items-center space-x-2 text-sm text-green-600 mb-2"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: 0.2 }}
+                            >
+                              <span>Membership Active</span>
+                              <span className="text-gray-500">[Expires: Mar. 15, 2025]</span>
+                            </motion.div>
+                            <motion.div
+                              className="text-sm mb-2"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: 0.3 }}
+                            >
+                              <span className="font-medium">Balance </span>
+                              <span className="text-blue-600">₱{membershipBalance.toLocaleString()} Remaining</span>
+                            </motion.div>
+                          </>
+                        ) : (
+                          <motion.div
+                            className="text-sm text-gray-600 mb-2"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                          >
+                            <span>Regular Customer (Non-member)</span>
+                          </motion.div>
+                        )}
+
+                        <motion.div
+                          className="text-sm text-gray-500 flex items-center"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.4 }}
+                        >
+                          <Calendar className="w-4 h-4 mr-1" />
+                          <span>Joined February 1, 2025</span>
+                        </motion.div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    {customerName && isMember ? (
+                      <>
+                        <motion.div
+                          className="flex justify-between"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.2 }}
+                        >
+                          <span className="text-gray-600">Benefits</span>
+                          <span className="font-medium">₱{membershipBalance.toLocaleString()}</span>
+                        </motion.div>
+                        <motion.div
+                          className="flex justify-between"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.3 }}
+                        >
+                          <span className="text-gray-600">Membership Type</span>
+                          <span className="font-medium">{membershipType}</span>
+                        </motion.div>
+                      </>
+                    ) : customerName ? (
+                      <motion.div
+                        className="text-sm text-gray-600"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.2 }}
                       >
-                        Select Customer
-                      </motion.button>
+                        <p>Non-members pay full price for all services</p>
+                        <p className="text-green-600 mt-1">Sign up for membership to get discounts!</p>
+                      </motion.div>
+                    ) : null}
+                  </div>
+                </div>
+
+                {customerName && (
+                  <motion.div
+                    className="flex justify-end mt-6"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    <motion.button
+                      onClick={() => setCurrentStep(2)}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Continue to Services
+                    </motion.button>
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Step 2: Services Selection (only shown if customer is selected) */}
+            {currentStep === 2 && (
+              <>
+                {/* Services Selection Section */}
+                <motion.div
+                  className="mb-8 p-4 bg-gray-100 rounded-lg"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 }}
+                >
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold">Select Services for {customerName}</h2>
+                    <button
+                      onClick={() => setCurrentStep(1)}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      Change Customer
+                    </button>
+                  </div>
+
+                  {isLoading ? (
+                    <motion.div
+                      className="flex justify-center items-center h-40"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                    >
+                      <motion.div
+                        className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      />
+                    </motion.div>
+                  ) : (
+                    <div className="flex flex-col md:flex-row gap-6">
+                      {/* Category Tabs - Vertical scrollable on left */}
+                      <div className="w-full md:w-64 flex-shrink-0">
+                        <div className="overflow-y-auto max-h-[500px] pr-2">
+                          <div className="flex flex-col gap-2">
+                            {serviceCategories.map(category => (
+                              <motion.button
+                                key={category.id}
+                                onClick={() => setActiveCategory(category.id)}
+                                className={`px-4 py-3 rounded-lg text-left text-sm ${activeCategory === category.id
+                                  ? 'bg-green-600 text-white'
+                                  : 'bg-white text-gray-700 hover:bg-gray-200'
+                                  }`}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                {category.name}
+                              </motion.button>
+                            ))}
+                            {/* Conditionally show Members Only category */}
+                            {isMember && (
+                              <motion.button
+                                onClick={() => setActiveCategory('members-exclusive')}
+                                className={`px-4 py-3 rounded-lg text-left text-sm ${activeCategory === 'members-exclusive'
+                                  ? 'bg-green-600 text-white'
+                                  : 'bg-white text-gray-700 hover:bg-gray-200'
+                                  }`}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                Members Exclusive
+                              </motion.button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Services Grid - On the right */}
+                      <div className="flex-1">
+                        <div className="flex flex-wrap gap-4">
+                          {activeCategory === 'members-exclusive' ? (
+                            // Show mock services for members
+                            mockServices.map(service => (
+                              <motion.div
+                                key={service.id}
+                                className={`w-full sm:w-48 p-4 border rounded-lg cursor-pointer transition-colors ${selectedServices.some(s => s.id === service.id)
+                                  ? 'bg-green-100 border-green-500'
+                                  : 'bg-white hover:bg-gray-50'
+                                  }`}
+                                onClick={() => handleServiceToggle(service)}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                              >
+                                <div className="flex flex-col h-full">
+                                  <div className="flex-grow">
+                                    <h3 className="font-medium text-sm">{service.name}</h3>
+                                    <p className="text-xs text-gray-600 mt-1">{service.duration}</p>
+                                  </div>
+                                  <div className="mt-2 flex justify-between items-end">
+                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                      Members
+                                    </span>
+                                    <span className="font-bold text-sm">{service.price}</span>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            ))
+                          ) : (
+                            // Show regular services for the selected category
+                            serviceCategories
+                              .find(cat => cat.id === activeCategory)
+                              ?.services.map(service => (
+                                <motion.div
+                                  key={service.id}
+                                  className={`w-full sm:w-48 p-4 border rounded-lg cursor-pointer transition-colors ${selectedServices.some(s => s.id === service.id)
+                                    ? 'bg-green-100 border-green-500'
+                                    : 'bg-white hover:bg-gray-50'
+                                    }`}
+                                  onClick={() => handleServiceToggle(service)}
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                >
+                                  <div className="flex flex-col h-full">
+                                    <div className="flex-grow">
+                                      <h3 className="font-medium text-sm">{service.name}</h3>
+                                      <p className="text-xs text-gray-600 mt-1">{service.duration}</p>
+                                    </div>
+                                    <div className="mt-2 flex justify-end">
+                                      <span className="font-bold text-sm">₱{service.price.toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected Services List - Fixed height with vertical scrolling */}
+                  {selectedServices.length > 0 && (
+                    <motion.div
+                      className="mt-6"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-medium">Selected Services ({selectedServices.length})</h3>
+                        <button
+                          onClick={() => setSelectedServices([])}
+                          className="text-xs text-red-500 hover:text-red-700"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
+                        <AnimatePresence>
+                          {selectedServices.map((service, index) => {
+                            const isMemberService = mockServices.some(s => s.id === service.id);
+                            const category = isMemberService
+                              ? "Members Exclusive"
+                              : serviceCategories.find(cat =>
+                                cat.services.some(s => s.id === service.id)
+                              )?.name || "Other";
+
+                            return (
+                              <motion.div
+                                key={service.id}
+                                className="flex justify-between items-center p-2 bg-white rounded border"
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                transition={{ delay: index * 0.05 }}
+                                whileHover={{ scale: 1.005 }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <motion.button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleServiceToggle(service);
+                                    }}
+                                    className="text-red-500 hover:text-red-700"
+                                    whileHover={{ scale: 1.2 }}
+                                    whileTap={{ scale: 0.9 }}
+                                  >
+                                    <Trash2 size={16} />
+                                  </motion.button>
+                                  <div>
+                                    <span className="text-sm">{service.name}</span>
+                                    <span className="text-xs text-gray-500 block">{category}</span>
+                                  </div>
+                                </div>
+                                <span className="font-medium text-sm">
+                                  {isMemberService ? service.price : `₱${service.price.toLocaleString()}`}
+                                </span>
+                              </motion.div>
+                            );
+                          })}
+                        </AnimatePresence>
+                      </div>
+                    </motion.div>
+                  )}
+                </motion.div>
+
+                {/* Promo & Discount Section */}
+                <motion.div
+                  className="mb-8 p-4 bg-gray-100 rounded-lg"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.3 }}
+                >
+                  <div className="flex items-center gap-2 mb-4">
+                    <h2 className="text-lg font-semibold">Promo & Discount</h2>
+
+                    {/* Info Button + Popup */}
+                    <div className="relative">
                       <motion.button
-                        onClick={handleNewCustomer}
-                        className="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                        className="text-xs text-blue-600 border border-blue-600 rounded-full w-5 h-5 flex items-center justify-center hover:bg-blue-100"
+                        onClick={() => setShowInfo(!showInfo)}
+                        title="Promo & Membership Info"
+                        whileHover={{ scale: 1.2 }}
+                        whileTap={{ scale: 0.9 }}
                       >
-                        New Customer
+                        ?
                       </motion.button>
+
+                      <AnimatePresence>
+                        {showInfo && (
+                          <motion.div
+                            className="absolute left-full top-0 ml-2 bg-white shadow-lg p-4 rounded-lg w-80 text-sm z-20"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                          >
+                            <p className="mb-2 bg-gray-100 p-2 rounded">
+                              <strong>Promo</strong> is for salon only. You cannot apply Promo & Membership together.
+                            </p>
+                            <p className="bg-white p-2 rounded">
+                              <strong>Membership</strong> benefits apply only to salon services priced at ₱500 or below and cannot be combined with any promos.
+                            </p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
 
-                  {isMember ? (
-                    <>
-                      <motion.div
-                        className="flex items-center space-x-2 text-sm text-green-600 mb-2"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.2 }}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Promo</label>
+                      <motion.select
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                        value={promoApplied}
+                        onChange={(e) => setPromoApplied(e.target.value)}
+                        whileFocus={{ scale: 1.01 }}
                       >
-                        <span>Membership Active</span>
-                        <span className="text-gray-500">[Expires: Mar. 15, 2025]</span>
-                      </motion.div>
-                      <motion.div
-                        className="text-sm mb-2"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                      >
-                        <span className="font-medium">Balance </span>
-                        <span className="text-blue-600">₱{membershipBalance.toLocaleString()} Remaining</span>
-                      </motion.div>
-                    </>
-                  ) : (
+                        <option value="">Select Promo</option>
+                        <option value="summer2023">Summer 2023 Special</option>
+                        <option value="anniversary">Anniversary Promo</option>
+                        <option value="newcustomer">New Customer Discount</option>
+                      </motion.select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Discount</label>
+                      <motion.input
+                        type="number"
+                        className="w-full p-2 border border-gray-300 rounded-lg"
+                        value={discount}
+                        onChange={(e) => setDiscount(Number(e.target.value))}
+                        whileFocus={{ scale: 1.01 }}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Summary Section */}
+                <motion.div
+                  className="p-4 bg-gray-100 rounded-lg mb-8"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.5 }}
+                >
+                  <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
+                  <div className="space-y-3">
                     <motion.div
-                      className="text-sm text-gray-600 mb-2"
+                      className="flex justify-between"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.1 }}
+                    >
+                      <span>Subtotal</span>
+                      <span className="font-medium">₱{subtotal.toLocaleString()}</span>
+                    </motion.div>
+
+                    <motion.div
+                      className="flex justify-between text-blue-600"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.2 }}
                     >
-                      <span>Regular Customer (Non-member)</span>
+                      <span>Promo Reduction</span>
+                      <span>₱0</span>
                     </motion.div>
-                  )}
 
-                  <motion.div
-                    className="text-sm text-gray-500 flex items-center"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
+                    <motion.div
+                      className="flex justify-between text-blue-600"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <span>Discount Reduction</span>
+                      <span>₱{discount.toLocaleString()}</span>
+                    </motion.div>
+
+                    {isMember && (
+                      <motion.div
+                        className="flex justify-between text-green-600"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                      >
+                        <span>Membership Reduction</span>
+                        <span>P{membershipReduction.toLocaleString()}</span>
+                      </motion.div>
+                    )}
+
+                    <motion.div
+                      className="border-t border-gray-300 pt-3 mt-3"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.5 }}
+                    >
+                      {isMember && (
+                        <div className="flex justify-between font-bold">
+                          <span>Remaining Membership</span>
+                          <span className="text-blue-600">
+                            ₱{(membershipBalance - membershipReduction).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                    </motion.div>
+                  </div>
+                </motion.div>
+
+                {/* Action Buttons */}
+                <motion.div
+                  className="flex justify-between mt-6"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <motion.button
+                    onClick={() => setCurrentStep(1)}
+                    className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    <Calendar className="w-4 h-4 mr-1" />
-                    <span>Joined February 1, 2025</span>
-                  </motion.div>
+                    Back
+                  </motion.button>
+                  <motion.button
+                    onClick={() => setCurrentStep(3)}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    disabled={selectedServices.length === 0}
+                  >
+                    Review Order
+                  </motion.button>
+                </motion.div>
+              </>
+            )}
+
+            {/* Step 3: Confirmation */}
+            {currentStep === 3 && (
+              <motion.div
+                className="bg-gray-100 rounded-lg p-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <h2 className="text-xl font-bold mb-6">Confirm Order Details</h2>
+
+                <div className="space-y-6 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-white p-4 rounded-lg">
+                      <h3 className="font-semibold mb-3">Customer Information</h3>
+                      <div className="space-y-2">
+                        <p><span className="text-gray-600">Name:</span> {customerName}</p>
+                        {isMember && (
+                          <>
+                            <p><span className="text-gray-600">Membership:</span> {membershipType}</p>
+                            <p><span className="text-gray-600">Remaining Balance:</span> ₱{(membershipBalance - membershipReduction).toLocaleString()}</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-lg">
+                      <h3 className="font-semibold mb-3">Order Summary</h3>
+                      <div className="space-y-2">
+                        <p><span className="text-gray-600">Promo:</span> {promoApplied || '-'}</p>
+                        <p><span className="text-gray-600">Discount:</span> ₱{discount.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-lg">
+                    <h3 className="font-semibold mb-3">Services</h3>
+                    <ul className="space-y-2">
+                      {selectedServices.map((service, index) => (
+                        <motion.li
+                          key={index}
+                          className="flex justify-between py-2 border-b last:border-b-0"
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                        >
+                          <span>{service.name}</span>
+                          <span>₱{service.price.toLocaleString()}</span>
+                        </motion.li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-lg">
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span>Subtotal</span>
+                        <span className="font-medium">₱{subtotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-blue-600">
+                        <span>Promo Discount</span>
+                        <span>₱0</span>
+                      </div>
+                      <div className="flex justify-between text-blue-600">
+                        <span>Manual Discount</span>
+                        <span>₱{discount.toLocaleString()}</span>
+                      </div>
+                      {isMember && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Membership Deduction</span>
+                          <span>₱{membershipReduction.toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="border-t pt-3 mt-3">
+                        <div className="flex justify-between font-bold text-lg">
+                          <span>GRAND TOTAL</span>
+                          <span>₱{(subtotal - membershipReduction - discount).toLocaleString()}.00</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  {isMember ? (
-                    <>
-                      <motion.div
-                        className="flex justify-between"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.2 }}
-                      >
-                        <span className="text-gray-600">Benefits</span>
-                        <span className="font-medium">₱{membershipBalance.toLocaleString()}</span>
-                      </motion.div>
-                      <motion.div
-                        className="flex justify-between"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                      >
-                        <span className="text-gray-600">Membership Type</span>
-                        <span className="font-medium">{membershipType}</span>
-                      </motion.div>
-                    </>
-                  ) : (
-                    <motion.div
-                      className="text-sm text-gray-600"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.2 }}
+                <div className="flex justify-between">
+                  <motion.button
+                    onClick={() => setCurrentStep(2)}
+                    className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-lg"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Back to Services
+                  </motion.button>
+                  <div className="flex space-x-4">
+                    <motion.button
+                      onClick={handleSave}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      <p>Non-members pay full price for all services</p>
-                      <p className="text-green-600 mt-1">Sign up for membership to get discounts!</p>
-                    </motion.div>
-                  )}
+                      Confirm Order
+                    </motion.button>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            )}
 
             {/* Customer Selection Modal */}
             <AnimatePresence>
@@ -806,461 +1332,6 @@ export default function ServiceOrderPage() {
                         </motion.button>
                       </motion.div>
                     </form>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Services Selection Section */}
-            <motion.div
-              className="mb-8 p-4 bg-gray-100 rounded-lg"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
-            >
-              <h2 className="text-lg font-semibold mb-4">Select Services</h2>
-
-              {isLoading ? (
-                <motion.div
-                  className="flex justify-center items-center h-40"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                >
-                  <motion.div
-                    className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  />
-                </motion.div>
-              ) : (
-                <>
-                  {/* Category Tabs - Wrapped layout */}
-                  <div className="flex flex-wrap gap-2 pb-2 mb-4">
-                    {serviceCategories.map(category => (
-                      <motion.button
-                        key={category.id}
-                        onClick={() => setActiveCategory(category.id)}
-                        className={`px-4 py-2 rounded-lg whitespace-nowrap text-sm ${activeCategory === category.id
-                          ? 'bg-green-600 text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-200'
-                          }`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        {category.name}
-                      </motion.button>
-                    ))}
-                    {/* Conditionally show Members Only category */}
-                    {isMember && (
-                      <motion.button
-                        onClick={() => setActiveCategory('members-exclusive')}
-                        className={`px-4 py-2 rounded-lg whitespace-nowrap text-sm ${activeCategory === 'members-exclusive'
-                          ? 'bg-green-600 text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-200'
-                          }`}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        Members Exclusive
-                      </motion.button>
-                    )}
-                  </div>
-
-                  {/* Services Grid - Wrapped layout */}
-                  <div className="flex flex-wrap gap-4">
-                    {activeCategory === 'members-exclusive' ? (
-                      // Show mock services for members
-                      mockServices.map(service => (
-                        <motion.div
-                          key={service.id}
-                          className={`w-full sm:w-48 p-4 border rounded-lg cursor-pointer transition-colors ${selectedServices.some(s => s.id === service.id)
-                            ? 'bg-green-100 border-green-500'
-                            : 'bg-white hover:bg-gray-50'
-                            }`}
-                          onClick={() => handleServiceToggle(service)}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                        >
-                          <div className="flex flex-col h-full">
-                            <div className="flex-grow">
-                              <h3 className="font-medium text-sm">{service.name}</h3>
-                              <p className="text-xs text-gray-600 mt-1">{service.duration}</p>
-                            </div>
-                            <div className="mt-2 flex justify-between items-end">
-                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                                Members
-                              </span>
-                              <span className="font-bold text-sm">{service.price}</span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))
-                    ) : (
-                      // Show regular services for the selected category
-                      serviceCategories
-                        .find(cat => cat.id === activeCategory)
-                        ?.services.map(service => (
-                          <motion.div
-                            key={service.id}
-                            className={`w-full sm:w-48 p-4 border rounded-lg cursor-pointer transition-colors ${selectedServices.some(s => s.id === service.id)
-                              ? 'bg-green-100 border-green-500'
-                              : 'bg-white hover:bg-gray-50'
-                              }`}
-                            onClick={() => handleServiceToggle(service)}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                          >
-                            <div className="flex flex-col h-full">
-                              <div className="flex-grow">
-                                <h3 className="font-medium text-sm">{service.name}</h3>
-                                <p className="text-xs text-gray-600 mt-1">{service.duration}</p>
-                              </div>
-                              <div className="mt-2 flex justify-end">
-                                <span className="font-bold text-sm">₱{service.price.toLocaleString()}</span>
-                              </div>
-                            </div>
-                          </motion.div>
-                        ))
-                    )}
-                  </div>
-                </>
-              )}
-
-              {/* Selected Services List - Fixed height with vertical scrolling */}
-              {selectedServices.length > 0 && (
-                <motion.div
-                  className="mt-6"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-medium">Selected Services ({selectedServices.length})</h3>
-                    <button
-                      onClick={() => setSelectedServices([])}
-                      className="text-xs text-red-500 hover:text-red-700"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
-                    <AnimatePresence>
-                      {selectedServices.map((service, index) => {
-                        const isMemberService = mockServices.some(s => s.id === service.id);
-                        const category = isMemberService
-                          ? "Members Exclusive"
-                          : serviceCategories.find(cat =>
-                            cat.services.some(s => s.id === service.id)
-                          )?.name || "Other";
-
-                        return (
-                          <motion.div
-                            key={service.id}
-                            className="flex justify-between items-center p-2 bg-white rounded border"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            transition={{ delay: index * 0.05 }}
-                            whileHover={{ scale: 1.005 }}
-                          >
-                            <div className="flex items-center gap-2">
-                              <motion.button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleServiceToggle(service);
-                                }}
-                                className="text-red-500 hover:text-red-700"
-                                whileHover={{ scale: 1.2 }}
-                                whileTap={{ scale: 0.9 }}
-                              >
-                                <Trash2 size={16} />
-                              </motion.button>
-                              <div>
-                                <span className="text-sm">{service.name}</span>
-                                <span className="text-xs text-gray-500 block">{category}</span>
-                              </div>
-                            </div>
-                            <span className="font-medium text-sm">
-                              {isMemberService ? service.price : `₱${service.price.toLocaleString()}`}
-                            </span>
-                          </motion.div>
-                        );
-                      })}
-                    </AnimatePresence>
-                  </div>
-                </motion.div>
-              )}
-            </motion.div>
-
-            {/* Promo & Discount Section */}
-            <motion.div
-              className="mb-8 p-4 bg-gray-100 rounded-lg"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.3 }}
-            >
-              <div className="flex items-center gap-2 mb-4">
-                <h2 className="text-lg font-semibold">Promo & Discount</h2>
-
-                {/* Info Button + Popup */}
-                <div className="relative">
-                  <motion.button
-                    className="text-xs text-blue-600 border border-blue-600 rounded-full w-5 h-5 flex items-center justify-center hover:bg-blue-100"
-                    onClick={() => setShowInfo(!showInfo)}
-                    title="Promo & Membership Info"
-                    whileHover={{ scale: 1.2 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    ?
-                  </motion.button>
-
-                  <AnimatePresence>
-                    {showInfo && (
-                      <motion.div
-                        className="absolute left-full top-0 ml-2 bg-white shadow-lg p-4 rounded-lg w-80 text-sm z-20"
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                      >
-                        <p className="mb-2 bg-gray-100 p-2 rounded">
-                          <strong>Promo</strong> is for salon only. You cannot apply Promo & Membership together.
-                        </p>
-                        <p className="bg-white p-2 rounded">
-                          <strong>Membership</strong> benefits apply only to salon services priced at ₱500 or below and cannot be combined with any promos.
-                        </p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Promo</label>
-                  <motion.select
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    value={promoApplied}
-                    onChange={(e) => setPromoApplied(e.target.value)}
-                    whileFocus={{ scale: 1.01 }}
-                  >
-                    <option value="">Select Promo</option>
-                    <option value="summer2023">Summer 2023 Special</option>
-                    <option value="anniversary">Anniversary Promo</option>
-                    <option value="newcustomer">New Customer Discount</option>
-                  </motion.select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Discount</label>
-                  <motion.input
-                    type="number"
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    value={discount}
-                    onChange={(e) => setDiscount(Number(e.target.value))}
-                    whileFocus={{ scale: 1.01 }}
-                  />
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Action Buttons */}
-            <motion.div
-              className="flex justify-end space-x-4 mb-8"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-            >
-              <motion.button
-                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-lg"
-                onClick={handleClearAll}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Clear All
-              </motion.button>
-              <motion.button
-                className="px-4 py-2 bg-[#5BBF5B] hover:bg-[#4CAF4C] text-white rounded-lg"
-                onClick={handleSave}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Save
-              </motion.button>
-            </motion.div>
-
-            {/* Summary Section */}
-            <motion.div
-              className="p-4 bg-gray-100 rounded-lg"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.5 }}
-            >
-              <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
-              <div className="space-y-3">
-                <motion.div
-                  className="flex justify-between"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  <span>Subtotal</span>
-                  <span className="font-medium">₱{subtotal.toLocaleString()}</span>
-                </motion.div>
-
-                <motion.div
-                  className="flex justify-between text-blue-600"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <span>Promo Reduction</span>
-                  <span>₱0</span>
-                </motion.div>
-
-                <motion.div
-                  className="flex justify-between text-blue-600"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <span>Discount Reduction</span>
-                  <span>₱{discount.toLocaleString()}</span>
-                </motion.div>
-
-                {isMember && (
-                  <motion.div
-                    className="flex justify-between text-green-600"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                  >
-                    <span>Membership Reduction</span>
-                    <span>P{membershipReduction.toLocaleString()}</span>
-                  </motion.div>
-                )}
-
-                <motion.div
-                  className="border-t border-gray-300 pt-3 mt-3"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                >
-                  {isMember && (
-                    <div className="flex justify-between font-bold">
-                      <span>Remaining Membership</span>
-                      <span className="text-blue-600">
-                        ₱{(membershipBalance - membershipReduction).toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-                </motion.div>
-              </div>
-            </motion.div>
-
-            {/* Confirmation Modal */}
-            <AnimatePresence>
-              {showConfirmation && (
-                <motion.div
-                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                >
-                  <motion.div
-                    className="bg-white rounded-lg p-6 w-full max-w-md"
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.9, opacity: 0 }}
-                    transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                  >
-                    <h2 className="text-xl font-bold mb-4">Confirm Save Order Details?</h2>
-
-                    <div className="space-y-4 mb-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-500">Customer</p>
-                          <p className="font-medium">{customerName}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Promo</p>
-                          <p>-</p>
-                        </div>
-                        {isMember && (
-                          <div>
-                            <p className="text-sm text-gray-500">Remaining Balance</p>
-                            <p className="font-medium">
-                              ₱{(membershipBalance - membershipReduction).toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-gray-500 mb-2">Services</p>
-                        <ul className="space-y-2">
-                          {selectedServices.map((service, index) => (
-                            <motion.li
-                              key={index}
-                              className="flex justify-between"
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: index * 0.05 }}
-                            >
-                              <span>• {service.name}</span>
-                              <span>₱{service.price.toLocaleString()}</span>
-                            </motion.li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="border-t pt-4 space-y-2">
-                        <div className="flex justify-between">
-                          <span>Subtotal</span>
-                          <span className="font-medium">₱{subtotal.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Promo Discount</span>
-                          <span>₱0</span>
-                        </div>
-                        {isMember && (
-                          <div className="flex justify-between">
-                            <span>Membership Deduction</span>
-                            <span>₱{membershipReduction.toLocaleString()}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between font-bold text-lg pt-2">
-                          <span>GRAND TOTAL</span>
-                          <span>₱{(subtotal - membershipReduction).toLocaleString()}.00</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end space-x-4">
-                      <motion.button
-                        className="px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-lg"
-                        onClick={() => setShowConfirmation(false)}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        Cancel
-                      </motion.button>
-                      <motion.button
-                        onClick={confirmSave}
-                        className={`px-4 py-2 rounded-lg text-white ${!selectedCustomer || selectedServices.length === 0
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-green-600 hover:bg-green-700"
-                          }`}
-                        disabled={!selectedCustomer || selectedServices.length === 0}
-                      >
-                        Yes
-                      </motion.button>
-                    </div>
                   </motion.div>
                 </motion.div>
               )}

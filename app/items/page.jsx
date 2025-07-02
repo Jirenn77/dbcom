@@ -17,6 +17,8 @@ export default function BeautyDeals() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isOpen, setIsOpen] = useState(false);
+    const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
+    const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -44,6 +46,12 @@ export default function BeautyDeals() {
         setSelectedDeal(deal)
         setIsOpen(true)
     }
+
+    const slideUp = {
+        hidden: { opacity: 0, scale: 0.95, y: 30 },
+        visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.25 } },
+        exit: { opacity: 0, scale: 0.95, y: 30, transition: { duration: 0.2 } },
+    };
 
     // Fetch data from backend
     useEffect(() => {
@@ -119,50 +127,90 @@ export default function BeautyDeals() {
 
     const handleEditDeal = (index) => {
         setSelectedDeal({ ...deals[index], index });
-        setIsEditModalOpen(true);
+        setIsPromoModalOpen(true); // Should open promo edit modal
+        setIsOpen(false); // Close details modal if open
     };
 
     const handleEditDiscount = (index) => {
         setSelectedDiscount({ ...discounts[index], index });
-        setIsEditModalOpen(true);
+        setIsDiscountModalOpen(true); // Should open discount edit modal
+        setIsOpen(false); // Close details modal if open
     };
 
-    const handleSaveEdit = async () => {
+    const handleSaveEditPromo = async (e) => {
+        e.preventDefault();
+
         try {
-            if (selectedDeal) {
-                // Here you would send a PUT request to your backend
-                setDeals(prev => {
-                    const updated = [...prev];
-                    updated[selectedDeal.index] = {
-                        type: selectedDeal.type,
-                        name: selectedDeal.name,
-                        description: selectedDeal.description,
-                        validFrom: selectedDeal.validFrom,
-                        validTo: selectedDeal.validTo,
-                        status: selectedDeal.status
-                    };
-                    return updated;
-                });
-                toast.success("Deal updated successfully!");
-            } else if (selectedDiscount) {
-                setDiscounts(prev => {
-                    const updated = [...prev];
-                    updated[selectedDiscount.index] = {
-                        name: selectedDiscount.name,
-                        description: selectedDiscount.description,
-                        discountType: selectedDiscount.discountType,
-                        value: selectedDiscount.value,
-                        status: selectedDiscount.status
-                    };
-                    return updated;
-                });
-                toast.success("Discount updated successfully!");
+            // Send PUT/PATCH request to backend
+            const response = await fetch(`http://localhost/API/getPromosAndDiscounts.php?action=update_deal`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    id: selectedDeal.id,
+                    name: selectedDeal.name,
+                    description: selectedDeal.description,
+                    validFrom: selectedDeal.validFrom,
+                    validTo: selectedDeal.validTo,
+                    status: selectedDeal.status,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to update promo.");
             }
-            setIsEditModalOpen(false);
+
+            // Update frontend state
+            setDeals(prev => {
+                const updated = [...prev];
+                updated[selectedDeal.index] = { ...selectedDeal };
+                return updated;
+            });
+
+            toast.success("Promo updated successfully!");
+            setIsPromoModalOpen(false);
         } catch (error) {
-            toast.error('Failed to update: ' + error.message);
+            toast.error('Failed to update promo: ' + error.message);
         }
     };
+
+    const handleSaveEditDiscount = async (e) => {
+        e.preventDefault();
+
+        try {
+            const response = await fetch("http://localhost/API/getPromosAndDiscounts.php?action=update_discount", {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    id: selectedDiscount.id,
+                    name: selectedDiscount.name,
+                    description: selectedDiscount.description,
+                    discountType: selectedDiscount.discountType,
+                    value: selectedDiscount.value,
+                    status: selectedDiscount.status,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to update discount.");
+            }
+
+            setDiscounts((prev) => {
+                const updated = [...prev];
+                updated[selectedDiscount.index] = { ...selectedDiscount };
+                return updated;
+            });
+
+            toast.success("Discount updated successfully!");
+            setIsDiscountModalOpen(false);
+        } catch (error) {
+            toast.error('Failed to update discount: ' + error.message);
+        }
+    };
+
 
     const handleDeleteDeal = async (index) => {
         try {
@@ -233,58 +281,6 @@ export default function BeautyDeals() {
     return (
         <div className="flex flex-col h-screen bg-[#77DD77] text-gray-900">
             <Toaster />
-
-            {/* Header */}
-            <header className="flex items-center justify-between bg-[#89C07E] text-white p-4 w-full h-16 pl-64 relative">
-                <div className="flex items-center space-x-4">
-                    {/* Home icon removed from here */}
-                </div>
-
-                <div className="flex items-center space-x-4 flex-grow justify-center">
-                    <button className="text-2xl" onClick={() => setIsModalOpen(true)}>
-                        ➕
-                    </button>
-                    <input
-                        type="text"
-                        placeholder="Search..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-4 py-2 rounded-lg bg-white text-gray-900 w-64 focus:outline-none"
-                    />
-                    <button
-                        onClick={handleSearch}
-                        className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-md"
-                    >
-                        Search
-                    </button>
-                </div>
-
-                <div className="flex items-center space-x-4 relative">
-                    <div
-                        className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg font-bold cursor-pointer"
-                        onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    >
-                        A
-                    </div>
-                    {isProfileOpen && (
-                        <div className="bg-green-500 absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
-                            <Link href="/acc-settings">
-                                <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
-                                    <User size={16} /> Edit Profile
-                                </button>
-                            </Link>
-                            <Link href="/settings">
-                                <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
-                                    <Settings size={16} /> Settings
-                                </button>
-                            </Link>
-                            <button className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded justify-start" onClick={handleLogout}>
-                                <LogOut size={16} /> Logout
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </header>
 
             {/* Sidebar */}
             <div className="flex flex-1">
@@ -406,6 +402,7 @@ export default function BeautyDeals() {
                                             whileHover={{ backgroundColor: "#f9fafb" }}
                                             onClick={() => {
                                                 setSelectedDeal(deal);
+                                                setSelectedDiscount(null);  // Clear discount selection
                                                 setIsOpen(true);
                                             }}
                                         >
@@ -435,32 +432,6 @@ export default function BeautyDeals() {
                                                     whileTap={{ scale: 0.9 }}
                                                 >
                                                     <Pencil size={18} title="Edit" />
-                                                </motion.button>
-
-                                                <motion.button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleToggleStatus(index, true);
-                                                    }}
-                                                    className={deal.status === "active"
-                                                        ? "text-yellow-500 hover:text-yellow-700"
-                                                        : "text-gray-500 hover:text-gray-700"}
-                                                    whileHover={{ scale: 1.2 }}
-                                                    whileTap={{ scale: 0.9 }}
-                                                >
-                                                    <Power size={18} title={deal.status === "active" ? "Deactivate" : "Activate"} />
-                                                </motion.button>
-
-                                                <motion.button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeleteDeal(index);
-                                                    }}
-                                                    className="text-red-500 hover:text-red-700"
-                                                    whileHover={{ scale: 1.2 }}
-                                                    whileTap={{ scale: 0.9 }}
-                                                >
-                                                    <Trash2 size={18} title="Delete" />
                                                 </motion.button>
                                             </div>
                                         </motion.div>
@@ -512,7 +483,8 @@ export default function BeautyDeals() {
                                             transition={{ delay: index * 0.05, type: "spring" }}
                                             whileHover={{ backgroundColor: "#f9fafb" }}
                                             onClick={() => {
-                                                setSelectedDeal(discount);
+                                                setSelectedDiscount(discount);
+                                                setSelectedDeal(null);  // Clear deal selection
                                                 setIsOpen(true);
                                             }}
                                         >
@@ -548,31 +520,6 @@ export default function BeautyDeals() {
                                                     <Pencil size={18} title="Edit" />
                                                 </motion.button>
 
-                                                <motion.button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleToggleStatus(index, false);
-                                                    }}
-                                                    className={discount.status === "active"
-                                                        ? "text-yellow-500 hover:text-yellow-700"
-                                                        : "text-gray-500 hover:text-gray-700"}
-                                                    whileHover={{ scale: 1.2 }}
-                                                    whileTap={{ scale: 0.9 }}
-                                                >
-                                                    <Power size={18} title={discount.status === "active" ? "Deactivate" : "Activate"} />
-                                                </motion.button>
-
-                                                <motion.button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeleteDiscount(index);
-                                                    }}
-                                                    className="text-red-500 hover:text-red-700"
-                                                    whileHover={{ scale: 1.2 }}
-                                                    whileTap={{ scale: 0.9 }}
-                                                >
-                                                    <Trash2 size={18} title="Delete" />
-                                                </motion.button>
                                             </div>
                                         </motion.div>
                                     ))}
@@ -583,7 +530,7 @@ export default function BeautyDeals() {
                 </main>
             </div>
 
-            {/* Modal - Add this at the bottom of your component */}
+            {/* Main Details Modal */}
             <Transition appear show={isOpen} as={Fragment}>
                 <Dialog as="div" className="relative z-10" onClose={() => setIsOpen(false)}>
                     <Transition.Child
@@ -610,9 +557,10 @@ export default function BeautyDeals() {
                                 leaveTo="opacity-0 scale-95"
                             >
                                 <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    {/* Header */}
                                     <div className="flex justify-between items-start">
                                         <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900">
-                                            {selectedDeal?.name || 'Deal Details'}
+                                            {selectedDeal?.name || selectedDiscount?.name || 'Details'}
                                         </Dialog.Title>
                                         <button
                                             type="button"
@@ -623,45 +571,70 @@ export default function BeautyDeals() {
                                         </button>
                                     </div>
 
+                                    {/* Content Area */}
                                     <div className="mt-4 space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <h4 className="font-medium text-gray-900">Description</h4>
-                                                <p className="text-sm text-gray-700 mt-1">
-                                                    {selectedDeal?.description || 'N/A'}
-                                                </p>
+                                        {/* Basic Info Section */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <h4 className="font-medium text-gray-900">Description</h4>
+                                                    <p className="text-sm text-gray-700 mt-1">
+                                                        {selectedDeal?.description || selectedDiscount?.description || 'N/A'}
+                                                    </p>
+                                                </div>
+
+                                                <div>
+                                                    <h4 className="font-medium text-gray-900">Status</h4>
+                                                    <span className={`mt-1 px-2 py-1 rounded-full text-xs ${(selectedDeal?.status === "active" || selectedDiscount?.status === "active")
+                                                            ? "bg-green-100 text-green-800"
+                                                            : "bg-red-100 text-red-800"
+                                                        }`}>
+                                                        {selectedDeal?.status || selectedDiscount?.status || 'N/A'}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h4 className="font-medium text-gray-900">Status</h4>
-                                                <span className={`mt-1 px-2 py-1 rounded-full text-xs ${selectedDeal?.status === "active"
-                                                    ? "bg-green-100 text-green-800"
-                                                    : "bg-red-100 text-red-800"
-                                                    }`}>
-                                                    {selectedDeal?.status || 'N/A'}
-                                                </span>
+
+                                            {/* Conditional Fields */}
+                                            <div className="space-y-4">
+                                                {selectedDeal ? (
+                                                    <>
+                                                        <div>
+                                                            <h4 className="font-medium text-gray-900">Valid From</h4>
+                                                            <p className="text-sm text-gray-800 mt-1">
+                                                                {selectedDeal.validFrom || 'N/A'}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-medium text-gray-900">Valid To</h4>
+                                                            <p className="text-sm text-gray-800 mt-1">
+                                                                {selectedDeal.validTo || 'N/A'}
+                                                            </p>
+                                                        </div>
+                                                    </>
+                                                ) : selectedDiscount && (
+                                                    <>
+                                                        <div>
+                                                            <h4 className="font-medium text-gray-900">Discount Type</h4>
+                                                            <p className="text-sm text-gray-800 mt-1 capitalize">
+                                                                {selectedDiscount.discountType || 'N/A'}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-medium text-gray-900">Value</h4>
+                                                            <p className="text-sm text-gray-800 mt-1">
+                                                                {selectedDiscount.value || 'N/A'}
+                                                                {selectedDiscount.discountType === 'percentage' ? '%' : ''}
+                                                            </p>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
 
-                                        {selectedDeal?.validFrom && (
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <h4 className="font-medium text-gray-900">Valid From</h4>
-                                                    <p className="text-sm text-gray-800 mt-1">
-                                                        {selectedDeal?.validFrom || 'N/A'}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-medium text-gray-900">Valid To</h4>
-                                                    <p className="text-sm text-gray-800 mt-1">
-                                                        {selectedDeal?.validTo || 'N/A'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <div>
+                                        {/* Services Table Section */}
+                                        <div className="pt-2">
                                             <h4 className="font-semibold text-gray-900 mb-2">Included Services</h4>
-                                            <div className="overflow-x-auto">
+                                            <div className="overflow-x-auto border border-gray-200 rounded-lg">
                                                 <table className="min-w-full divide-y divide-gray-200">
                                                     <thead className="bg-gray-50">
                                                         <tr>
@@ -672,7 +645,7 @@ export default function BeautyDeals() {
                                                         </tr>
                                                     </thead>
                                                     <tbody className="bg-white divide-y divide-gray-200">
-                                                        {selectedDeal?.services?.map((service, index) => (
+                                                        {(selectedDeal?.services || selectedDiscount?.services || []).map((service, index) => (
                                                             <tr key={index}>
                                                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{service.name}</td>
                                                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.category}</td>
@@ -680,10 +653,10 @@ export default function BeautyDeals() {
                                                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.discountedPrice}</td>
                                                             </tr>
                                                         ))}
-                                                        {(!selectedDeal?.services || selectedDeal.services.length === 0) && (
+                                                        {(!selectedDeal?.services && !selectedDiscount?.services) && (
                                                             <tr>
                                                                 <td colSpan="4" className="px-4 py-4 text-center text-sm text-gray-500">
-                                                                    No services included in this deal
+                                                                    No services included
                                                                 </td>
                                                             </tr>
                                                         )}
@@ -693,28 +666,38 @@ export default function BeautyDeals() {
                                         </div>
                                     </div>
 
+                                    {/* Action Buttons */}
                                     <div className="mt-6 flex justify-end space-x-3">
-                                        <motion.button
-                                            onClick={() => {
-                                                if (selectedDeal) {
-                                                    const index = deals.findIndex(d => d.id === selectedDeal.id) ??
-                                                        discounts.findIndex(d => d.id === selectedDeal.id);
-                                                    if (index !== -1) {
-                                                        if (deals.find(d => d.id === selectedDeal.id)) {
-                                                            handleEditDeal(index);
-                                                        } else {
-                                                            handleEditDiscount(index);
-                                                        }
-                                                    }
-                                                }
-                                                setIsOpen(false);
-                                            }}
-                                            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
-                                            whileHover={{ scale: 1.05 }}
-                                            whileTap={{ scale: 0.95 }}
-                                        >
-                                            Edit Deal
-                                        </motion.button>
+                                        {selectedDeal ? (
+                                            <motion.button
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setIsOpen(false);
+                                                    const dealIndex = deals.findIndex(d => d.id === selectedDeal.id);
+                                                    if (dealIndex !== -1) handleEditDeal(dealIndex);
+                                                }}
+                                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                            >
+                                                Edit Promo
+                                            </motion.button>
+                                        ) : selectedDiscount ? (
+                                            <motion.button
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setIsOpen(false);
+                                                    const discountIndex = discounts.findIndex(d => d.id === selectedDiscount.id);
+                                                    if (discountIndex !== -1) handleEditDiscount(discountIndex);
+                                                }}
+                                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm"
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                            >
+                                                Edit Discount
+                                            </motion.button>
+                                        ) : null}
+
                                         <motion.button
                                             onClick={() => setIsOpen(false)}
                                             className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded text-sm"
@@ -731,47 +714,46 @@ export default function BeautyDeals() {
                 </Dialog>
             </Transition>
 
-            {/* Add Promo Modal */}
-            {isAddModalOpen && newItem.type === "promo" && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="bg-white p-6 rounded-lg shadow-xl w-[500px]">
-                        <h2 className="text-xl font-bold mb-6">Add Promo</h2>
-                        <form onSubmit={handleAddItemSubmit}>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Name*</label>
-                                    <input
-                                        type="text"
-                                        value={newItem.name}
-                                        onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                                        className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Description</label>
-                                    <textarea
-                                        value={newItem.description}
-                                        onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                                        className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300 h-20"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">New Price*</label>
-                                    <input
-                                        type="text"
-                                        value={newItem.price}
-                                        onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
-                                        className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                        required
-                                    />
-                                </div>
-
+            <AnimatePresence>
+                {isAddModalOpen && newItem.type === "promo" && (
+                    <motion.div
+                        className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <motion.div
+                            className="bg-white p-6 rounded-lg shadow-xl w-[600px] max-h-[85vh] overflow-y-auto"
+                            initial={{ scale: 0.95, y: 20, opacity: 0 }}
+                            animate={{ scale: 1, y: 0, opacity: 1 }}
+                            exit={{ scale: 0.95, y: 20, opacity: 0 }}
+                            transition={{ duration: 0.25 }}
+                        >
+                            <h2 className="text-xl font-bold mb-6">Add Promo</h2>
+                            <form onSubmit={handleAddItemSubmit}>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium mb-1">Valid from</label>
+                                        <label className="block text-sm font-medium mb-1">Name*</label>
+                                        <input
+                                            type="text"
+                                            value={newItem.name}
+                                            onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium mb-1">Description</label>
+                                        <textarea
+                                            value={newItem.description}
+                                            onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300 h-20 resize-none"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Valid From</label>
                                         <input
                                             type="date"
                                             value={newItem.validFrom}
@@ -779,8 +761,9 @@ export default function BeautyDeals() {
                                             className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
                                         />
                                     </div>
+
                                     <div>
-                                        <label className="block text-sm font-medium mb-1">Valid to</label>
+                                        <label className="block text-sm font-medium mb-1">Valid To</label>
                                         <input
                                             type="date"
                                             value={newItem.validTo}
@@ -788,16 +771,16 @@ export default function BeautyDeals() {
                                             className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
                                         />
                                     </div>
-                                </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Services Link to Groups</label>
-                                    <select
-                                        className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                    >
-                                        <option value="">Select service group</option>
-                                        {/* Options would be populated from your service groups data */}
-                                    </select>
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium mb-1">Services Linked to Group</label>
+                                        <select
+                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                        >
+                                            <option value="">Select service group</option>
+                                            {/* Options to be dynamically populated */}
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div className="flex justify-end space-x-3 mt-6">
@@ -815,226 +798,298 @@ export default function BeautyDeals() {
                                         Save
                                     </button>
                                 </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+                            </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Edit Promo Modal */}
-            {isEditModalOpen && selectedDeal && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="bg-white p-6 rounded-lg shadow-xl w-[500px]">
-                        <h2 className="text-xl font-bold mb-6">Edit Promo</h2>
-                        <form onSubmit={handleSaveEdit}>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Name*</label>
-                                    <input
-                                        type="text"
-                                        value={selectedDeal.name}
-                                        onChange={(e) => setSelectedDeal({ ...selectedDeal, name: e.target.value })}
-                                        className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                        required
-                                    />
-                                </div>
+            {
+                isPromoModalOpen && selectedDeal && (
+                    <AnimatePresence>
+                        <motion.div
+                            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                        >
+                            <motion.div
+                                className="bg-white p-6 rounded-lg shadow-xl w-[500px] max-h-[85vh] overflow-y-auto"
+                                variants={slideUp}
+                                initial="hidden"
+                                animate="visible"
+                                exit="exit"
+                            >
+                                <h2 className="text-xl font-bold mb-6">Edit Promo</h2>
+                                <form onSubmit={handleSaveEditPromo}>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Name*</label>
+                                            <input
+                                                type="text"
+                                                value={selectedDeal.name}
+                                                onChange={(e) =>
+                                                    setSelectedDeal({ ...selectedDeal, name: e.target.value })
+                                                }
+                                                className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                                required
+                                            />
+                                        </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Description</label>
-                                    <textarea
-                                        value={selectedDeal.description}
-                                        onChange={(e) => setSelectedDeal({ ...selectedDeal, description: e.target.value })}
-                                        className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300 h-20"
-                                    />
-                                </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Description</label>
+                                            <textarea
+                                                value={selectedDeal.description}
+                                                onChange={(e) =>
+                                                    setSelectedDeal({
+                                                        ...selectedDeal,
+                                                        description: e.target.value,
+                                                    })
+                                                }
+                                                className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300 h-20 resize-none"
+                                            />
+                                        </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Valid from</label>
-                                        <input
-                                            type="date"
-                                            value={selectedDeal.validFrom}
-                                            onChange={(e) => setSelectedDeal({ ...selectedDeal, validFrom: e.target.value })}
-                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                        />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Valid from</label>
+                                                <input
+                                                    type="date"
+                                                    value={selectedDeal.validFrom}
+                                                    onChange={(e) =>
+                                                        setSelectedDeal({ ...selectedDeal, validFrom: e.target.value })
+                                                    }
+                                                    className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Valid to</label>
+                                                <input
+                                                    type="date"
+                                                    value={selectedDeal.validTo}
+                                                    onChange={(e) =>
+                                                        setSelectedDeal({ ...selectedDeal, validTo: e.target.value })
+                                                    }
+                                                    className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Status</label>
+                                            <select
+                                                value={selectedDeal.status}
+                                                onChange={(e) =>
+                                                    setSelectedDeal({ ...selectedDeal, status: e.target.value })
+                                                }
+                                                className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                            >
+                                                <option value="active">Active</option>
+                                                <option value="inactive">Inactive</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="flex justify-end space-x-3 mt-6">
+                                            <motion.button
+                                                type="button"
+                                                onClick={() => setIsPromoModalOpen(false)}
+                                                className="px-4 py-2 border border-gray-300 rounded-lg"
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                            >
+                                                Cancel
+                                            </motion.button>
+                                            <motion.button
+                                                type="submit"
+                                                className="px-4 py-2 bg-[#5BBF5B] hover:bg-[#4CAF4C] text-white rounded-lg"
+                                                whileHover={{ scale: 1.05 }}
+                                                whileTap={{ scale: 0.95 }}
+                                            >
+                                                Save
+                                            </motion.button>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Valid to</label>
-                                        <input
-                                            type="date"
-                                            value={selectedDeal.validTo}
-                                            onChange={(e) => setSelectedDeal({ ...selectedDeal, validTo: e.target.value })}
-                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-end space-x-3 mt-6">
-                                    <button
-                                        type="button"
-                                        className="px-4 py-2 border border-gray-300 rounded-lg"
-                                        onClick={() => setIsEditModalOpen(false)}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="px-4 py-2 bg-[#5BBF5B] hover:bg-[#4CAF4C] text-white rounded-lg"
-                                    >
-                                        Save
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+                                </form>
+                            </motion.div>
+                        </motion.div>
+                    </AnimatePresence>
+                )
+            }
 
             {/* Add Discount Modal */}
-            {isAddModalOpen && newItem.type === "discount" && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="bg-white p-6 rounded-lg shadow-xl w-[500px]">
-                        <h2 className="text-xl font-bold mb-6">Add Discount</h2>
-                        <form onSubmit={handleAddItemSubmit}>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Name*</label>
-                                    <input
-                                        type="text"
-                                        value={newItem.name}
-                                        onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                                        className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Description</label>
-                                    <textarea
-                                        value={newItem.description}
-                                        onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                                        className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300 h-20"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
+            {
+                isAddModalOpen && newItem.type === "discount" && (
+                    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                        <div className="bg-white p-6 rounded-lg shadow-xl w-[500px]">
+                            <h2 className="text-xl font-bold mb-6">Add Discount</h2>
+                            <form onSubmit={handleAddItemSubmit}>
+                                <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium mb-1">Discount Type</label>
-                                        <select
-                                            value={newItem.discountType}
-                                            onChange={(e) => setNewItem({ ...newItem, discountType: e.target.value })}
-                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                        >
-                                            <option value="percentage">Percentage</option>
-                                            <option value="fixed">Fixed Amount</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Value*</label>
+                                        <label className="block text-sm font-medium mb-1">Name*</label>
                                         <input
                                             type="text"
-                                            value={newItem.value}
-                                            onChange={(e) => setNewItem({ ...newItem, value: e.target.value })}
+                                            value={newItem.name}
+                                            onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
                                             className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                            placeholder={newItem.discountType === "percentage" ? "e.g. 10%" : "e.g. $50"}
                                             required
                                         />
                                     </div>
-                                </div>
 
-                                <div className="flex justify-end space-x-3 mt-6">
-                                    <button
-                                        type="button"
-                                        className="px-4 py-2 border border-gray-300 rounded-lg"
-                                        onClick={() => setIsAddModalOpen(false)}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="px-4 py-2 bg-[#5BBF5B] hover:bg-[#4CAF4C] text-white rounded-lg"
-                                    >
-                                        Save
-                                    </button>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Description</label>
+                                        <textarea
+                                            value={newItem.description}
+                                            onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300 h-20"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Discount Type</label>
+                                            <select
+                                                value={newItem.discountType}
+                                                onChange={(e) => setNewItem({ ...newItem, discountType: e.target.value })}
+                                                className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                            >
+                                                <option value="percentage">Percentage</option>
+                                                <option value="fixed">Fixed Amount</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Value*</label>
+                                            <input
+                                                type="text"
+                                                value={newItem.value}
+                                                onChange={(e) => setNewItem({ ...newItem, value: e.target.value })}
+                                                className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                                placeholder={newItem.discountType === "percentage" ? "e.g. 10%" : "e.g. $50"}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end space-x-3 mt-6">
+                                        <button
+                                            type="button"
+                                            className="px-4 py-2 border border-gray-300 rounded-lg"
+                                            onClick={() => setIsAddModalOpen(false)}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="px-4 py-2 bg-[#5BBF5B] hover:bg-[#4CAF4C] text-white rounded-lg"
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        </form>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Edit Discount Modal */}
-            {isEditModalOpen && selectedDiscount && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="bg-white p-6 rounded-lg shadow-xl w-[500px]">
-                        <h2 className="text-xl font-bold mb-6">Edit Discount</h2>
-                        <form onSubmit={handleSaveEdit}>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Name*</label>
-                                    <input
-                                        type="text"
-                                        value={selectedDiscount.name}
-                                        onChange={(e) => setSelectedDiscount({ ...selectedDiscount, name: e.target.value })}
-                                        className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Description</label>
-                                    <textarea
-                                        value={selectedDiscount.description}
-                                        onChange={(e) => setSelectedDiscount({ ...selectedDiscount, description: e.target.value })}
-                                        className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300 h-20"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
+            {isDiscountModalOpen && selectedDiscount && (
+                <AnimatePresence>
+                    <motion.div
+                        className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <motion.div
+                            className="bg-white p-6 rounded-lg shadow-xl w-[500px] max-h-[85vh] overflow-y-auto"
+                            variants={slideUp}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                        >
+                            <h2 className="text-xl font-bold mb-6">Edit Discount</h2>
+                            <form onSubmit={handleSaveEditDiscount}>
+                                <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium mb-1">Discount Type</label>
-                                        <select
-                                            value={selectedDiscount.discountType}
-                                            onChange={(e) => setSelectedDiscount({ ...selectedDiscount, discountType: e.target.value })}
-                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                        >
-                                            <option value="percentage">Percentage</option>
-                                            <option value="fixed">Fixed Amount</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Value*</label>
+                                        <label className="block text-sm font-medium mb-1">Name*</label>
                                         <input
                                             type="text"
-                                            value={selectedDiscount.value}
-                                            onChange={(e) => setSelectedDiscount({ ...selectedDiscount, value: e.target.value })}
+                                            value={selectedDiscount.name}
+                                            onChange={(e) => setSelectedDiscount({ ...selectedDiscount, name: e.target.value })}
                                             className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                            placeholder={selectedDiscount.discountType === "percentage" ? "e.g. 10%" : "e.g. $50"}
                                             required
                                         />
                                     </div>
-                                </div>
 
-                                <div className="flex justify-end space-x-3 mt-6">
-                                    <button
-                                        type="button"
-                                        className="px-4 py-2 border border-gray-300 rounded-lg"
-                                        onClick={() => setIsEditModalOpen(false)}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="px-4 py-2 bg-[#5BBF5B] hover:bg-[#4CAF4C] text-white rounded-lg"
-                                    >
-                                        Save
-                                    </button>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Description</label>
+                                        <textarea
+                                            value={selectedDiscount.description}
+                                            onChange={(e) => setSelectedDiscount({ ...selectedDiscount, description: e.target.value })}
+                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300 h-20"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Discount Type</label>
+                                            <select
+                                                value={selectedDiscount.discountType}
+                                                onChange={(e) => setSelectedDiscount({ ...selectedDiscount, discountType: e.target.value })}
+                                                className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                            >
+                                                <option value="percentage">Percentage</option>
+                                                <option value="fixed">Fixed Amount</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Value*</label>
+                                            <input
+                                                type="text"
+                                                value={selectedDiscount.value}
+                                                onChange={(e) => setSelectedDiscount({ ...selectedDiscount, value: e.target.value })}
+                                                className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                                placeholder={selectedDiscount.discountType === "percentage" ? "e.g. 10%" : "e.g. $50"}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Added Status Field */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Status</label>
+                                        <select
+                                            value={selectedDiscount.status}
+                                            onChange={(e) => setSelectedDiscount({ ...selectedDiscount, status: e.target.value })}
+                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="inactive">Inactive</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="flex justify-end space-x-3 mt-6">
+                                        <button
+                                            type="button"
+                                            className="px-4 py-2 border border-gray-300 rounded-lg"
+                                            onClick={() => setIsDiscountModalOpen(false)}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="px-4 py-2 bg-[#5BBF5B] hover:bg-[#4CAF4C] text-white rounded-lg"
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                            </form>
+                        </motion.div>
+                    </motion.div>
+                </AnimatePresence>
             )}
-        </div>
+        </div >
     );
 }

@@ -245,58 +245,6 @@ export default function InvoicesPage() {
     <div className="flex flex-col h-screen bg-[#77DD77] text-gray-900">
       <Toaster />
 
-      {/* Header */}
-      <header className="flex items-center justify-between bg-[#89C07E] text-white p-4 w-full h-16 pl-64 relative">
-        <div className="flex items-center space-x-4">
-          {/* Home icon removed from here */}
-        </div>
-
-        <div className="flex items-center space-x-4 flex-grow justify-center">
-          <button className="text-2xl" onClick={() => setIsModalOpen(true)}>
-            ➕
-          </button>
-          <input
-            type="text"
-            placeholder="Search for..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-4 py-2 rounded-lg bg-white text-gray-900 w-64 focus:outline-none"
-          />
-          <button
-            onClick={handleSearch}
-            className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-md"
-          >
-            Search
-          </button>
-        </div>
-
-        <div className="flex items-center space-x-4 relative">
-          <div
-            className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg font-bold cursor-pointer"
-            onClick={() => setIsProfileOpen(!isProfileOpen)}
-          >
-            A
-          </div>
-          {isProfileOpen && (
-            <div className="bg-green-500 absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
-              <Link href="/acc-settings">
-                <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
-                  <User size={16} /> Edit Profile
-                </button>
-              </Link>
-              <Link href="/settings">
-                <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
-                  <Settings size={16} /> Settings
-                </button>
-              </Link>
-              <button className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded justify-start" onClick={handleLogout}>
-                <LogOut size={16} /> Logout
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
-
       {/* Sidebar */}
       <div className="flex flex-1">
         <nav className="w-64 h-screen bg-gradient-to-b from-[#467750] to-[#56A156] text-gray-900 flex flex-col items-center py-6 fixed top-0 left-0">
@@ -421,12 +369,6 @@ export default function InvoicesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
-              <button
-                onClick={handleSearch}
-                className="absolute right-2 top-1.5 bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600 transition-colors"
-              >
-                Search
-              </button>
             </div>
           </div>
 
@@ -628,10 +570,6 @@ export default function InvoicesPage() {
                             <div className="flex justify-between py-1 border-b">
                               <span className="font-medium">Subtotal:</span>
                               <span>₱{subtotal.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between py-1 border-b">
-                              <span className="font-medium">Tax:</span>
-                              <span>₱0.00</span>
                             </div>
                             <div className="flex justify-between py-1 font-bold">
                               <span>Total:</span>

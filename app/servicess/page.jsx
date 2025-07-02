@@ -23,6 +23,8 @@ export default function ServiceGroupsPage() {
   const [editMode, setEditMode] = useState(false);
   const [linkedServices, setLinkedServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
+  const [serviceToEdit, setServiceToEdit] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -95,19 +97,52 @@ export default function ServiceGroupsPage() {
     setIsAddGroupModalOpen(false);
   };
 
-  const handleSearch = () => {
-    toast(`Searching for: ${searchQuery}`);
-    console.log("Search query:", searchQuery);
-  };
+
+  const filteredServiceGroups = serviceGroups.filter((group) =>
+    group.group_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
 
   const handleEdit = () => {
     setEditMode(true);
     setFormData(selectedService);
   };
 
+  const handleSaveEditedService = async () => {
+    try {
+      const response = await axios.post("http://localhost/API/servicegroup.php?action=update_service", {
+        id: serviceToEdit.id,
+        name: serviceToEdit.name,
+        price: serviceToEdit.price,
+        duration: serviceToEdit.duration,
+      });
+
+      if (response.data.success) {
+        // Update local state
+        const updatedServices = selectedGroup.services.map((s) =>
+          s.id === serviceToEdit.id ? serviceToEdit : s
+        );
+        setSelectedGroup({ ...selectedGroup, services: updatedServices });
+
+        setIsEditModalOpen(false);
+      } else {
+        console.error("API update failed:", response.data.message || "Unknown error");
+        alert("Failed to update service.");
+      }
+    } catch (error) {
+      console.error("Error updating service:", error);
+      alert("An error occurred while updating the service.");
+    }
+  };
+
   const handleEditServices = () => {
     setEditMode(true);
     setFormData(selectedService);
+  };
+
+  const handleEditService = (service) => {
+    setServiceToEdit(service); // set the selected service in state
+    setIsEditModalOpen(true);  // open the edit modal
   };
 
   const handleSaveGroup = () => {
@@ -187,9 +222,6 @@ export default function ServiceGroupsPage() {
         </div>
 
         <div className="flex items-center space-x-4 flex-grow justify-center">
-          <button className="text-2xl" onClick={() => setIsModalOpen(true)}>
-            ➕
-          </button>
           <input
             type="text"
             placeholder="Search..."
@@ -197,13 +229,8 @@ export default function ServiceGroupsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="px-4 py-2 rounded-lg bg-white text-gray-900 w-64 focus:outline-none"
           />
-          <button
-            onClick={handleSearch}
-            className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-md"
-          >
-            Search
-          </button>
         </div>
+
 
         <div className="flex items-center space-x-4 relative">
           <div
@@ -313,7 +340,7 @@ export default function ServiceGroupsPage() {
               whileTap={{ scale: 0.95 }}
             >
               <Plus size={18} />
-              <span>New Group List</span>
+              <span>New Service Group</span>
             </motion.button>
           </motion.div>
 
@@ -341,7 +368,7 @@ export default function ServiceGroupsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {serviceGroups.map((group, index) => (
+                    {filteredServiceGroups.map((group, index) => (
                       <motion.tr
                         key={group.group_id || `group-${index}`}
                         className={`hover:bg-gray-50 cursor-pointer ${selectedGroup?.group_id === group.group_id ? "bg-[#E3F9E5]" : ""}`}
@@ -485,18 +512,18 @@ export default function ServiceGroupsPage() {
                       </div>
 
                       <motion.div
-                        className="border rounded-lg overflow-hidden"
+                        className="border rounded-lg overflow-auto max-h-[400px]" // allow scroll if too tall
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.4 }}
                       >
-                        <table className="min-w-full divide-y divide-gray-200">
+                        <table className="min-w-full table-fixed divide-y divide-gray-200">
                           <thead className="bg-gray-50">
                             <tr>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                              <th className="w-1/3 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                              <th className="w-1/4 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                              <th className="w-1/4 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                              <th className="w-1/12 px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
@@ -509,7 +536,7 @@ export default function ServiceGroupsPage() {
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ delay: index * 0.05 }}
                                 >
-                                  <td className="px-3 py-2 text-sm text-gray-900">{service.name}</td>
+                                  <td className="px-3 py-2 text-sm text-gray-900 break-words">{service.name}</td>
                                   <td className="px-3 py-2 text-sm text-gray-500">₱{service.price}</td>
                                   <td className="px-3 py-2 text-sm text-gray-500">{service.duration} mins</td>
                                   <td className="px-3 py-2 text-sm text-gray-500 text-right">
@@ -517,6 +544,7 @@ export default function ServiceGroupsPage() {
                                       className="text-blue-600 hover:text-blue-800"
                                       whileHover={{ scale: 1.2 }}
                                       whileTap={{ scale: 0.9 }}
+                                      onClick={() => handleEditService(service)}
                                     >
                                       <Edit2 size={16} />
                                     </motion.button>
@@ -529,7 +557,9 @@ export default function ServiceGroupsPage() {
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 0.5 }}
                               >
-                                <td colSpan="4" className="text-center text-gray-500 py-4 italic">No services available</td>
+                                <td colSpan="4" className="text-center text-gray-500 py-4 italic">
+                                  No services available
+                                </td>
                               </motion.tr>
                             )}
                           </tbody>
@@ -788,6 +818,59 @@ export default function ServiceGroupsPage() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {isEditModalOpen && serviceToEdit && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+              <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+                <h2 className="text-lg font-semibold mb-4">Edit Service</h2>
+
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <input
+                    type="text"
+                    value={serviceToEdit.name}
+                    onChange={(e) => setServiceToEdit({ ...serviceToEdit, name: e.target.value })}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700">Price (₱)</label>
+                  <input
+                    type="number"
+                    value={serviceToEdit.price}
+                    onChange={(e) => setServiceToEdit({ ...serviceToEdit, price: e.target.value })}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700">Duration (mins)</label>
+                  <input
+                    type="number"
+                    value={serviceToEdit.duration}
+                    onChange={(e) => setServiceToEdit({ ...serviceToEdit, duration: e.target.value })}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEditedService}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Add Group Modal - Matched to Edit Modal */}
           <AnimatePresence>
