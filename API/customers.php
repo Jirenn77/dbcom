@@ -14,20 +14,16 @@ try {
     $pdo = new PDO("mysql:host=localhost;dbname=dbcom", "root", "");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Handle OPTIONS request (CORS preflight)
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(200);
         exit;
     }
 
-    // Handle POST: Add new customer
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['action'] === 'add') {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
-            if (!$data) {
-                throw new Exception("Invalid or missing JSON payload.");
-            }
+            if (!$data) throw new Exception("Invalid or missing JSON payload.");
 
             $name = trim($data['name'] ?? '');
             $phone = trim($data['phone'] ?? '');
@@ -37,18 +33,13 @@ try {
             $isMember = !empty($data['isMember']) ? 1 : 0;
             $membershipType = $data['membershipType'] ?? null;
 
-            if (empty($name) || empty($phone)) {
-                throw new Exception("Name and phone are required.");
-            }
+            if (empty($name) || empty($phone)) throw new Exception("Name and phone are required.");
 
             $pdo->beginTransaction();
 
-            // Check for duplicate customer by (name + phone) OR email
             $duplicateCheckStmt = $pdo->prepare("SELECT COUNT(*) FROM customers WHERE (name = ? AND phone = ?) OR (email = ? AND email != '')");
             $duplicateCheckStmt->execute([$name, $phone, $email]);
-            $duplicateCount = $duplicateCheckStmt->fetchColumn();
-
-            if ($duplicateCount > 0) {
+            if ($duplicateCheckStmt->fetchColumn() > 0) {
                 $pdo->rollBack();
                 echo json_encode(['success' => false, 'message' => 'Customer already exists with the same name and phone or email.']);
                 exit;
@@ -66,16 +57,13 @@ try {
                     default => 0
                 };
 
-                if ($coverage === 0) {
-                    throw new Exception("Invalid membership type: $membershipType");
-                }
+                if ($coverage === 0) throw new Exception("Invalid membership type: $membershipType");
 
                 $stmtMem = $pdo->prepare("INSERT INTO memberships (customer_id, type, coverage, remaining_balance, date_registered, expire_date) VALUES (?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR))");
                 $stmtMem->execute([$customerId, $membershipType, $coverage, $coverage]);
             }
 
             $pdo->commit();
-
             echo json_encode(['success' => true, 'message' => 'Customer added successfully.']);
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
@@ -85,7 +73,6 @@ try {
         exit;
     }
 
-    // If customerId is provided, return details for that customer only
     if (isset($_GET['customerId'])) {
         $customerId = $_GET['customerId'];
 
@@ -120,28 +107,24 @@ try {
             $customer['membershipDetails'] = null;
         }
 
-        $stmtTrans = $pdo->prepare("SELECT service_date, service_description, employee_name, invoice_number, total_amount FROM transactions WHERE customer_id = ? ORDER BY service_date DESC LIMIT 10");
+        $stmtTrans = $pdo->prepare("SELECT invoice_number, invoice_date, GROUP_CONCAT(s.name SEPARATOR ', ') as services, SUM(i.total_price) as amount, i.status FROM invoices i JOIN services s ON i.service_id = s.service_id WHERE i.customer_id = ? GROUP BY invoice_number ORDER BY invoice_date DESC LIMIT 10");
         $stmtTrans->execute([$customerId]);
         $transactions = $stmtTrans->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($transactions as &$t) {
-            $t['date'] = date("M d, Y", strtotime($t['service_date']));
-            $t['service'] = $t['service_description'];
-            $t['employee'] = $t['employee_name'];
-            $t['invoice'] = $t['invoice_number'];
-            $t['total'] = "₱" . number_format($t['total_amount'], 2);
-            unset($t['service_date'], $t['service_description'], $t['employee_name'], $t['invoice_number'], $t['total_amount']);
+            $t['date'] = date("M d, Y", strtotime($t['invoice_date']));
+            $t['service'] = $t['services'];
+            $t['amount'] = (float) $t['amount'];
+            $t['status'] = $t['status'];
+            unset($t['invoice_date'], $t['services']);
         }
 
         $customer['transactions'] = $transactions;
-
         echo json_encode($customer);
         exit;
     }
 
-    // Else: return list of customers (filtered)
     $filter = $_GET['filter'] ?? 'all';
-
     $stmt = $pdo->prepare("SELECT * FROM customers ORDER BY id");
     $stmt->execute();
     $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -165,24 +148,21 @@ try {
             $customer['membership_status'] = 'None';
         }
 
-        if ($filter === 'member' && $customer['membership_status'] === 'None') {
-            continue;
-        } elseif ($filter === 'nonMember' && $customer['membership_status'] !== 'None') {
-            continue;
-        }
+        if ($filter === 'member' && $customer['membership_status'] === 'None') continue;
+        if ($filter === 'nonMember' && $customer['membership_status'] !== 'None') continue;
 
-        $stmtTrans = $pdo->prepare("SELECT service_date, service_description, employee_name, invoice_number, total_amount FROM transactions WHERE customer_id = ? ORDER BY service_date DESC");
+        $stmtTrans = $pdo->prepare("SELECT invoice_number, invoice_date, GROUP_CONCAT(s.name SEPARATOR ', ') as services, SUM(i.total_price) as amount, i.status FROM invoices i JOIN services s ON i.service_id = s.service_id WHERE i.customer_id = ? GROUP BY invoice_number ORDER BY invoice_date DESC LIMIT 10");
         $stmtTrans->execute([$customer['id']]);
         $transactions = $stmtTrans->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($transactions as &$t) {
-            $t['date'] = date("M d, Y", strtotime($t['service_date']));
-            $t['service'] = $t['service_description'];
-            $t['employee'] = $t['employee_name'];
-            $t['invoice'] = $t['invoice_number'];
-            $t['total'] = "₱" . number_format($t['total_amount'], 2);
-            unset($t['service_date'], $t['service_description'], $t['employee_name'], $t['invoice_number'], $t['total_amount']);
+            $t['date'] = date("M d, Y", strtotime($t['invoice_date']));
+            $t['service'] = $t['services'];
+            $t['amount'] = (float) $t['amount'];
+            $t['status'] = $t['status'];
+            unset($t['invoice_date'], $t['services']);
         }
+
         $customer['transactions'] = $transactions;
 
         if (!empty($customer['birthday'])) {

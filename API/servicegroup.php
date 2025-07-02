@@ -42,6 +42,11 @@ try {
             $data = json_decode(file_get_contents('php://input'), true);
             echo json_encode(updateServiceMapping($pdo, $data));
             break;
+        
+        case 'update_service':
+    $data = json_decode(file_get_contents('php://input'), true);
+    echo json_encode(updateService($pdo, $data));
+    break;
             
         default:
             http_response_code(404);
@@ -168,6 +173,42 @@ function updateServiceMapping($pdo, $data) {
         return ['success' => $success];
     } catch (PDOException $e) {
         return ['success' => false, 'error' => $e->getMessage()];
+    }
+}
+
+function updateService($pdo, $data) {
+    // Validate required fields
+    if (!isset($data['id'], $data['name'], $data['price'], $data['duration'])) {
+        return [
+            'success' => false,
+            'message' => 'Missing required fields: id, name, price, or duration'
+        ];
+    }
+
+    try {
+        // Prepare and execute the update query
+        $stmt = $pdo->prepare("UPDATE services SET name = ?, price = ?, duration = ? WHERE service_id = ?");
+        $success = $stmt->execute([
+            $data['name'],
+            $data['price'],
+            $data['duration'],
+            $data['id']
+        ]);
+
+        // Check if any row was actually updated
+        if ($stmt->rowCount() === 0) {
+            return [
+                'success' => false,
+                'message' => 'No changes made or service not found'
+            ];
+        }
+
+        return ['success' => true];
+    } catch (PDOException $e) {
+        return [
+            'success' => false,
+            'message' => 'Database error: ' . $e->getMessage()
+        ];
     }
 }
 

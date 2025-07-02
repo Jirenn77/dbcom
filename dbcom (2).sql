@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 13, 2025 at 11:47 AM
+-- Generation Time: Jul 02, 2025 at 03:07 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -168,7 +168,9 @@ INSERT INTO `invoices` (`invoice_id`, `invoice_number`, `customer_id`, `service_
 (2, '112344', 1, 2, '2025-02-26', 1, 1299.00, 'Paid', NULL),
 (3, '132325', 2, 10, '2025-02-25', 1, 120.00, 'Pending', NULL),
 (4, '132325', 2, 11, '2025-02-25', 1, 150.00, 'Pending', NULL),
-(5, '122325', 3, 0, '2025-02-20', 1, 1000.00, 'Pending', NULL);
+(5, '122325', 3, 0, '2025-02-20', 1, 1000.00, 'Pending', NULL),
+(9, 'INV-20250618-8432', 1, 10, '2025-06-18', 1, 120.00, 'Pending', NULL),
+(10, 'INV-20250618-8432', 1, 11, '2025-06-18', 1, 150.00, 'Pending', NULL);
 
 -- --------------------------------------------------------
 
@@ -265,7 +267,7 @@ CREATE TABLE `memberships` (
 --
 
 INSERT INTO `memberships` (`id`, `customer_id`, `type`, `coverage`, `remaining_balance`, `date_registered`, `expire_date`) VALUES
-(1, 1, 'VIP', '10,000', '10,000', '2025-06-05', '2025-07-07');
+(1, 1, 'vip', '10000', '10000', '2025-06-29', '2025-08-29');
 
 -- --------------------------------------------------------
 
@@ -293,8 +295,6 @@ INSERT INTO `orders` (`id`, `branch_id`, `service_id`, `order_date`, `amount`, `
 (4, 3, 3, '2025-05-20 11:39:39', 800.00, NULL),
 (5, 1, 1, '2025-05-19 11:39:39', 500.00, NULL),
 (6, 2, 2, '2025-05-13 11:39:39', 1000.00, NULL),
-(7, 3, 3, '2025-04-20 11:39:39', 800.00, NULL),
-(8, 4, 1, '2024-05-20 11:39:39', 500.00, NULL),
 (9, 1, 1, '2025-06-01 00:00:00', 150.00, NULL),
 (10, 1, 2, '2025-06-01 00:00:00', 250.00, NULL),
 (11, 2, 3, '2025-06-01 00:00:00', 100.00, NULL),
@@ -309,26 +309,7 @@ INSERT INTO `orders` (`id`, `branch_id`, `service_id`, `order_date`, `amount`, `
 (20, 2, 3, '2025-06-01 00:00:00', 180.00, NULL),
 (21, 2, 4, '2025-06-01 00:00:00', 250.00, NULL),
 (22, 3, 5, '2025-06-01 00:00:00', 150.00, NULL),
-(23, 1, 0, '2025-05-30 00:00:00', 264.24, NULL),
-(24, 1, 1, '2025-05-31 00:00:00', 448.39, NULL),
-(25, 1, 2, '2025-05-30 00:00:00', 241.20, NULL),
-(26, 1, 3, '2025-05-28 00:00:00', 147.30, NULL),
-(27, 1, 4, '2025-05-30 00:00:00', 227.91, NULL),
-(28, 1, 5, '2025-05-29 00:00:00', 104.59, NULL),
-(29, 1, 6, '2025-05-29 00:00:00', 535.95, NULL),
-(30, 1, 7, '2025-06-01 00:00:00', 341.79, NULL),
-(31, 1, 8, '2025-05-31 00:00:00', 270.48, NULL),
-(32, 1, 9, '2025-05-29 00:00:00', 163.02, NULL),
-(33, 1, 10, '2025-05-29 00:00:00', 263.03, NULL),
-(34, 1, 11, '2025-05-30 00:00:00', 130.45, NULL),
-(35, 1, 12, '2025-06-01 00:00:00', 211.29, NULL),
-(36, 1, 13, '2025-05-28 00:00:00', 440.46, NULL),
-(37, 1, 14, '2025-05-29 00:00:00', 567.15, NULL),
-(38, 1, 15, '2025-05-31 00:00:00', 411.64, NULL),
-(39, 1, 16, '2025-05-31 00:00:00', 316.92, NULL),
-(40, 1, 17, '2025-05-31 00:00:00', 416.71, NULL),
-(41, 1, 18, '2025-06-01 00:00:00', 165.15, NULL),
-(42, 1, 19, '2025-05-29 00:00:00', 487.55, NULL);
+(28, 1, 5, '2025-05-29 00:00:00', 104.59, NULL);
 
 -- --------------------------------------------------------
 
@@ -412,7 +393,7 @@ INSERT INTO `promos` (`promo_id`, `type`, `name`, `description`, `valid_from`, `
 (1, 'Membership', 'Facial Spa + Footspa', 'Bundled Promo', '2025-01-10', '2025-01-25', 'active'),
 (2, 'Beauty Deals', 'Hair Rebond + Haircut', 'Bundled Promo for 1000 only', '2025-01-10', '2025-01-25', 'active'),
 (3, 'Skincare', 'Facial + Diamond Peel', 'Glow-up bundle', '2025-02-01', '2025-02-15', 'active'),
-(4, 'Massage Deals', 'Swedish + Hot Stone', 'Relaxation promo', '2025-03-01', '2025-03-31', 'inactive');
+(4, 'Massage Deals', 'Loyalty Discount', 'For loyal customers', '1970-01-01', '1970-01-01', 'active');
 
 -- --------------------------------------------------------
 
@@ -466,7 +447,6 @@ INSERT INTO `services` (`service_id`, `name`, `price`, `description`, `duration`
 (17, 'Hair Botox Treatment', 999.00, 'Deep conditioning treatment that repairs damaged hair', 120, 'Hair Treatments'),
 (18, 'Brazilian Blowout', 799.00, 'Smoothing treatment that reduces frizz', 150, 'Hair Treatments'),
 (19, 'Hair Detox Treatment', 499.00, 'Removes product buildup and impurities from hair', 60, 'Hair Treatments'),
-(20, 'Hair Mask', 499.00, 'Intensive conditioning treatment for damaged hair', 45, 'Hair Treatments'),
 (21, 'Hair Cellophane', 399.00, 'Semi-permanent color treatment with conditioning', 90, 'Hair Treatments'),
 (22, 'Hair Spa', 399.00, 'Relaxing hair and scalp treatment with massage', 60, 'Hair Treatments'),
 (23, 'Haircolor', 599.00, 'Professional hair coloring service', 120, 'Basic Hair Services'),
@@ -476,7 +456,75 @@ INSERT INTO `services` (`service_id`, `name`, `price`, `description`, `duration`
 (27, 'Classic Balayage', 1499.00, 'Hand-painted highlighting technique', 180, 'Basic Hair Services'),
 (28, '3D Balayage', 2499.00, 'Advanced dimensional balayage technique', 210, 'Basic Hair Services'),
 (29, 'Hair Bleaching', 599.00, 'Lightening service for dark hair', 120, 'Basic Hair Services'),
-(30, 'Hair Protein Straight Bond (Short)', 1999.00, 'Advanced straightening treatment for short hair', 150, 'Hair Treatments');
+(30, 'Hair Protein Straight Bond (Short)', 1999.00, 'Advanced straightening treatment for short hair', 150, 'Hair Treatments'),
+(31, 'Eyebag Treatment', 399.00, NULL, NULL, 'Special Treatments'),
+(32, 'Melasma Treatment PS', 999.00, NULL, NULL, 'Special Treatments'),
+(33, 'Scar Treatment PS', 999.00, NULL, NULL, 'Special Treatments'),
+(34, 'Body Massage', 499.00, NULL, NULL, 'Body & Relaxing Services'),
+(35, 'Moisturizing Body Scrub', 799.00, NULL, NULL, 'Body & Relaxing Services'),
+(36, 'Body Whitening Mask', 1499.00, NULL, NULL, 'Body & Relaxing Services'),
+(37, 'Black Doll Carbon Peel Laser', 999.00, NULL, NULL, 'Laser Treatment Services'),
+(38, 'Pico Laser', 999.00, NULL, NULL, 'Laser Treatment Services'),
+(39, 'Leg Carbon Peel Laser', 999.00, NULL, NULL, 'Laser Treatment Services'),
+(40, 'Cauterization Services Warts/Milia/Syringoma Removal', 999.00, NULL, NULL, 'Laser Treatment Services'),
+(41, 'Tattoo Removal Price Starts', 499.00, NULL, NULL, 'Laser Treatment Services'),
+(42, 'Eyelash Extension Natural Look', 299.00, NULL, NULL, 'Lashes & Brows Services'),
+(43, 'Eyelash Extension Volume Look', 599.00, NULL, NULL, 'Lashes & Brows Services'),
+(44, 'Eyelash Extension Cat-Eye Look', 699.00, NULL, NULL, 'Lashes & Brows Services'),
+(45, 'Eyelash Perming', 199.00, NULL, NULL, 'Lashes & Brows Services'),
+(46, 'Eyelash Perming With Tint', 299.00, NULL, NULL, 'Lashes & Brows Services'),
+(47, 'Eyebrow Threading', 99.00, NULL, NULL, 'Lashes & Brows Services'),
+(48, 'Cystic Pimple Injection', 99.00, NULL, NULL, 'Medical Procedure Services'),
+(49, 'Sclerotherapy', 1899.00, NULL, NULL, 'Medical Procedure Services'),
+(50, 'Keloid Removal', 999.00, NULL, NULL, 'Medical Procedure Services'),
+(51, 'Sweatox', 149.00, NULL, NULL, 'Medical Procedure Services'),
+(52, 'Barbie Arms Botox', 149.00, NULL, NULL, 'Medical Procedure Services'),
+(53, 'Jawtox', 149.00, NULL, NULL, 'Medical Procedure Services'),
+(54, 'Facial Botox', 149.00, NULL, NULL, 'Medical Procedure Services'),
+(55, 'Traptox', 149.00, NULL, NULL, 'Medical Procedure Services'),
+(56, 'Glow Drip', 899.00, NULL, NULL, 'Glutha Drip & Push Services'),
+(57, 'Melasma Drip', 1199.00, NULL, NULL, 'Glutha Drip & Push Services'),
+(58, 'Sakura Drip', 1299.00, NULL, NULL, 'Glutha Drip & Push Services'),
+(59, 'Cinderella Drip', 1399.00, NULL, NULL, 'Glutha Drip & Push Services'),
+(60, 'Hikari Drip', 1799.00, NULL, NULL, 'Glutha Drip & Push Services'),
+(61, 'Glow Push', 499.00, NULL, NULL, 'Glutha Drip & Push Services'),
+(62, 'Collagen', 499.00, NULL, NULL, 'Glutha Drip & Push Services'),
+(63, 'Stemcell', 499.00, NULL, NULL, 'Glutha Drip & Push Services'),
+(64, 'B-Complex', 499.00, NULL, NULL, 'Glutha Drip & Push Services'),
+(65, 'Placenta', 499.00, NULL, NULL, 'Glutha Drip & Push Services'),
+(66, 'L-Carnitine', 599.00, NULL, NULL, 'Glutha Drip & Push Services'),
+(67, 'UA Wax', 99.00, NULL, NULL, 'Underarm Services'),
+(68, 'UA Whitening', 99.00, NULL, NULL, 'Underarm Services'),
+(69, 'UA IPL', 199.00, NULL, NULL, 'Underarm Services'),
+(70, 'UA Carbon Peel Laser', 799.00, NULL, NULL, 'Underarm Services'),
+(71, 'Brazilian Wax Women', 599.00, NULL, NULL, 'Intimate Area Services'),
+(72, 'Brazilian Wax Men', 799.00, NULL, NULL, 'Intimate Area Services'),
+(73, 'Bikini Whitening', 499.00, NULL, NULL, 'Intimate Area Services'),
+(74, 'Bikini Carbon Peel Laser', 999.00, NULL, NULL, 'Intimate Area Services'),
+(75, 'Butt Whitening', 499.00, NULL, NULL, 'Intimate Area Services'),
+(76, 'Butt Carbon', 1499.00, NULL, NULL, 'Intimate Area Services'),
+(77, 'Vajacial Women', 699.00, NULL, NULL, 'Intimate Area Services'),
+(78, 'Vajacial Men', 799.00, NULL, NULL, 'Intimate Area Services'),
+(79, 'Mustache Wax (Up & Down)', 499.00, NULL, NULL, 'Waxing Services'),
+(80, 'Whole Leg Wax', 999.00, NULL, NULL, 'Waxing Services'),
+(81, 'Half Leg Wax', 599.00, NULL, NULL, 'Waxing Services'),
+(82, '24k Gold Mask Facial', 99.00, NULL, NULL, 'Facial Services'),
+(83, 'Diamond Peel', 99.00, NULL, NULL, 'Facial Services'),
+(84, 'Facial With Diamond Peel', 198.00, NULL, NULL, 'Facial Services'),
+(85, 'Hydrafacial', 499.00, NULL, NULL, 'Facial Services'),
+(86, 'Acne/Pimple Microlaser', 499.00, NULL, NULL, 'Facial Services'),
+(87, 'RF Face Contouring', 149.00, NULL, NULL, 'Facial Services'),
+(88, 'Lipo Cavitation', 149.00, NULL, NULL, 'Facial Services'),
+(89, 'Vampire PRP Treatment', 1999.00, NULL, NULL, 'Microneedling Services'),
+(90, 'Korean BB Glow', 999.00, NULL, NULL, 'Microneedling Services'),
+(91, 'Korean BB Blush', 599.00, NULL, NULL, 'Microneedling Services'),
+(92, '7D HIFU Ultralift', 4999.00, NULL, NULL, 'Slimming Services'),
+(93, 'HIFU V-Max Facelift', 1199.00, NULL, NULL, 'Slimming Services'),
+(94, 'HIFU Body Maxtite', 1799.00, NULL, NULL, 'Slimming Services'),
+(95, 'Mesolipo', 999.00, NULL, NULL, 'Slimming Services'),
+(96, 'EMS Slendertone', 599.00, NULL, NULL, 'Slimming Services'),
+(97, 'Korean Body Sculpting', 599.00, NULL, NULL, 'Slimming Services'),
+(98, 'Thermogenic Wrap', 599.00, NULL, NULL, 'Slimming Services');
 
 -- --------------------------------------------------------
 
@@ -501,7 +549,19 @@ INSERT INTO `service_groups` (`group_id`, `group_name`, `description`, `status`,
 (2, 'Basic Hair Services', 'Regular hair maintenance services', 'Active', '2025-05-18 14:42:04', '2025-05-21 07:34:04'),
 (3, 'Diode Laser', 'Laser hair removal services', 'Active', '2025-05-18 14:43:47', '2025-05-18 14:43:47'),
 (4, 'Nails & Foot', 'Nail and foot care services', 'Active', '2025-05-18 14:43:47', '2025-05-18 14:43:47'),
-(5, 'Hair Treatments', 'Hair treatments and services', 'Active', '2025-05-18 14:43:47', '2025-05-21 07:16:22');
+(5, 'Hair Treatments', 'Hair treatments and services', 'Active', '2025-05-18 14:43:47', '2025-05-21 07:16:22'),
+(18, 'Special Treatments', 'Group for special facial and skin treatments', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34'),
+(19, 'Body & Relaxing Services', 'Massages and body care treatments', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34'),
+(20, 'Laser Treatment Services', 'Laser-based treatment options', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34'),
+(21, 'Lashes & Brows Services', 'Eyelash and eyebrow enhancement services', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34'),
+(22, 'Medical Procedure Services', 'Medical-grade skincare and cosmetic procedures', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34'),
+(23, 'Glutha Drip & Push Services', 'IV drip and push treatments for skin and wellness', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34'),
+(24, 'Underarm Services', 'Underarm waxing, whitening, and laser services', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34'),
+(25, 'Intimate Area Services', 'Whitening and treatment services for intimate areas', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34'),
+(26, 'Waxing Services', 'General waxing and hair removal services', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34'),
+(27, 'Facial Services', 'Various facial treatments and enhancements', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34'),
+(28, 'Microneedling Services', 'Microneedling and skin rejuvenation services', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34'),
+(29, 'Slimming Services', 'Body slimming, contouring, and sculpting treatments', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34');
 
 -- --------------------------------------------------------
 
@@ -547,9 +607,10 @@ CREATE TABLE `transactions` (
 --
 
 INSERT INTO `transactions` (`id`, `customer_id`, `service_date`, `service_description`, `employee_name`, `invoice_number`, `total_amount`) VALUES
-(1, 1, '2025-02-26', 'Haircut & Styling', 'Sarah', 'INV-1001', 50.00),
-(2, 1, '2025-01-15', 'Facial Treatment', 'Maria', 'INV-0954', 70.00),
-(3, 1, '2024-12-10', 'Manicure', 'Jessica', 'INV-0890', 25.00);
+(9, 1, '2025-06-18', 'Classic Manicure, Classic Pedicure', 'Admin', 'INV-20250618-8432', 135.00),
+(10, 2, '2025-02-25', 'Classic Manicure', 'Admin', '132325', 120.00),
+(11, 2, '2025-02-25', 'Classic Pedicure', 'Admin', '132325', 150.00),
+(12, 3, '2025-02-20', 'Package Deal', 'Admin', '122325', 1000.00);
 
 -- --------------------------------------------------------
 
@@ -690,7 +751,8 @@ ALTER TABLE `sales_activity`
 -- Indexes for table `services`
 --
 ALTER TABLE `services`
-  ADD PRIMARY KEY (`service_id`);
+  ADD PRIMARY KEY (`service_id`),
+  ADD UNIQUE KEY `name` (`name`);
 
 --
 -- Indexes for table `service_groups`
@@ -765,7 +827,7 @@ ALTER TABLE `inventory`
 -- AUTO_INCREMENT for table `invoices`
 --
 ALTER TABLE `invoices`
-  MODIFY `invoice_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `invoice_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `invoice_service`
@@ -825,7 +887,7 @@ ALTER TABLE `sales_activity`
 -- AUTO_INCREMENT for table `service_groups`
 --
 ALTER TABLE `service_groups`
-  MODIFY `group_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `group_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT for table `service_group_mappings`
@@ -837,7 +899,7 @@ ALTER TABLE `service_group_mappings`
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -878,30 +940,11 @@ ALTER TABLE `orders`
   ADD CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`service_id`) REFERENCES `services` (`service_id`);
 
 --
--- Constraints for table `payments`
---
-ALTER TABLE `payments`
-  ADD CONSTRAINT `payments_ibfk_1` FOREIGN KEY (`InvoiceID`) REFERENCES `invoices` (`InvoiceID`),
-  ADD CONSTRAINT `payments_ibfk_2` FOREIGN KEY (`CustomerID`) REFERENCES `customers` (`CustomerID`) ON DELETE CASCADE;
-
---
 -- Constraints for table `service_group_mappings`
 --
 ALTER TABLE `service_group_mappings`
   ADD CONSTRAINT `service_group_mappings_ibfk_1` FOREIGN KEY (`group_id`) REFERENCES `service_groups` (`group_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `service_group_mappings_ibfk_2` FOREIGN KEY (`service_id`) REFERENCES `services` (`service_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `transactions`
---
-ALTER TABLE `transactions`
-  ADD CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `users`
---
-ALTER TABLE `users`
-  ADD CONSTRAINT `fk_customer_id` FOREIGN KEY (`CustomerID`) REFERENCES `customers` (`CustomerID`) ON DELETE SET NULL ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

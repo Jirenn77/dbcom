@@ -7,7 +7,7 @@ error_reporting(E_ALL);
 // Set headers
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Methods: GET, PUT, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 
 // Handle CORS preflight
@@ -24,26 +24,74 @@ try {
     $pdo = new PDO("mysql:host=localhost;dbname=dbcom", "root", "");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Fetch promos
-    $promoStmt = $pdo->query("SELECT promo_id, type, name, description, valid_from, valid_to, status FROM promos");
-    $promos = $promoStmt->fetchAll(PDO::FETCH_ASSOC);
+    // Handle update promo
+    if ($_SERVER['REQUEST_METHOD'] === 'PUT' && isset($_GET['action']) && $_GET['action'] === 'update_deal') {
+        $input = json_decode(file_get_contents("php://input"), true);
 
-    // Format promo dates
-    foreach ($promos as &$promo) {
-        $promo['validFrom'] = date("m/d/y", strtotime($promo['valid_from']));
-        $promo['validTo'] = date("m/d/y", strtotime($promo['valid_to']));
-        unset($promo['valid_from'], $promo['valid_to']);
+        $promo_id = $input['id'] ?? null;
+        $name = $input['name'] ?? '';
+        $description = $input['description'] ?? '';
+        $validFrom = $input['validFrom'] ?? '';
+        $validTo = $input['validTo'] ?? '';
+        $status = $input['status'] ?? '';
+
+        if (!$promo_id) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing promo ID.']);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("
+            UPDATE promos
+            SET name = ?, description = ?, valid_from = ?, valid_to = ?, status = ?
+            WHERE promo_id = ?
+        ");
+
+        $stmt->execute([
+            $name,
+            $description,
+            date('Y-m-d', strtotime($validFrom)),
+            date('Y-m-d', strtotime($validTo)),
+            $status,
+            $promo_id
+        ]);
+
+        echo json_encode(['success' => true, 'message' => 'Promo updated.']);
+        exit;
     }
 
-    // Fetch discounts
-    $discountStmt = $pdo->query("SELECT discount_id, name, description, discount_type, value, status FROM discounts");
-    $discounts = $discountStmt->fetchAll(PDO::FETCH_ASSOC);
+    // Fetch promos and discounts
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        // Fetch promos
+        $promoStmt = $pdo->query("SELECT promo_id, type, name, description, valid_from, valid_to, status FROM promos");
+        $promos = $promoStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Send response
-    echo json_encode([
-        'promos' => $promos,
-        'discounts' => $discounts
-    ]);
+        foreach ($promos as &$promo) {
+            $promo['id'] = $promo['promo_id']; // required by frontend
+            $promo['validFrom'] = date("Y-m-d", strtotime($promo['valid_from']));
+            $promo['validTo'] = date("Y-m-d", strtotime($promo['valid_to']));
+            unset($promo['valid_from'], $promo['valid_to'], $promo['promo_id']);
+        }
+
+        // Fetch discounts
+        $discountStmt = $pdo->query("SELECT discount_id, name, description, discount_type, value, status FROM discounts");
+        $discounts = $discountStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($discounts as &$discount) {
+            $discount['id'] = $discount['discount_id'];
+            unset($discount['discount_id']);
+        }
+
+        echo json_encode([
+            'promos' => $promos,
+            'discounts' => $discounts
+        ]);
+        exit;
+    }
+
+    // Fallback
+    http_response_code(405);
+    echo json_encode(['error' => 'Method Not Allowed']);
 
 } catch (PDOException $e) {
     http_response_code(500);
