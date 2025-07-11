@@ -67,6 +67,8 @@ export default function CustomersPage() {
     }
   };
 
+
+
   const fetchCustomerDetails = async (customerId) => {
     setIsLoadingDetails(true);
     try {
@@ -131,10 +133,23 @@ export default function CustomersPage() {
     setIsMembershipModalOpen(true);
   };
 
-  const handleSearch = () => {
-    toast(`Searching for: ${searchQuery}`);
-    console.log("Search query:", searchQuery);
-  };
+  useEffect(() => {
+    const delaySearch = setTimeout(() => {
+      if (searchQuery.trim() === "") {
+        fetchCustomers(activeTab);
+      } else {
+        const filtered = customers.filter(customer =>
+          customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          customer.contact.includes(searchQuery) ||
+          customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          customer.customerId.includes(searchQuery)
+        );
+        setCustomers(filtered);
+      }
+    }, 300); // 300ms debounce delay
+
+    return () => clearTimeout(delaySearch);
+  }, [searchQuery, activeTab]);
 
   const handleEditClick = (customer) => {
     setEditCustomer({ ...customer }); // Clone the customer
@@ -260,17 +275,11 @@ export default function CustomersPage() {
         <div className="flex items-center space-x-4 flex-grow justify-center">
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search customers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="px-4 py-2 rounded-lg bg-white text-gray-900 w-64 focus:outline-none"
           />
-          <button
-            onClick={handleSearch}
-            className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-md"
-          >
-            Search
-          </button>
         </div>
 
         <div className="flex items-center space-x-4 relative">
@@ -664,30 +673,6 @@ export default function CustomersPage() {
                             Renew Membership
                           </motion.button>
                         )}
-                      </div>
-                    </div>
-
-                    {/* Recent Transactions */}
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-500 mb-2">Recent Services</h3>
-                      <div className="space-y-2">
-                        {selectedCustomer.transactions?.slice(0, 3).map((transaction, index) => (
-                          <motion.div
-                            key={index}
-                            className="border-b pb-2 last:border-0"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                          >
-                            <div className="flex justify-between">
-                              <span className="font-medium">{transaction.service}</span>
-                              <span>{transaction.total}</span>
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {transaction.date} • {transaction.employee}
-                            </div>
-                          </motion.div>
-                        ))}
                       </div>
                     </div>
                   </motion.div>

@@ -48,6 +48,7 @@ export default function Dashboard() {
             try {
                 const response = await fetch(`http://localhost/API/home.php?${params.toString()}`);
                 const data = await response.json();
+                console.log("data ng dasghboard", data)
 
                 setDashboardData({
                     topServices: data.top_services || [],
@@ -144,12 +145,6 @@ export default function Dashboard() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="px-4 py-2 rounded-lg bg-white text-gray-900 w-64 focus:outline-none"
                     />
-                    <button
-                        onClick={handleSearch}
-                        className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-md"
-                    >
-                        Search
-                    </button>
                 </div>
 
                 <div className="flex items-center space-x-4 relative">
@@ -184,7 +179,7 @@ export default function Dashboard() {
                 <nav className="w-64 h-screen bg-gradient-to-b from-[#467750] to-[#56A156] text-gray-900 flex flex-col items-center py-6 fixed top-0 left-0">
                     <div className="flex items-center space-x-2 mb-4">
                         <h1 className="text-xl font-bold text-white flex items-center space-x-2">
-                            <img src="/path-to-your-image/2187693(1)(1).png" alt="Lizly Logo" className="w-10 h-10 object-contain" />
+                            {/* <img src="/path-to-your-image/2187693(1)(1).png" alt="Lizly Logo" className="w-10 h-10 object-contain" /> */}
                             <span>Lizly Skin Care Clinic</span>
                         </h1>
                     </div>

@@ -645,7 +645,7 @@ export default function ServiceOrderPage() {
                                     <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
                                       Members
                                     </span>
-                                    <span className="font-bold text-sm">{service.price}</span>
+                                    <span className="font-bold text-sm">{service.price}.00</span>
                                   </div>
                                 </div>
                               </motion.div>
@@ -674,7 +674,7 @@ export default function ServiceOrderPage() {
                                       <p className="text-xs text-gray-600 mt-1">{service.duration}</p>
                                     </div>
                                     <div className="mt-2 flex justify-end">
-                                      <span className="font-bold text-sm">₱{service.price.toLocaleString()}</span>
+                                      <span className="font-bold text-sm">₱{service.price.toLocaleString()}.00</span>
                                     </div>
                                   </div>
                                 </motion.div>
@@ -740,7 +740,7 @@ export default function ServiceOrderPage() {
                                   </div>
                                 </div>
                                 <span className="font-medium text-sm">
-                                  {isMemberService ? service.price : `₱${service.price.toLocaleString()}`}
+                                  {isMemberService ? service.price : `₱${service.price.toLocaleString()}.00`}
                                 </span>
                               </motion.div>
                             );
@@ -965,7 +965,7 @@ export default function ServiceOrderPage() {
                           transition={{ delay: index * 0.05 }}
                         >
                           <span>{service.name}</span>
-                          <span>₱{service.price.toLocaleString()}</span>
+                          <span>₱{service.price.toLocaleString()}.00</span>
                         </motion.li>
                       ))}
                     </ul>

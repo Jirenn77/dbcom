@@ -86,9 +86,6 @@ export default function InvoicesPage() {
     }
   }, [searchQuery, invoices]);
 
-  const handleSearch = () => {
-    toast(`Found ${filteredInvoices.length} invoices matching "${searchQuery}"`);
-  };
 
   const handlePaymentStatusUpdate = async (invoiceId, newStatus) => {
     try {
@@ -245,6 +242,49 @@ export default function InvoicesPage() {
     <div className="flex flex-col h-screen bg-[#77DD77] text-gray-900">
       <Toaster />
 
+      {/* Header */}
+      <header className="flex items-center justify-between bg-[#89C07E] text-white p-4 w-full h-16 pl-64 relative">
+        <div className="flex items-center space-x-4">
+          {/* Home icon removed from here */}
+        </div>
+
+        <div className="flex items-center space-x-4 flex-grow justify-center">
+          <input
+            type="text"
+            placeholder="Search customer name or invoice number..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="px-4 py-2 rounded-lg bg-white text-gray-900 w-96 focus:outline-none"
+          />
+        </div>
+
+        <div className="flex items-center space-x-4 relative">
+          <div
+            className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg font-bold cursor-pointer"
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+          >
+            A
+          </div>
+          {isProfileOpen && (
+            <div className="bg-green-500 absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
+              <Link href="/acc-settings">
+                <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
+                  <User size={16} /> Edit Profile
+                </button>
+              </Link>
+              <Link href="/settings">
+                <button className="flex items-center gap-2 px-4 py-2 hover:bg-green-600 rounded w-full justify-start">
+                  <Settings size={16} /> Settings
+                </button>
+              </Link>
+              <button className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded justify-start" onClick={handleLogout}>
+                <LogOut size={16} /> Logout
+              </button>
+            </div>
+          )}
+        </div>
+      </header>
+
       {/* Sidebar */}
       <div className="flex flex-1">
         <nav className="w-64 h-screen bg-gradient-to-b from-[#467750] to-[#56A156] text-gray-900 flex flex-col items-center py-6 fixed top-0 left-0">
@@ -354,8 +394,7 @@ export default function InvoicesPage() {
             </div>
           </motion.div>
 
-          {/* Search Bar */}
-          <div className="mb-4">
+          {/* <div className={`mb-4 ${selectedInvoice ? "max-w-[calc(100%-350px)]" : "max-w-full"} transition-all duration-300`}>
             <div className="relative">
               <input
                 type="text"
@@ -370,7 +409,7 @@ export default function InvoicesPage() {
                 </svg>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
@@ -491,7 +530,7 @@ export default function InvoicesPage() {
               {/* Invoice Detail Panel */}
               {selectedInvoice && (
                 <div className="hidden lg:block w-2/5 pl-4">
-                  <div className="w-[350px] bg-white rounded-lg shadow-md border border-gray-400 p-4 fixed right-4 top-20 bottom-4 flex flex-col">
+                  <div className="w-[350px] bg-white rounded-lg shadow-md border border-gray-400 p-4 fixed right-4 top-20 h-[calc(100vh-6rem)] flex flex-col">
                     <div className="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 pb-2 border-b border-gray-200">
                       <motion.h2
                         className="text-xl font-bold"
@@ -586,9 +625,14 @@ export default function InvoicesPage() {
                         >
                           Print
                         </button>
-                        <button className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm transition-colors">
-                          Send
-                        </button>
+                        {selectedInvoice.paymentStatus === "Pending" && (
+                          <button
+                            onClick={() => handlePaymentStatusUpdate(selectedInvoice.id, "Paid")}
+                            className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm transition-colors"
+                          >
+                            Mark as Paid
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

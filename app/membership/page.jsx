@@ -315,7 +315,7 @@ export default function Memberships() {
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                             >
-                                Add New Membership
+                                +  New Membership
                             </motion.button>
                         </div>
 
@@ -341,7 +341,7 @@ export default function Memberships() {
                                             transition={{ duration: 0.2 }}
                                         >
                                             <td className="border px-4 py-2 truncate" title={membership.name}>{membership.name}</td>
-                                            <td className="border px-4 py-2">{membership.discount}%</td>
+                                            <td className="border px-4 py-2">{membership.discount}</td>
                                             <td className="border px-4 py-2 truncate" title={membership.description}>{membership.description}</td>
                                             <td className="border px-4 py-2">
                                                 <span
@@ -415,7 +415,7 @@ export default function Memberships() {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block font-medium mb-1">Discount %</label>
+                                            <label className="block font-medium mb-1">Discount </label>
                                             <input
                                                 type="text"
                                                 placeholder="Discount %"
@@ -494,7 +494,7 @@ export default function Memberships() {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block font-medium mb-1">Discount %</label>
+                                            <label className="block font-medium mb-1">Discount </label>
                                             <input
                                                 type="text"
                                                 value={editMembership.discount}
@@ -585,7 +585,7 @@ export default function Memberships() {
                                         >
                                             <h3 className="font-bold mb-3 text-lg">Membership Information</h3>
                                             <div className="space-y-2">
-                                                <p><span className="font-semibold">Discount:</span> {selectedMembership.discount}%</p>
+                                                <p><span className="font-semibold">Discount:</span> {selectedMembership.discount}</p>
                                                 <div className="flex items-center">
                                                     <span className="font-semibold">Status:</span>
                                                     <motion.button
@@ -646,7 +646,7 @@ export default function Memberships() {
                                                             <td className="border px-4 py-2">{service.duration}</td>
                                                             <td className="border px-4 py-2">{service.price}</td>
                                                             <td className="border px-4 py-2">
-                                                                {selectedMembership.discount}% (${(parseFloat(service.price.replace('$', '')) * (1 - selectedMembership.discount / 100)).toFixed(2)})
+                                                                {selectedMembership.discount} (${(parseFloat(service.price.replace('$', '')) * (1 - selectedMembership.discount / 100)).toFixed(2)})
                                                             </td>
                                                         </motion.tr>
                                                     ))}

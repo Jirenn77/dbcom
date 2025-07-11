@@ -7,7 +7,7 @@ import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, Dialog, Transition } from "@headlessui/react";
 import { BarChart, Pencil, Trash2, Power } from "lucide-react";
-import { Folder, ClipboardList, Factory, ShoppingBag, Tag, XIcon } from "lucide-react";
+import { Folder, ClipboardList, Factory, ShoppingBag, Tag, XIcon, Bell } from "lucide-react";
 import { Home, Users, FileText, CreditCard, Package, Layers, ShoppingCart, Settings, LogOut, UserPlus } from "lucide-react";
 
 export default function BeautyDeals() {
@@ -19,6 +19,14 @@ export default function BeautyDeals() {
     const [isOpen, setIsOpen] = useState(false);
     const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
     const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
+    const [selectedServices, setSelectedServices] = useState([]);
+    const [dealServiceMap, setDealServiceMap] = useState({});
+    const [discountServiceMap, setDiscountServiceMap] = useState({});
+    const [allServices, setAllServices] = useState([]);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const [expiringPromos, setExpiringPromos] = useState([]);
+
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -61,9 +69,20 @@ export default function BeautyDeals() {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
+
                 const data = await response.json();
                 setDeals(data.promos);
                 setDiscounts(data.discounts);
+
+                // ✅ Filter promos expiring in the next 3 days
+                const now = new Date();
+                const expiring = data.promos.filter((promo) => {
+                    const validToDate = new Date(promo.validTo);
+                    const diffDays = (validToDate - now) / (1000 * 60 * 60 * 24);
+                    return diffDays >= 0 && diffDays <= 5;
+                });
+
+                setExpiringPromos(expiring);
             } catch (error) {
                 setError(error.message);
                 toast.error('Failed to fetch data: ' + error.message);
@@ -74,6 +93,84 @@ export default function BeautyDeals() {
 
         fetchData();
     }, []);
+
+
+    useEffect(() => {
+        const fetchServicesForGroups = async () => {
+            try {
+                const response = await fetch('http://localhost/API/servicegroup.php?action=get_deals_with_services');
+                if (!response.ok) throw new Error('Failed to fetch deals');
+
+                const deals = await response.json();
+
+                const dealMap = {};
+                const discountMap = {};
+
+                deals.forEach(item => {
+                    if (item.type === 'promo') {
+                        dealMap[item.id] = item.services;
+                    } else if (item.type === 'discount') {
+                        discountMap[item.id] = item.services;
+                    }
+                });
+
+                setDealServiceMap(dealMap);
+                setDiscountServiceMap(discountMap);
+            } catch (err) {
+                toast.error('Failed to load deal/discount services: ' + err.message);
+            }
+        };
+
+        fetchServicesForGroups();
+    }, []);
+
+
+    useEffect(() => {
+        const fetchServicesForDiscounts = async () => {
+            try {
+                const res = await fetch('http://localhost/API/servicegroup.php?action=get_discounts_with_services');
+                if (!res.ok) throw new Error("Failed to fetch");
+
+                const data = await res.json();
+                const map = {};
+                data.forEach(discount => {
+                    map[discount.id] = discount.services;
+                });
+
+                setDiscountServiceMap(map); // you need this state
+            } catch (err) {
+                toast.error("Failed to load discount services");
+            }
+        };
+
+        fetchServicesForDiscounts();
+    }, []);
+
+
+    useEffect(() => {
+        const fetchServices = async () => {
+            try {
+                const res = await fetch('http://localhost/API/servicegroup.php?action=all_services');
+                const data = await res.json();
+
+                if (Array.isArray(data)) {
+                    setAllServices(data);
+                } else {
+                    console.error("Expected an array but got:", data);
+                    toast.error("Unexpected response format.");
+                    setAllServices([]);
+                }
+            } catch (error) {
+                console.error("Fetch failed:", error);
+                toast.error("Failed to load services.");
+                setAllServices([]);
+            }
+        };
+
+        fetchServices();
+    }, []);
+
+
 
     const handleAddItem = (type) => {
         setNewItem({
@@ -141,64 +238,77 @@ export default function BeautyDeals() {
         e.preventDefault();
 
         try {
-            // Send PUT/PATCH request to backend
-            const response = await fetch(`http://localhost/API/getPromosAndDiscounts.php?action=update_deal`, {
-                method: "PUT",
+            const response = await fetch("http://localhost/API/servicegroup.php?action=save_group", {
+                method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    id: selectedDeal.id,
-                    name: selectedDeal.name,
+                    group_id: selectedDeal.id, // promo_id is used as group_id
+                    group_name: selectedDeal.name,
                     description: selectedDeal.description,
-                    validFrom: selectedDeal.validFrom,
-                    validTo: selectedDeal.validTo,
                     status: selectedDeal.status,
+                    valid_from: selectedDeal.validFrom,
+                    valid_to: selectedDeal.validTo,
+                    services: selectedServices.map((s) => s.service_id), // Send service IDs
                 }),
             });
 
-            if (!response.ok) {
-                throw new Error("Failed to update promo.");
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || "Failed to update promo.");
             }
 
-            // Update frontend state
-            setDeals(prev => {
-                const updated = [...prev];
-                updated[selectedDeal.index] = { ...selectedDeal };
-                return updated;
-            });
+            // Optionally update state in frontend if you want real-time update:
+            setDeals((prev) =>
+                prev.map((deal) =>
+                    deal.id === selectedDeal.id
+                        ? {
+                            ...deal,
+                            name: selectedDeal.name,
+                            description: selectedDeal.description,
+                            validFrom: selectedDeal.validFrom,
+                            validTo: selectedDeal.validTo,
+                            status: selectedDeal.status,
+                            services: selectedServices,
+                        }
+                        : deal
+                )
+            );
 
             toast.success("Promo updated successfully!");
             setIsPromoModalOpen(false);
         } catch (error) {
-            toast.error('Failed to update promo: ' + error.message);
+            toast.error("Failed to update promo: " + error.message);
         }
     };
+
 
     const handleSaveEditDiscount = async (e) => {
         e.preventDefault();
 
         try {
-            const response = await fetch("http://localhost/API/getPromosAndDiscounts.php?action=update_discount", {
-                method: "PUT",
+            const response = await fetch("http://localhost/API/servicegroup.php?action=save_group", {
+                method: "POST", // POST or PUT depending on your backend logic
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    id: selectedDiscount.id,
-                    name: selectedDiscount.name,
+                    group_id: selectedDiscount.id,                     // Use discount id as group_id
+                    group_name: selectedDiscount.name,
                     description: selectedDiscount.description,
-                    discountType: selectedDiscount.discountType,
-                    value: selectedDiscount.value,
                     status: selectedDiscount.status,
+                    services: selectedServices.map(s => s.service_id) // Send selected service IDs
                 }),
             });
 
-            if (!response.ok) {
-                throw new Error("Failed to update discount.");
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || "Failed to update discount group.");
             }
 
-            setDiscounts((prev) => {
+            setDiscounts(prev => {
                 const updated = [...prev];
                 updated[selectedDiscount.index] = { ...selectedDiscount };
                 return updated;
@@ -211,52 +321,6 @@ export default function BeautyDeals() {
         }
     };
 
-
-    const handleDeleteDeal = async (index) => {
-        try {
-            // Here you would send a DELETE request to your backend
-            setDeals(prev => prev.filter((_, i) => i !== index));
-            toast.success("Deal deleted successfully!");
-        } catch (error) {
-            toast.error('Failed to delete deal: ' + error.message);
-        }
-    };
-
-    const handleDeleteDiscount = async (index) => {
-        try {
-            // Here you would send a DELETE request to your backend
-            setDiscounts(prev => prev.filter((_, i) => i !== index));
-            toast.success("Discount deleted successfully!");
-        } catch (error) {
-            toast.error('Failed to delete discount: ' + error.message);
-        }
-    };
-
-    const handleToggleStatus = async (index, isDeal) => {
-        try {
-            if (isDeal) {
-                setDeals(prev => {
-                    const updated = [...prev];
-                    const currentStatus = updated[index].status;
-                    const newStatus = currentStatus === "active" ? "inactive" : "active";
-                    updated[index].status = newStatus;
-                    toast.success(`Deal marked as ${newStatus}`);
-                    return updated;
-                });
-            } else {
-                setDiscounts(prev => {
-                    const updated = [...prev];
-                    const currentStatus = updated[index].status;
-                    const newStatus = currentStatus === "active" ? "inactive" : "active";
-                    updated[index].status = newStatus;
-                    toast.success(`Discount marked as ${newStatus}`);
-                    return updated;
-                });
-            }
-        } catch (error) {
-            toast.error('Failed to update status: ' + error.message);
-        }
-    };
 
 
     if (isLoading) {
@@ -355,7 +419,38 @@ export default function BeautyDeals() {
                         transition={{ duration: 0.3 }}
                         className="flex justify-between items-center mb-4"
                     >
-                        <h2 className="text-lg font-bold">Beauty Deals</h2>
+                        <h2 className="text-xl font-bold">Beauty Deals</h2>
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                                className="relative p-2 rounded-full hover:bg-gray-100 transition"
+                                title="Promo Expirations"
+                            >
+                                <Bell size={25} />
+                                {expiringPromos.length > 0 && (
+                                    <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+                                        {expiringPromos.length}
+                                    </span>
+                                )}
+                            </button>
+
+                            {isNotifOpen && (
+                                <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                                    <div className="p-3 font-semibold border-b">Expiring Promos</div>
+                                    <ul className="max-h-60 overflow-y-auto">
+                                        {expiringPromos.map((promo, idx) => (
+                                            <li key={idx} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                <div className="font-medium">{promo.name}</div>
+                                                <div className="text-xs text-gray-500">Expires: {promo.validTo}</div>
+                                            </li>
+                                        ))}
+                                        {expiringPromos.length === 0 && (
+                                            <li className="px-4 py-2 text-sm text-gray-500">No expiring promos</li>
+                                        )}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
                     </motion.div>
 
                     {/* Promo Section */}
@@ -402,7 +497,8 @@ export default function BeautyDeals() {
                                             whileHover={{ backgroundColor: "#f9fafb" }}
                                             onClick={() => {
                                                 setSelectedDeal(deal);
-                                                setSelectedDiscount(null);  // Clear discount selection
+                                                setSelectedDiscount(null);
+                                                setSelectedServices(dealServiceMap[deal.id] || []); // ✅ fetch services
                                                 setIsOpen(true);
                                             }}
                                         >
@@ -484,7 +580,8 @@ export default function BeautyDeals() {
                                             whileHover={{ backgroundColor: "#f9fafb" }}
                                             onClick={() => {
                                                 setSelectedDiscount(discount);
-                                                setSelectedDeal(null);  // Clear deal selection
+                                                setSelectedDeal(null);
+                                                setSelectedServices(discountServiceMap[discount.id] || []);
                                                 setIsOpen(true);
                                             }}
                                         >
@@ -586,8 +683,8 @@ export default function BeautyDeals() {
                                                 <div>
                                                     <h4 className="font-medium text-gray-900">Status</h4>
                                                     <span className={`mt-1 px-2 py-1 rounded-full text-xs ${(selectedDeal?.status === "active" || selectedDiscount?.status === "active")
-                                                            ? "bg-green-100 text-green-800"
-                                                            : "bg-red-100 text-red-800"
+                                                        ? "bg-green-100 text-green-800"
+                                                        : "bg-red-100 text-red-800"
                                                         }`}>
                                                         {selectedDeal?.status || selectedDiscount?.status || 'N/A'}
                                                     </span>
@@ -631,8 +728,8 @@ export default function BeautyDeals() {
                                             </div>
                                         </div>
 
-                                        {/* Services Table Section */}
-                                        <div className="pt-2">
+                                        {/* Included Services Table */}
+                                        <div className="pt-4">
                                             <h4 className="font-semibold text-gray-900 mb-2">Included Services</h4>
                                             <div className="overflow-x-auto border border-gray-200 rounded-lg">
                                                 <table className="min-w-full divide-y divide-gray-200">
@@ -645,15 +742,16 @@ export default function BeautyDeals() {
                                                         </tr>
                                                     </thead>
                                                     <tbody className="bg-white divide-y divide-gray-200">
-                                                        {(selectedDeal?.services || selectedDiscount?.services || []).map((service, index) => (
-                                                            <tr key={index}>
-                                                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{service.name}</td>
-                                                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.category}</td>
-                                                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.originalPrice}</td>
-                                                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.discountedPrice}</td>
-                                                            </tr>
-                                                        ))}
-                                                        {(!selectedDeal?.services && !selectedDiscount?.services) && (
+                                                        {selectedServices.length > 0 ? (
+                                                            selectedServices.map((service, index) => (
+                                                                <tr key={index}>
+                                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{service.name}</td>
+                                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.category}</td>
+                                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.originalPrice}</td>
+                                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.discountedPrice}</td>
+                                                                </tr>
+                                                            ))
+                                                        ) : (
                                                             <tr>
                                                                 <td colSpan="4" className="px-4 py-4 text-center text-sm text-gray-500">
                                                                     No services included
@@ -804,118 +902,162 @@ export default function BeautyDeals() {
                 )}
             </AnimatePresence>
 
-            {/* Edit Promo Modal */}
-            {
-                isPromoModalOpen && selectedDeal && (
-                    <AnimatePresence>
+            {isPromoModalOpen && selectedDeal && (
+                <AnimatePresence>
+                    <motion.div
+                        className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
                         <motion.div
-                            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
+                            className="bg-white p-6 rounded-lg shadow-xl w-[500px] max-h-[85vh] overflow-y-auto"
+                            variants={slideUp}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
                         >
-                            <motion.div
-                                className="bg-white p-6 rounded-lg shadow-xl w-[500px] max-h-[85vh] overflow-y-auto"
-                                variants={slideUp}
-                                initial="hidden"
-                                animate="visible"
-                                exit="exit"
-                            >
-                                <h2 className="text-xl font-bold mb-6">Edit Promo</h2>
-                                <form onSubmit={handleSaveEditPromo}>
-                                    <div className="space-y-4">
+                            <h2 className="text-xl font-bold mb-6">Edit Promo</h2>
+                            <form onSubmit={handleSaveEditPromo}>
+                                <div className="space-y-4">
+                                    {/* Name */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Name*</label>
+                                        <input
+                                            type="text"
+                                            value={selectedDeal.name}
+                                            onChange={(e) => setSelectedDeal({ ...selectedDeal, name: e.target.value })}
+                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                            required
+                                        />
+                                    </div>
+
+                                    {/* Description */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Description</label>
+                                        <textarea
+                                            value={selectedDeal.description}
+                                            onChange={(e) =>
+                                                setSelectedDeal({ ...selectedDeal, description: e.target.value })
+                                            }
+                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300 h-20 resize-none"
+                                        />
+                                    </div>
+
+                                    {/* Date Range */}
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium mb-1">Name*</label>
+                                            <label className="block text-sm font-medium mb-1">Valid from</label>
                                             <input
-                                                type="text"
-                                                value={selectedDeal.name}
+                                                type="date"
+                                                value={selectedDeal.validFrom}
                                                 onChange={(e) =>
-                                                    setSelectedDeal({ ...selectedDeal, name: e.target.value })
+                                                    setSelectedDeal({ ...selectedDeal, validFrom: e.target.value })
                                                 }
                                                 className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                                required
                                             />
                                         </div>
-
                                         <div>
-                                            <label className="block text-sm font-medium mb-1">Description</label>
-                                            <textarea
-                                                value={selectedDeal.description}
+                                            <label className="block text-sm font-medium mb-1">Valid to</label>
+                                            <input
+                                                type="date"
+                                                value={selectedDeal.validTo}
                                                 onChange={(e) =>
-                                                    setSelectedDeal({
-                                                        ...selectedDeal,
-                                                        description: e.target.value,
-                                                    })
-                                                }
-                                                className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300 h-20 resize-none"
-                                            />
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Valid from</label>
-                                                <input
-                                                    type="date"
-                                                    value={selectedDeal.validFrom}
-                                                    onChange={(e) =>
-                                                        setSelectedDeal({ ...selectedDeal, validFrom: e.target.value })
-                                                    }
-                                                    className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Valid to</label>
-                                                <input
-                                                    type="date"
-                                                    value={selectedDeal.validTo}
-                                                    onChange={(e) =>
-                                                        setSelectedDeal({ ...selectedDeal, validTo: e.target.value })
-                                                    }
-                                                    className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">Status</label>
-                                            <select
-                                                value={selectedDeal.status}
-                                                onChange={(e) =>
-                                                    setSelectedDeal({ ...selectedDeal, status: e.target.value })
+                                                    setSelectedDeal({ ...selectedDeal, validTo: e.target.value })
                                                 }
                                                 className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                            >
-                                                <option value="active">Active</option>
-                                                <option value="inactive">Inactive</option>
-                                            </select>
-                                        </div>
-
-                                        <div className="flex justify-end space-x-3 mt-6">
-                                            <motion.button
-                                                type="button"
-                                                onClick={() => setIsPromoModalOpen(false)}
-                                                className="px-4 py-2 border border-gray-300 rounded-lg"
-                                                whileHover={{ scale: 1.05 }}
-                                                whileTap={{ scale: 0.95 }}
-                                            >
-                                                Cancel
-                                            </motion.button>
-                                            <motion.button
-                                                type="submit"
-                                                className="px-4 py-2 bg-[#5BBF5B] hover:bg-[#4CAF4C] text-white rounded-lg"
-                                                whileHover={{ scale: 1.05 }}
-                                                whileTap={{ scale: 0.95 }}
-                                            >
-                                                Save
-                                            </motion.button>
+                                            />
                                         </div>
                                     </div>
-                                </form>
-                            </motion.div>
+
+                                    {/* Status */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Status</label>
+                                        <select
+                                            value={selectedDeal.status}
+                                            onChange={(e) =>
+                                                setSelectedDeal({ ...selectedDeal, status: e.target.value })
+                                            }
+                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="inactive">Inactive</option>
+                                        </select>
+                                    </div>
+
+                                    {/* 🔍 Select Included Services with Search */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Select Included Services</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Search services..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full mb-2 p-2 border rounded-md bg-white border-gray-300"
+                                        />
+                                        <div className="max-h-[200px] overflow-y-auto border rounded-md p-2 bg-gray-50 border-gray-300">
+                                            {allServices
+                                                .filter(service =>
+                                                    service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                    service.category.toLowerCase().includes(searchTerm.toLowerCase())
+                                                )
+                                                .map(service => (
+                                                    <label key={service.service_id} className="flex items-center space-x-2 py-1">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedServices.some(s => s.service_id === service.service_id)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setSelectedServices(prev => [...prev, service]);
+                                                                } else {
+                                                                    setSelectedServices(prev =>
+                                                                        prev.filter(s => s.service_id !== service.service_id)
+                                                                    );
+                                                                }
+                                                            }}
+                                                        />
+                                                        <span>{service.name} ({service.category})</span>
+                                                    </label>
+                                                ))}
+
+                                            {allServices.length > 0 &&
+                                                allServices.filter(service =>
+                                                    service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                    service.category.toLowerCase().includes(searchTerm.toLowerCase())
+                                                ).length === 0 && (
+                                                    <div className="text-gray-500 text-sm text-center py-2">
+                                                        No services found.
+                                                    </div>
+                                                )}
+                                        </div>
+                                    </div>
+
+                                    {/* 🔘 Action Buttons */}
+                                    <div className="flex justify-end space-x-3 mt-6">
+                                        <motion.button
+                                            type="button"
+                                            onClick={() => setIsPromoModalOpen(false)}
+                                            className="px-4 py-2 border border-gray-300 rounded-lg"
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                        >
+                                            Cancel
+                                        </motion.button>
+                                        <motion.button
+                                            type="submit"
+                                            className="px-4 py-2 bg-[#5BBF5B] hover:bg-[#4CAF4C] text-white rounded-lg"
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                        >
+                                            Save
+                                        </motion.button>
+                                    </div>
+                                </div>
+                            </form>
                         </motion.div>
-                    </AnimatePresence>
-                )
-            }
+                    </motion.div>
+                </AnimatePresence>
+            )}
 
             {/* Add Discount Modal */}
             {
@@ -1067,6 +1209,40 @@ export default function BeautyDeals() {
                                             <option value="active">Active</option>
                                             <option value="inactive">Inactive</option>
                                         </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Select Included Services</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Search services..."
+                                            className="w-full p-2 mb-2 border rounded bg-white border-gray-300"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                        <div className="max-h-[200px] overflow-y-auto border rounded-md p-2 bg-gray-50 border-gray-300">
+                                            {allServices
+                                                .filter(service =>
+                                                    service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                                    service.category.toLowerCase().includes(searchTerm.toLowerCase())
+                                                )
+                                                .map(service => (
+                                                    <label key={service.service_id} className="flex items-center space-x-2 py-1">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedServices.some(s => s.service_id === service.service_id)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setSelectedServices(prev => [...prev, service]);
+                                                                } else {
+                                                                    setSelectedServices(prev => prev.filter(s => s.service_id !== service.service_id));
+                                                                }
+                                                            }}
+                                                        />
+                                                        <span>{service.name} ({service.category})</span>
+                                                    </label>
+                                                ))}
+                                        </div>
                                     </div>
 
                                     <div className="flex justify-end space-x-3 mt-6">

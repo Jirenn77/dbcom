@@ -40,6 +40,7 @@ export default function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+            console.log("res ni logijhgjhgjhgn")
 
         if (loginAttempts >= MAX_ATTEMPTS) {
             toast.error("Too many failed attempts. Please try again later.");
@@ -61,9 +62,9 @@ export default function Login() {
         try {
             const res = await axios.post(
                 "https://localhost/API/getBalance.php?action=login",
-                new URLSearchParams({ email: sanitizedEmail, password })
+                new URLSearchParams({ email: sanitizedEmail,password: password })
             );
-
+            console.log("res ni login", res)
             if (res.data.role) {
                 toast.success("Login successful!");
                 localStorage.setItem("loginAttempts", 0);
