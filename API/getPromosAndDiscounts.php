@@ -56,8 +56,46 @@ try {
             $promo_id
         ]);
 
-        echo json_encode(['success' => true, 'message' => 'Promo updated.']);
+                // Accept service IDs (optional if no services selected)
+        $serviceIds = $input['serviceIds'] ?? [];
+
+        // Start transaction
+        $pdo->beginTransaction();
+
+        // 1. Update the promo
+        $stmt = $pdo->prepare("
+            UPDATE promos
+            SET name = ?, description = ?, valid_from = ?, valid_to = ?, status = ?
+            WHERE promo_id = ?
+        ");
+        $stmt->execute([
+            $name,
+            $description,
+            date('Y-m-d', strtotime($validFrom)),
+            date('Y-m-d', strtotime($validTo)),
+            $status,
+            $promo_id
+        ]);
+
+        // 2. Update mappings (in service_group_mappings table)
+        // Delete previous mappings
+        $deleteStmt = $pdo->prepare("DELETE FROM service_group_mappings WHERE group_id = ?");
+        $deleteStmt->execute([$promo_id]);
+
+        // Insert new mappings if provided
+        if (!empty($serviceIds) && is_array($serviceIds)) {
+            $insertStmt = $pdo->prepare("INSERT INTO service_group_mappings (group_id, service_id) VALUES (?, ?)");
+            foreach ($serviceIds as $serviceId) {
+                $insertStmt->execute([$promo_id, $serviceId]);
+            }
+        }
+
+        // Commit the transaction
+        $pdo->commit();
+
+        echo json_encode(['success' => true, 'message' => 'Promo and services updated.']);
         exit;
+
     }
 
     // Fetch promos and discounts

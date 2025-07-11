@@ -51,7 +51,7 @@ function getTopServicesData($pdo, $period, $startDate = null, $endDate = null) {
     
     $query = "SELECT 
                 s.name, 
-                COUNT(o.order_id) as count
+                COUNT(o.id) as count
               FROM orders o
               JOIN services s ON o.service_id = s.service_id
               WHERE $dateCondition
