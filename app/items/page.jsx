@@ -238,29 +238,54 @@ export default function BeautyDeals() {
         e.preventDefault();
 
         try {
-            const response = await fetch("http://localhost/API/servicegroup.php?action=save_group", {
+            // 1️⃣ Save services to group (servicegroup.php)
+            const response1 = await fetch("http://localhost/API/servicegroup.php?action=save_group", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    group_id: selectedDeal.id, // promo_id is used as group_id
+                    group_id: selectedDeal.id,
                     group_name: selectedDeal.name,
                     description: selectedDeal.description,
                     status: selectedDeal.status,
                     valid_from: selectedDeal.validFrom,
                     valid_to: selectedDeal.validTo,
-                    services: selectedServices.map((s) => s.service_id), // Send service IDs
+                    services: selectedServices.map((s) => s.service_id),
                 }),
             });
 
-            const result = await response.json();
+            const result1 = await response1.json();
 
-            if (!result.success) {
-                throw new Error(result.error || "Failed to update promo.");
+            if (!result1.success) {
+                throw new Error(result1.error || "Failed to update group.");
             }
 
-            // Optionally update state in frontend if you want real-time update:
+            // 2️⃣ Save promo details (including discounted_price) to getPromosAndDiscounts.php
+            const response2 = await fetch("http://localhost/API/getPromosAndDiscounts.php?action=update_deal", {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    id: selectedDeal.id,
+                    name: selectedDeal.name,
+                    description: selectedDeal.description,
+                    validFrom: selectedDeal.validFrom,
+                    validTo: selectedDeal.validTo,
+                    status: selectedDeal.status,
+                    discounted_price: parseFloat(selectedDeal.discountedPrice), // <- ✅ correct snake_case key
+                    serviceIds: selectedServices.map((s) => s.service_id),
+                }),
+            });
+
+            const result2 = await response2.json();
+
+            if (!result2.success) {
+                throw new Error(result2.error || "Failed to update promo.");
+            }
+
+            // Update local state
             setDeals((prev) =>
                 prev.map((deal) =>
                     deal.id === selectedDeal.id
@@ -271,6 +296,7 @@ export default function BeautyDeals() {
                             validFrom: selectedDeal.validFrom,
                             validTo: selectedDeal.validTo,
                             status: selectedDeal.status,
+                            discountedPrice: selectedDeal.discountedPrice,
                             services: selectedServices,
                         }
                         : deal
@@ -289,18 +315,20 @@ export default function BeautyDeals() {
         e.preventDefault();
 
         try {
-            const response = await fetch("http://localhost/API/servicegroup.php?action=save_group", {
+            const response = await fetch("http://localhost/API/getPromosAndDiscounts.php?action=save_group", {
                 method: "POST", // POST or PUT depending on your backend logic
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    group_id: selectedDiscount.id,                     // Use discount id as group_id
+                    group_id: selectedDiscount.id,
                     group_name: selectedDiscount.name,
                     description: selectedDiscount.description,
                     status: selectedDiscount.status,
-                    services: selectedServices.map(s => s.service_id) // Send selected service IDs
-                }),
+                    discount_type: selectedDiscount.discountType,
+                    value: selectedDiscount.value,
+                    services: selectedServices.map(s => s.service_id)
+                })
             });
 
             const result = await response.json();
@@ -320,8 +348,6 @@ export default function BeautyDeals() {
             toast.error('Failed to update discount: ' + error.message);
         }
     };
-
-
 
     if (isLoading) {
         return (
@@ -748,7 +774,11 @@ export default function BeautyDeals() {
                                                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{service.name}</td>
                                                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.category}</td>
                                                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.originalPrice}</td>
-                                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{service.discountedPrice}</td>
+                                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-red-500">
+                                                                        {service.originalPrice && selectedDeal.discountedPrice
+                                                                            ? (parseFloat(service.originalPrice) - parseFloat(selectedDeal.discountedPrice)).toFixed(2)
+                                                                            : '-'}
+                                                                    </td>
                                                                 </tr>
                                                             ))
                                                         ) : (
@@ -985,6 +1015,22 @@ export default function BeautyDeals() {
                                         </select>
                                     </div>
 
+                                    {/* Discounted Price */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Discounted Price</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={selectedDeal.discountedPrice || ""}
+                                            onChange={(e) =>
+                                                setSelectedDeal({ ...selectedDeal, discountedPrice: e.target.value })
+                                            }
+                                            className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
+                                            placeholder="Enter discounted price"
+                                        />
+                                    </div>
+
                                     {/* 🔍 Select Included Services with Search */}
                                     <div>
                                         <label className="block text-sm font-medium mb-1">Select Included Services</label>
@@ -1188,11 +1234,13 @@ export default function BeautyDeals() {
                                         <div>
                                             <label className="block text-sm font-medium mb-1">Value*</label>
                                             <input
-                                                type="text"
+                                                type="number"
                                                 value={selectedDiscount.value}
-                                                onChange={(e) => setSelectedDiscount({ ...selectedDiscount, value: e.target.value })}
+                                                onChange={(e) =>
+                                                    setSelectedDiscount({ ...selectedDiscount, value: e.target.value })
+                                                }
                                                 className="w-full p-2 border rounded-lg bg-gray-50 border-gray-300"
-                                                placeholder={selectedDiscount.discountType === "percentage" ? "e.g. 10%" : "e.g. $50"}
+                                                placeholder={selectedDiscount.discountType === "percentage" ? "e.g. 10" : "e.g. 50"}
                                                 required
                                             />
                                         </div>

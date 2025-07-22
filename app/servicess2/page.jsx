@@ -23,6 +23,8 @@ export default function ServiceGroupsPage() {
   const [editMode, setEditMode] = useState(false);
   const [linkedServices, setLinkedServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
+  const [serviceToEdit, setServiceToEdit] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -95,19 +97,52 @@ export default function ServiceGroupsPage() {
     setIsAddGroupModalOpen(false);
   };
 
-  const handleSearch = () => {
-    toast(`Searching for: ${searchQuery}`);
-    console.log("Search query:", searchQuery);
-  };
+
+  const filteredServiceGroups = serviceGroups.filter((group) =>
+    group.group_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
 
   const handleEdit = () => {
     setEditMode(true);
     setFormData(selectedService);
   };
 
+  const handleSaveEditedService = async () => {
+    try {
+      const response = await axios.post("http://localhost/API/servicegroup.php?action=update_service", {
+        id: serviceToEdit.id,
+        name: serviceToEdit.name,
+        price: serviceToEdit.price,
+        duration: serviceToEdit.duration,
+      });
+
+      if (response.data.success) {
+        // Update local state
+        const updatedServices = selectedGroup.services.map((s) =>
+          s.id === serviceToEdit.id ? serviceToEdit : s
+        );
+        setSelectedGroup({ ...selectedGroup, services: updatedServices });
+
+        setIsEditModalOpen(false);
+      } else {
+        console.error("API update failed:", response.data.message || "Unknown error");
+        alert("Failed to update service.");
+      }
+    } catch (error) {
+      console.error("Error updating service:", error);
+      alert("An error occurred while updating the service.");
+    }
+  };
+
   const handleEditServices = () => {
     setEditMode(true);
     setFormData(selectedService);
+  };
+
+  const handleEditService = (service) => {
+    setServiceToEdit(service); // set the selected service in state
+    setIsEditModalOpen(true);  // open the edit modal
   };
 
   const handleSaveGroup = () => {
@@ -187,9 +222,6 @@ export default function ServiceGroupsPage() {
         </div>
 
         <div className="flex items-center space-x-4 flex-grow justify-center">
-          <button className="text-2xl" onClick={() => setIsModalOpen(true)}>
-            ➕
-          </button>
           <input
             type="text"
             placeholder="Search..."
@@ -197,13 +229,8 @@ export default function ServiceGroupsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="px-4 py-2 rounded-lg bg-white text-gray-900 w-64 focus:outline-none"
           />
-          <button
-            onClick={handleSearch}
-            className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-md"
-          >
-            Search
-          </button>
         </div>
+
 
         <div className="flex items-center space-x-4 relative">
           <div
@@ -243,7 +270,7 @@ export default function ServiceGroupsPage() {
 
           {/* Home Menu Button */}
           <Menu as="div" className="relative w-full px-4 mt-4">
-            <Link href="/home2" passHref>
+            <Link href="/home" passHref>
               <Menu.Button as="div" className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center cursor-pointer">
                 <Home className="text-2xl"></Home>
                 <span className="ml-2">Dashboard</span>
@@ -259,7 +286,6 @@ export default function ServiceGroupsPage() {
               {[
                 { href: "/servicess2", label: "All Services", icon: <Layers size={20} /> },
                 { href: "/membership2", label: "Memberships", icon: <UserPlus size={20} /> },
-                { href: "/membership-report2", label: "Membership Report", icon: <BarChart3 size={20} /> },
                 { href: "/items2", label: "Beauty Deals", icon: <Tag size={20} /> },
                 { href: "/serviceorder2", label: "Service Acquire", icon: <ClipboardList size={20} /> },
               ].map((link) => (
@@ -306,15 +332,6 @@ export default function ServiceGroupsPage() {
             className="flex justify-between items-center mb-4"
           >
             <h1 className="text-xl font-bold">All Service Groups</h1>
-            {/* <motion.button
-              onClick={() => setIsAddGroupModalOpen(true)}
-              className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg transition-colors text-sm font-medium shadow-sm"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Plus size={18} />
-              <span>New Group List</span>
-            </motion.button> */}
           </motion.div>
 
           <div className="flex">
@@ -341,7 +358,7 @@ export default function ServiceGroupsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {serviceGroups.map((group, index) => (
+                    {filteredServiceGroups.map((group, index) => (
                       <motion.tr
                         key={group.group_id || `group-${index}`}
                         className={`hover:bg-gray-50 cursor-pointer ${selectedGroup?.group_id === group.group_id ? "bg-[#E3F9E5]" : ""}`}
@@ -374,20 +391,8 @@ export default function ServiceGroupsPage() {
                           </motion.span>
                         </td>
 
-                        <td className="px-4 py-3 text-sm text-gray-500">
+                        <td className="px-5 py-3 text-sm text-gray-500">
                           <div className="flex space-x-2">
-                            {/* <motion.button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditMode(true);
-                                setFormData(group);
-                              }}
-                              className="text-gray-600 hover:text-gray-800"
-                              whileHover={{ scale: 1.2 }}
-                              whileTap={{ scale: 0.9 }}
-                            >
-                              <Edit size={16} />
-                            </motion.button> */}
                             <motion.button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -475,28 +480,27 @@ export default function ServiceGroupsPage() {
                     >
                       <div className="flex justify-between items-center mb-2">
                         <h3 className="text-sm font-semibold text-gray-500">Services</h3>
-                        {/* <motion.button
+                        <motion.button
                           onClick={() => setIsAddModalOpen(true)}
                           className="text-xs text-green-600 hover:text-green-800"
                           whileHover={{ scale: 1.1 }}
                         >
                           + Add Service
-                        </motion.button> */}
+                        </motion.button>
                       </div>
 
                       <motion.div
-                        className="border rounded-lg overflow-hidden"
+                        className="border rounded-lg overflow-auto max-h-[400px]" // allow scroll if too tall
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.4 }}
                       >
-                        <table className="min-w-full divide-y divide-gray-200">
+                        <table className="min-w-full table-fixed divide-y divide-gray-200">
                           <thead className="bg-gray-50">
                             <tr>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                              <th className="w-1/3 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                              <th className="w-1/4 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                              <th className="w-1/4 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
@@ -509,11 +513,9 @@ export default function ServiceGroupsPage() {
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ delay: index * 0.05 }}
                                 >
-                                  <td className="px-3 py-2 text-sm text-gray-900">{service.name}</td>
+                                  <td className="px-3 py-2 text-sm text-gray-900 break-words">{service.name}</td>
                                   <td className="px-3 py-2 text-sm text-gray-500">₱{service.price}</td>
                                   <td className="px-3 py-2 text-sm text-gray-500">{service.duration} mins</td>
-                                  <td className="px-3 py-2 text-sm text-gray-500 text-right">
-                                  </td>
                                 </motion.tr>
                               ))
                             ) : (
@@ -522,398 +524,21 @@ export default function ServiceGroupsPage() {
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 0.5 }}
                               >
-                                <td colSpan="4" className="text-center text-gray-500 py-4 italic">No services available</td>
+                                <td colSpan="4" className="text-center text-gray-500 py-4 italic">
+                                  No services available
+                                </td>
                               </motion.tr>
                             )}
                           </tbody>
                         </table>
                       </motion.div>
                     </motion.div>
-
-                    {/* Edit Group Modal - 2 Column Layout */}
-                    <AnimatePresence>
-                      {editMode && (
-                        <motion.div
-                          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                        >
-                          <motion.div
-                            className="bg-white rounded-lg shadow-xl w-full max-w-4xl"
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                          >
-                            <div className="p-6">
-                              {/* Modal Header */}
-                              <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-xl font-semibold">Edit Services Group</h2>
-                                <motion.button
-                                  onClick={() => setEditMode(false)}
-                                  className="text-gray-500 hover:text-gray-700"
-                                  whileHover={{ scale: 1.2 }}
-                                  whileTap={{ scale: 0.9 }}
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </motion.button>
-                              </div>
-
-                              {/* 2-Column Grid Layout */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Left Column - Form Fields */}
-                                <motion.div
-                                  className="space-y-4"
-                                  initial={{ opacity: 0, x: -20 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ delay: 0.1 }}
-                                >
-                                  {/* Group Name */}
-                                  <div>
-                                    <label className="block text-sm font-medium text-red-600 mb-1">
-                                      Group Name<span className="text-red-500">*</span>
-                                    </label>
-                                    <motion.input
-                                      type="text"
-                                      value={formData.name}
-                                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                      placeholder="Enter group name"
-                                      autoFocus
-                                      whileFocus={{ scale: 1.01 }}
-                                    />
-                                  </div>
-
-                                  {/* Description */}
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Description
-                                    </label>
-                                    <motion.textarea
-                                      value={formData.description}
-                                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                      rows={5}
-                                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                      placeholder="Enter description (optional)"
-                                      whileFocus={{ scale: 1.01 }}
-                                    />
-                                  </div>
-
-                                  {/* Status Dropdown */}
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Status
-                                    </label>
-                                    <motion.select
-                                      value={formData.status}
-                                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
-                                      whileFocus={{ scale: 1.01 }}
-                                    >
-                                      <option value="Active">Active</option>
-                                      <option value="Inactive">Inactive</option>
-                                    </motion.select>
-                                  </div>
-                                </motion.div>
-
-                                {/* Right Column - Services List */}
-                                <motion.div
-                                  className="space-y-4"
-                                  initial={{ opacity: 0, x: 20 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ delay: 0.2 }}
-                                >
-                                  <div className="h-full flex flex-col">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <label className="block text-sm font-medium text-gray-700">
-                                        Linked Services
-                                      </label>
-                                      <motion.button
-                                        className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-sm border rounded text-gray-700 transition-colors"
-                                        onClick={handleEditServices}
-                                        whileHover={{ scale: 1.05 }}
-                                      >
-                                        Edit Services
-                                      </motion.button>
-                                    </div>
-
-                                    <motion.div
-                                      className="border border-gray-300 rounded flex-grow overflow-y-auto p-3 bg-gray-50"
-                                      whileHover={{ scale: 1.01 }}
-                                    >
-                                      {linkedServices.length > 0 ? (
-                                        <ul className="space-y-2">
-                                          {linkedServices.map((service, index) => (
-                                            <motion.li
-                                              key={index}
-                                              className="flex items-center p-2 hover:bg-gray-100 rounded transition-colors"
-                                              initial={{ opacity: 0, x: -10 }}
-                                              animate={{ opacity: 1, x: 0 }}
-                                              transition={{ delay: index * 0.05 }}
-                                            >
-                                              <span className="flex-grow text-sm">{service}</span>
-                                              <motion.button
-                                                onClick={() => handleRemoveService(index)}
-                                                className="text-red-500 hover:text-red-700"
-                                                whileHover={{ scale: 1.2 }}
-                                                whileTap={{ scale: 0.9 }}
-                                              >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                              </motion.button>
-                                            </motion.li>
-                                          ))}
-                                        </ul>
-                                      ) : (
-                                        <div className="h-full flex items-center justify-center">
-                                          <p className="text-gray-500 italic">No services linked to this group</p>
-                                        </div>
-                                      )}
-                                    </motion.div>
-                                  </div>
-                                </motion.div>
-                              </div>
-
-                              {/* Modal Footer */}
-                              <div className="flex justify-end space-x-3 pt-6 mt-6 border-t">
-                                <motion.button
-                                  onClick={() => setEditMode(false)}
-                                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                >
-                                  Cancel
-                                </motion.button>
-                                <motion.button
-                                  onClick={handleSaveGroup}
-                                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                >
-                                  Save Changes
-                                </motion.button>
-                              </div>
-                            </div>
-                          </motion.div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
                   </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          {/* Add Service Modal */}
-          <AnimatePresence>
-            {isAddModalOpen && selectedGroup && (
-              <motion.div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <motion.div
-                  className="bg-white p-6 rounded-lg w-96"
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                >
-                  <h2 className="text-xl font-bold mb-4">Add New Service</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Service Name</label>
-                      <motion.input
-                        type="text"
-                        value={newService.name}
-                        onChange={(e) => setNewService({ ...newService, name: e.target.value })}
-                        className="w-full p-2 border rounded"
-                        whileFocus={{ scale: 1.01 }}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Price</label>
-                        <motion.input
-                          type="text"
-                          value={newService.price}
-                          onChange={(e) => setNewService({ ...newService, price: e.target.value })}
-                          className="w-full p-2 border rounded"
-                          whileFocus={{ scale: 1.01 }}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Duration (mins)</label>
-                        <motion.input
-                          type="text"
-                          value={newService.duration}
-                          onChange={(e) => setNewService({ ...newService, duration: e.target.value })}
-                          className="w-full p-2 border rounded"
-                          whileFocus={{ scale: 1.01 }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-end space-x-2 mt-6">
-                    <motion.button
-                      onClick={() => setIsAddModalOpen(false)}
-                      className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      Cancel
-                    </motion.button>
-                    <motion.button
-                      onClick={handleAddService}
-                      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      Add Service
-                    </motion.button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Add Group Modal - Matched to Edit Modal */}
-          <AnimatePresence>
-            {isAddGroupModalOpen && (
-              <motion.div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <motion.div
-                  className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                >
-                  <div className="p-6">
-                    {/* Modal Header */}
-                    <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-xl font-semibold">Create Services Group</h2>
-                      <motion.button
-                        onClick={() => setIsAddGroupModalOpen(false)}
-                        className="text-gray-500 hover:text-gray-700"
-                        whileHover={{ scale: 1.2 }}
-                        whileTap={{ scale: 0.9 }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </motion.button>
-                    </div>
-
-                    {/* Modal Content */}
-                    <div className="space-y-5">
-                      {/* Group Name */}
-                      <div>
-                        <label className="block text-sm font-medium text-red-600 mb-1">
-                          Group Name<span className="text-red-500">*</span>
-                        </label>
-                        <motion.input
-                          type="text"
-                          value={newGroup.name}
-                          onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
-                          className="w-full border border-gray-400 rounded px-3 py-2 text-sm"
-                          placeholder="e.g., Hair Services"
-                          autoFocus
-                          whileFocus={{ scale: 1.01 }}
-                        />
-                      </div>
-
-                      {/* Description */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Description
-                        </label>
-                        <motion.textarea
-                          value={newGroup.description}
-                          onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
-                          rows={3}
-                          className="w-full border border-gray-400 rounded px-3 py-2 text-sm"
-                          placeholder="Brief description of this service group"
-                          whileFocus={{ scale: 1.01 }}
-                        />
-                      </div>
-
-                      {/* Status Dropdown (Hidden by default, shown if needed) */}
-                      {newGroup.hasOwnProperty('status') && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Status
-                          </label>
-                          <motion.select
-                            value={newGroup.status || 'Active'}
-                            onChange={(e) => setNewGroup({ ...newGroup, status: e.target.value })}
-                            className="w-full border border-gray-400 rounded px-3 py-2 text-sm"
-                            whileFocus={{ scale: 1.01 }}
-                          >
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                          </motion.select>
-                        </div>
-                      )}
-
-                      {/* Services Section (Hidden for add modal by default) */}
-                      {newGroup.hasOwnProperty('services') && (
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="block text-sm font-medium text-gray-700">
-                              Services Link to Groups
-                            </label>
-                            <motion.button
-                              className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-sm border rounded"
-                              onClick={handleEditServices}
-                              whileHover={{ scale: 1.05 }}
-                            >
-                              Edit Services
-                            </motion.button>
-                          </div>
-                          <motion.div
-                            className="border border-gray-400 rounded h-40 overflow-y-auto p-2 text-sm bg-white"
-                            whileHover={{ scale: 1.01 }}
-                          >
-                            <p className="text-gray-500 italic">No services linked yet</p>
-                          </motion.div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Modal Footer - Matched to Edit Modal */}
-                    <div className="flex space-x-2 pt-4 border-t mt-6">
-                      <motion.button
-                        onClick={handleAddGroup}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        Create Group
-                      </motion.button>
-                      <motion.button
-                        onClick={() => setIsAddGroupModalOpen(false)}
-                        className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded text-sm"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        Cancel
-                      </motion.button>
-                    </div>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </main>
       </div>
     </div>

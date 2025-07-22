@@ -7,9 +7,30 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu } from "@headlessui/react";
 import { EllipsisVerticalIcon } from "@heroicons/react/24/solid";
 import {
-  Calendar, Home, Users, FileText, CreditCard, Package, BarChart3,
-  Layers, ShoppingCart, Settings, LogOut, ArrowLeft, Pencil, Trash2,
-  UserPlus, Tag, ClipboardList, Folder, BarChart, Factory, ShoppingBag, User
+  Calendar,
+  Home,
+  Users,
+  FileText,
+  CreditCard,
+  Package,
+  BarChart3,
+  Layers,
+  ShoppingCart,
+  Settings,
+  LogOut,
+  ArrowLeft,
+  Pencil,
+  Trash2,
+  CheckCircle,
+  Printer,
+  UserPlus,
+  Tag,
+  ClipboardList,
+  Folder,
+  BarChart,
+  Factory,
+  ShoppingBag,
+  User,
 } from "lucide-react";
 
 const mockServices = [
@@ -21,19 +42,21 @@ const mockServices = [
 // Simulating backend data fetch
 const fetchServices = async () => {
   try {
-    const response = await fetch('http://localhost/API/servicegroup.php?action=get_groups_with_services');
+    const response = await fetch(
+      "http://localhost/API/servicegroup.php?action=get_groups_with_services"
+    );
     const data = await response.json();
 
     // Transform backend structure to match frontend expectation
-    const categories = data.map(group => ({
+    const categories = data.map((group) => ({
       id: group.group_id,
       name: group.group_name,
-      services: group.services.map(service => ({
+      services: group.services.map((service) => ({
         id: service.service_id,
         name: service.name,
         price: parseFloat(service.price),
         duration: `${service.duration}m`,
-      }))
+      })),
     }));
 
     return { categories };
@@ -42,7 +65,6 @@ const fetchServices = async () => {
     return { categories: [] };
   }
 };
-
 
 export default function ServiceOrderPage() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -53,14 +75,20 @@ export default function ServiceOrderPage() {
   const [serviceCategories, setServiceCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState(null);
-  const [currentStep, setCurrentStep] = useState(1); // 1 = customer, 2 = services
+  const [currentStep, setCurrentStep] = useState(1);
+  const [categorySearch, setCategorySearch] = useState("");
+  const [promos, setPromos] = useState([]);
+  const [discounts, setDiscounts] = useState([]);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [savedOrderData, setSavedOrderData] = useState(null);
 
-  const [customerName, setCustomerName] = useState("Mrs Jefferson");
+  const [customerName, setCustomerName] = useState("");
   const [membershipType, setMembershipType] = useState("Standard");
   const [promoApplied, setPromoApplied] = useState("");
   const [discount, setDiscount] = useState(0);
   const [subtotal, setSubtotal] = useState(0);
-  const [membershipBalance] = useState(10000);
+  const [membershipBalance, setMembershipBalance] = useState(0);
+  const [membershipExpiration, setMembershipExpiration] = useState(null);
   const [isMember, setIsMember] = useState(true);
   const membershipReduction = isMember ? subtotal * 0.5 : 0;
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
@@ -80,6 +108,17 @@ export default function ServiceOrderPage() {
     membershipType: "Standard",
   });
 
+  useEffect(() => {
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, "0");
+    const day = now.getDate().toString().padStart(2, "0");
+    const randomNum = Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0");
+    setOrderNumber(`INV-${year}${month}${day}-${randomNum}`);
+  }, []);
+
   const fetchCustomers = async () => {
     try {
       setIsCustomersLoading(true);
@@ -91,7 +130,7 @@ export default function ServiceOrderPage() {
         id: cust.id,
         name: cust.name,
         membershipType: cust.membership_status,
-        isMember: cust.membership_status !== 'None',
+        isMember: cust.membership_status !== "None",
         balance: cust.membershipDetails?.remainingBalance || 0,
       }));
 
@@ -108,7 +147,6 @@ export default function ServiceOrderPage() {
     fetchCustomers();
   }, []);
 
-
   // Fetch services on component mount
   useEffect(() => {
     const loadServices = async () => {
@@ -124,72 +162,134 @@ export default function ServiceOrderPage() {
 
   // Update subtotal whenever selected services change
   useEffect(() => {
-    setSubtotal(selectedServices.reduce((sum, service) => sum + service.price, 0));
+    setSubtotal(
+      selectedServices.reduce((sum, service) => sum + service.price, 0)
+    );
   }, [selectedServices]);
 
   const handleServiceToggle = (service) => {
-    setSelectedServices(prev => {
-      const isSelected = prev.some(s => s.id === service.id);
+    setSelectedServices((prev) => {
+      const isSelected = prev.some((s) => s.id === service.id);
       if (isSelected) {
-        return prev.filter(s => s.id !== service.id);
+        return prev.filter((s) => s.id !== service.id);
       } else {
         return [...prev, service];
       }
     });
   };
 
-  const handleSave = () => {
-    if (selectedServices.length === 0) {
-      toast.error("Please select at least one service");
-      return;
+  useEffect(() => {
+    const fetchPromosAndDiscounts = async () => {
+      try {
+        const res = await fetch(
+          "http://localhost/API/getPromosAndDiscounts.php"
+        );
+        const data = await res.json();
+        setPromos(data.promos || []);
+        setDiscounts(data.discounts || []);
+      } catch (error) {
+        console.error("Failed to fetch promos and discounts:", error);
+      }
+    };
+
+    fetchPromosAndDiscounts();
+  }, []);
+
+  const totalAmount = selectedServices.reduce(
+    (sum, s) => sum + parseFloat(s.price),
+    0
+  );
+
+  const promoReduction = promoApplied?.discountedPrice ?? 0;
+
+  const discountReduction = (() => {
+    if (!discount) return 0;
+    if (discount.discount_type === "percentage") {
+      return (totalAmount * discount.value) / 100;
     }
-    setShowConfirmation(true);
-  };
+    return discount.value;
+  })();
+
+  const calculatedSubtotal = Math.max(
+    totalAmount - promoReduction - discountReduction,
+    0
+  );
 
   const confirmSave = async () => {
     if (!selectedCustomer || selectedServices.length === 0) {
-      alert("Please select a customer and at least one service.");
+      toast.warning("Please select a customer and at least one service.");
       return;
     }
 
-    const payload = {
+    const newBalance = membershipBalance - membershipReduction;
+
+    const orderData = {
+      order_number: orderNumber,
       customer_id: selectedCustomer.id,
-      services: selectedServices.map(service => ({
-        id: service.id,
+      customer_name: customerName,
+      services: selectedServices.map((service) => ({
+        service_id: service.id,
         name: service.name,
         price: service.price,
       })),
       subtotal,
+      discount,
+      promo: promoApplied || null,
       membershipReduction,
-      grand_total: subtotal - membershipReduction,
-      employee_name: currentUser?.name || "Unknown", // fallback if currentUser is not defined
+      grand_total: subtotal - membershipReduction - discount,
+      employee_name: currentUser?.name || "Unknown",
+      is_member: isMember,
+      membership_type: isMember ? membershipType : null,
+      new_membership_balance: isMember ? newBalance : null,
+      date: new Date().toISOString(),
     };
 
     try {
       const response = await fetch("http://localhost/API/saveAcquire.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(orderData),
       });
 
       const text = await response.text();
 
+      setMembershipBalance((prev) => prev - membershipReduction);
+
       try {
         const result = JSON.parse(text);
-        if (result.success) {
-          alert("Saved successfully!");
+        if (result.message) {
+          toast.success("Service acquired successfully!");
+          setSavedOrderData(orderData);
+          setCurrentStep(4); // Move to invoice step
         } else {
-          alert(result.message || "Save failed");
+          toast.error(result.error || "Save failed");
         }
       } catch (jsonError) {
         console.error("Invalid JSON from server:", text);
-        alert("Server returned invalid JSON:\n" + text);
+        toast.error("Server returned invalid JSON");
       }
-
     } catch (err) {
       console.error("Save failed", err);
-      alert("Network error occurred");
+      toast.error("Network error occurred");
     }
+  };
+
+  const handleNewTransaction = () => {
+    setCurrentStep(1);
+    setSelectedServices([]);
+    setCustomerName("");
+    setSelectedCustomer(null);
+    setPromoApplied("");
+    setDiscount(0);
+    // Generate new invoice number for next transaction
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, "0");
+    const day = now.getDate().toString().padStart(2, "0");
+    const randomNum = Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0");
+    setOrderNumber(`INV-${year}${month}${day}-${randomNum}`);
   };
 
   const handleClearAll = () => {
@@ -222,6 +322,8 @@ export default function ServiceOrderPage() {
     setCustomerName(customer.name);
     setMembershipType(customer.membershipType);
     setIsMember(customer.isMember);
+    setMembershipBalance(customer.balance); // ✅ set balance here
+    setMembershipExpiration(customer.expirationDate); // ✅ set expiration
     setSelectedCustomer(customer);
     setIsCustomerModalOpen(false);
   };
@@ -242,11 +344,14 @@ export default function ServiceOrderPage() {
     };
 
     try {
-      const response = await fetch("http://localhost/API/customers.php?action=add", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        "http://localhost/API/customers.php?action=add",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
 
       const result = await response.json();
 
@@ -265,25 +370,21 @@ export default function ServiceOrderPage() {
         setShowMembershipSignup(false);
         fetchCustomers();
       } else {
-        if (result.message && result.message.toLowerCase().includes("already exists")) {
+        if (
+          result.message &&
+          result.message.toLowerCase().includes("already exists")
+        ) {
           toast.error("Duplicate customer: " + result.message);
         } else {
-          toast.error("Failed to add customer: " + (result.message || "Unknown error"));
+          toast.error(
+            "Failed to add customer: " + (result.message || "Unknown error")
+          );
         }
       }
     } catch (error) {
       console.error("Error saving customer:", error);
       toast.error("An error occurred. Please try again.");
     }
-  }
-
-  const handleAddMembership = (customerId) => {
-    setCustomers(customers.map(customer =>
-      customer.id === customerId
-        ? { ...customer, isMember: true, membershipType: "Standard", balance: 10000 }
-        : customer
-    ));
-    toast.success("Membership added to customer!");
   };
 
   const handleLogout = () => {
@@ -291,20 +392,15 @@ export default function ServiceOrderPage() {
     window.location.href = "/home";
   };
 
-  const handleSearch = () => {
-    if (searchQuery.trim() === "") {
-      toast.error("Please enter a search query.");
-    } else {
-      // Perform search logic here
-      toast.success(`Searching for "${searchQuery}"...`);
-    }
-  };
+  const filteredCategories = serviceCategories.filter((category) =>
+    category.name.toLowerCase().includes(categorySearch.toLowerCase())
+  );
 
   const handleNewCustomerChange = (e) => {
     const { name, value } = e.target;
-    setNewCustomer(prev => ({
+    setNewCustomer((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -324,7 +420,10 @@ export default function ServiceOrderPage() {
           {/* Home Menu Button */}
           <Menu as="div" className="relative w-full px-4 mt-4">
             <Link href="/home" passHref>
-              <Menu.Button as="div" className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center cursor-pointer">
+              <Menu.Button
+                as="div"
+                className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center cursor-pointer"
+              >
                 <Home className="text-2xl"></Home>
                 <span className="ml-2">Dashboard</span>
               </Menu.Button>
@@ -337,17 +436,42 @@ export default function ServiceOrderPage() {
             </Menu.Button>
             <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
               {[
-                { href: "/servicess", label: "All Services", icon: <Layers size={20} /> },
-                { href: "/membership", label: "Memberships", icon: <UserPlus size={20} /> },
-                { href: "/membership-report", label: "Membership Report", icon: <BarChart3 size={20} /> },
-                { href: "/items", label: "Beauty Deals", icon: <Tag size={20} /> },
-                { href: "/serviceorder", label: "Service Acquire", icon: <ClipboardList size={20} /> },
+                {
+                  href: "/servicess",
+                  label: "All Services",
+                  icon: <Layers size={20} />,
+                },
+                {
+                  href: "/membership",
+                  label: "Memberships",
+                  icon: <UserPlus size={20} />,
+                },
+                {
+                  href: "/membership-report",
+                  label: "Membership Report",
+                  icon: <BarChart3 size={20} />,
+                },
+                {
+                  href: "/items",
+                  label: "Beauty Deals",
+                  icon: <Tag size={20} />,
+                },
+                {
+                  href: "/serviceorder",
+                  label: "Service Acquire",
+                  icon: <ClipboardList size={20} />,
+                },
               ].map((link) => (
                 <Menu.Item key={link.href}>
                   {({ active }) => (
-                    <Link href={link.href} className={`flex items-center space-x-4 p-3 rounded-lg ${active ? 'bg-[#2A3F3F] text-white' : ''}`}>
+                    <Link
+                      href={link.href}
+                      className={`flex items-center space-x-4 p-3 rounded-lg ${active ? "bg-[#2A3F3F] text-white" : ""}`}
+                    >
                       {link.icon}
-                      <span className="font-normal md:font-bold">{link.label}</span>
+                      <span className="font-normal md:font-bold">
+                        {link.label}
+                      </span>
                     </Link>
                   )}
                 </Menu.Item>
@@ -361,14 +485,27 @@ export default function ServiceOrderPage() {
             </Menu.Button>
             <Menu.Items className="absolute left-4 mt-2 w-full bg-[#467750] text-white rounded-lg shadow-lg z-10">
               {[
-                { href: "/customers", label: "Customers", icon: <Users size={20} /> },
-                { href: "/invoices", label: "Invoices", icon: <FileText size={20} /> },
+                {
+                  href: "/customers",
+                  label: "Customers",
+                  icon: <Users size={20} />,
+                },
+                {
+                  href: "/invoices",
+                  label: "Invoices",
+                  icon: <FileText size={20} />,
+                },
               ].map((link) => (
                 <Menu.Item key={link.href}>
                   {({ active }) => (
-                    <Link href={link.href} className={`flex items-center space-x-4 p-3 rounded-lg ${active ? 'bg-[#2A3F3F] text-white' : ''}`}>
+                    <Link
+                      href={link.href}
+                      className={`flex items-center space-x-4 p-3 rounded-lg ${active ? "bg-[#2A3F3F] text-white" : ""}`}
+                    >
                       {link.icon}
-                      <span className="font-normal md:font-bold">{link.label}</span>
+                      <span className="font-normal md:font-bold">
+                        {link.label}
+                      </span>
                     </Link>
                   )}
                 </Menu.Item>
@@ -389,26 +526,96 @@ export default function ServiceOrderPage() {
 
             {/* Step Indicator */}
             <div className="flex mb-8">
-              <div className={`flex items-center ${currentStep >= 1 ? 'text-green-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 1 ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+              {/* Step 1 */}
+              <motion.div
+                key={`step-1-${currentStep}`}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className={`flex items-center ${currentStep >= 1 ? "text-green-600" : "text-gray-400"}`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 1 ? "bg-green-600 text-white" : "bg-gray-200"}`}
+                >
                   1
                 </div>
                 <div className="ml-2">Customer</div>
-              </div>
-              <div className={`flex-1 border-t-2 mx-2 mt-4 ${currentStep >= 2 ? 'border-green-600' : 'border-gray-300'}`}></div>
-              <div className={`flex items-center ${currentStep >= 2 ? 'text-green-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 2 ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+              </motion.div>
+
+              {/* Line between steps */}
+              <motion.div
+                key={`line-1-${currentStep}`}
+                initial={{ width: 0 }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 0.3 }}
+                className={`flex-1 border-t-2 mx-2 mt-4 ${currentStep >= 2 ? "border-green-600" : "border-gray-300"}`}
+              />
+
+              {/* Step 2 */}
+              <motion.div
+                key={`step-2-${currentStep}`}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className={`flex items-center ${currentStep >= 2 ? "text-green-600" : "text-gray-400"}`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 2 ? "bg-green-600 text-white" : "bg-gray-200"}`}
+                >
                   2
                 </div>
                 <div className="ml-2">Services</div>
-              </div>
-              <div className={`flex-1 border-t-2 mx-2 mt-4 ${currentStep >= 3 ? 'border-green-600' : 'border-gray-300'}`}></div>
-              <div className={`flex items-center ${currentStep >= 3 ? 'text-green-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 3 ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+              </motion.div>
+
+              {/* Line between steps */}
+              <motion.div
+                key={`line-2-${currentStep}`}
+                initial={{ width: 0 }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 0.3 }}
+                className={`flex-1 border-t-2 mx-2 mt-4 ${currentStep >= 3 ? "border-green-600" : "border-gray-300"}`}
+              />
+
+              {/* Step 3 */}
+              <motion.div
+                key={`step-3-${currentStep}`}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+                className={`flex items-center ${currentStep >= 3 ? "text-green-600" : "text-gray-400"}`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 3 ? "bg-green-600 text-white" : "bg-gray-200"}`}
+                >
                   3
                 </div>
-                <div className="ml-2">Confirmation</div>
-              </div>
+                <div className="ml-2">Confirm</div>
+              </motion.div>
+
+              {/* Line between steps */}
+              <motion.div
+                key={`line-3-${currentStep}`}
+                initial={{ width: 0 }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 0.3 }}
+                className={`flex-1 border-t-2 mx-2 mt-4 ${currentStep >= 4 ? "border-green-600" : "border-gray-300"}`}
+              />
+
+              {/* Step 4 */}
+              <motion.div
+                key={`step-4-${currentStep}`}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3, delay: 0.3 }}
+                className={`flex items-center ${currentStep >= 4 ? "text-green-600" : "text-gray-400"}`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 4 ? "bg-green-600 text-white" : "bg-gray-200"}`}
+                >
+                  4
+                </div>
+                <div className="ml-2">Invoice</div>
+              </motion.div>
             </div>
 
             {/* Step 1: Customer Selection */}
@@ -423,15 +630,17 @@ export default function ServiceOrderPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">{customerName || "No customer selected"}</span>
+                      <span className="font-medium">
+                        {customerName || "No customer selected"}
+                      </span>
                       <div className="flex gap-2">
                         <motion.button
                           onClick={handleSelectCustomer}
-                          className="text-sm text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded"
+                          className="text-sm text-white bg-green-600 hover:bg-green-700 px-2 py-1 rounded"
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
-                          Select Customer
+                          Regular Customer
                         </motion.button>
                         <motion.button
                           onClick={handleNewCustomer}
@@ -454,8 +663,20 @@ export default function ServiceOrderPage() {
                               animate={{ opacity: 1 }}
                               transition={{ delay: 0.2 }}
                             >
-                              <span>Membership Active</span>
-                              <span className="text-gray-500">[Expires: Mar. 15, 2025]</span>
+                              <span>Membership Status</span>
+                              {membershipExpiration && (
+                                <span className="text-gray-500">
+                                  [Expires:{" "}
+                                  {new Date(
+                                    membershipExpiration
+                                  ).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                  ]
+                                </span>
+                              )}
                             </motion.div>
                             <motion.div
                               className="text-sm mb-2"
@@ -464,7 +685,17 @@ export default function ServiceOrderPage() {
                               transition={{ delay: 0.3 }}
                             >
                               <span className="font-medium">Balance </span>
-                              <span className="text-blue-600">₱{membershipBalance.toLocaleString()} Remaining</span>
+                              <span className="text-blue-600">
+                                ₱
+                                {Math.max(
+                                  0,
+                                  membershipBalance - membershipReduction
+                                ).toLocaleString("en-PH", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}{" "}
+                                Remaining
+                              </span>
                             </motion.div>
                           </>
                         ) : (
@@ -500,8 +731,17 @@ export default function ServiceOrderPage() {
                           animate={{ opacity: 1 }}
                           transition={{ delay: 0.2 }}
                         >
-                          <span className="text-gray-600">Benefits</span>
-                          <span className="font-medium">₱{membershipBalance.toLocaleString()}</span>
+                          <span className="text-gray-600">Coverage</span>
+                          <span className="font-medium">
+                            ₱
+                            {Math.max(
+                              0,
+                              membershipBalance - membershipReduction
+                            ).toLocaleString("en-PH", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </span>
                         </motion.div>
                         <motion.div
                           className="flex justify-between"
@@ -510,7 +750,13 @@ export default function ServiceOrderPage() {
                           transition={{ delay: 0.3 }}
                         >
                           <span className="text-gray-600">Membership Type</span>
-                          <span className="font-medium">{membershipType}</span>
+                          <span
+                            className="ml-2 inline-block px-2 py-0.5 text-sm font-semibold rounded-full 
+  text-white 
+  bg-purple-600"
+                          >
+                            {membershipType.toUpperCase()}
+                          </span>
                         </motion.div>
                       </>
                     ) : customerName ? (
@@ -521,29 +767,40 @@ export default function ServiceOrderPage() {
                         transition={{ delay: 0.2 }}
                       >
                         <p>Non-members pay full price for all services</p>
-                        <p className="text-green-600 mt-1">Sign up for membership to get discounts!</p>
+                        <p className="text-green-600 mt-1">
+                          Sign up for membership to get discounts!
+                        </p>
                       </motion.div>
                     ) : null}
                   </div>
                 </div>
 
-                {customerName && (
-                  <motion.div
-                    className="flex justify-end mt-6"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                  >
-                    <motion.button
-                      onClick={() => setCurrentStep(2)}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      Continue to Services
-                    </motion.button>
-                  </motion.div>
+                {!customerName && (
+                  <div className="mt-6 text-sm text-red-500 text-right">
+                    Please select a customer before proceeding.
+                  </div>
                 )}
+
+                <motion.div
+                  className="flex justify-end mt-6"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <motion.button
+                    disabled={!customerName}
+                    onClick={() => setCurrentStep(2)}
+                    className={`px-4 py-2 rounded-lg transition-all duration-300 ${
+                      customerName
+                        ? "bg-green-600 hover:bg-green-700 text-white"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
+                    whileHover={customerName ? { scale: 1.05 } : {}}
+                    whileTap={customerName ? { scale: 0.95 } : {}}
+                  >
+                    Continue to Services
+                  </motion.button>
+                </motion.div>
               </motion.div>
             )}
 
@@ -557,16 +814,6 @@ export default function ServiceOrderPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: 0.2 }}
                 >
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-semibold">Select Services for {customerName}</h2>
-                    <button
-                      onClick={() => setCurrentStep(1)}
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      Change Customer
-                    </button>
-                  </div>
-
                   {isLoading ? (
                     <motion.div
                       className="flex justify-center items-center h-40"
@@ -576,37 +823,56 @@ export default function ServiceOrderPage() {
                       <motion.div
                         className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"
                         animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        transition={{
+                          duration: 1,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
                       />
                     </motion.div>
                   ) : (
                     <div className="flex flex-col md:flex-row gap-6">
                       {/* Category Tabs - Vertical scrollable on left */}
                       <div className="w-full md:w-64 flex-shrink-0">
+                        <div className="mb-4">
+                          <input
+                            type="text"
+                            placeholder="Search categories..."
+                            value={categorySearch}
+                            onChange={(e) => setCategorySearch(e.target.value)}
+                            className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                        </div>
+
                         <div className="overflow-y-auto max-h-[500px] pr-2">
                           <div className="flex flex-col gap-2">
-                            {serviceCategories.map(category => (
+                            {filteredCategories.map((category) => (
                               <motion.button
                                 key={category.id}
                                 onClick={() => setActiveCategory(category.id)}
-                                className={`px-4 py-3 rounded-lg text-left text-sm ${activeCategory === category.id
-                                  ? 'bg-green-600 text-white'
-                                  : 'bg-white text-gray-700 hover:bg-gray-200'
-                                  }`}
+                                className={`px-4 py-3 rounded-lg text-left text-sm ${
+                                  activeCategory === category.id
+                                    ? "bg-green-600 text-white"
+                                    : "bg-white text-gray-700 hover:bg-gray-200"
+                                }`}
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                               >
                                 {category.name}
                               </motion.button>
                             ))}
+
                             {/* Conditionally show Members Only category */}
                             {isMember && (
                               <motion.button
-                                onClick={() => setActiveCategory('members-exclusive')}
-                                className={`px-4 py-3 rounded-lg text-left text-sm ${activeCategory === 'members-exclusive'
-                                  ? 'bg-green-600 text-white'
-                                  : 'bg-white text-gray-700 hover:bg-gray-200'
-                                  }`}
+                                onClick={() =>
+                                  setActiveCategory("members-exclusive")
+                                }
+                                className={`px-4 py-3 rounded-lg text-left text-sm ${
+                                  activeCategory === "members-exclusive"
+                                    ? "bg-green-600 text-white"
+                                    : "bg-white text-gray-700 hover:bg-gray-200"
+                                }`}
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                               >
@@ -619,67 +885,56 @@ export default function ServiceOrderPage() {
 
                       {/* Services Grid - On the right */}
                       <div className="flex-1">
-                        <div className="flex flex-wrap gap-4">
-                          {activeCategory === 'members-exclusive' ? (
-                            // Show mock services for members
-                            mockServices.map(service => (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto pr-2 overflow-x-hidden">
+                          {(activeCategory === "members-exclusive"
+                            ? mockServices
+                            : serviceCategories.find(
+                                (cat) => cat.id === activeCategory
+                              )?.services || []
+                          ).map((service) => (
+                            <div key={service.id} className="overflow-hidden">
                               <motion.div
-                                key={service.id}
-                                className={`w-full sm:w-48 p-4 border rounded-lg cursor-pointer transition-colors ${selectedServices.some(s => s.id === service.id)
-                                  ? 'bg-green-100 border-green-500'
-                                  : 'bg-white hover:bg-gray-50'
-                                  }`}
+                                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                                  selectedServices.some(
+                                    (s) => s.id === service.id
+                                  )
+                                    ? "bg-green-100 border-green-500"
+                                    : "bg-white hover:bg-gray-50"
+                                }`}
                                 onClick={() => handleServiceToggle(service)}
-                                whileHover={{ scale: 1.02 }}
+                                whileHover={{ scale: 0.98 }}
                                 whileTap={{ scale: 0.98 }}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 300,
+                                  damping: 20,
+                                }}
                               >
                                 <div className="flex flex-col h-full">
                                   <div className="flex-grow">
-                                    <h3 className="font-medium text-sm">{service.name}</h3>
-                                    <p className="text-xs text-gray-600 mt-1">{service.duration}</p>
+                                    <h3 className="font-medium text-sm">
+                                      {service.name}
+                                    </h3>
+                                    <p className="text-xs text-gray-600 mt-1">
+                                      {service.duration}
+                                    </p>
                                   </div>
                                   <div className="mt-2 flex justify-between items-end">
-                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                                      Members
+                                    {activeCategory === "members-exclusive" && (
+                                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                        Members
+                                      </span>
+                                    )}
+                                    <span className="font-bold text-sm">
+                                      ₱{service.price.toLocaleString()}.00
                                     </span>
-                                    <span className="font-bold text-sm">{service.price}.00</span>
                                   </div>
                                 </div>
                               </motion.div>
-                            ))
-                          ) : (
-                            // Show regular services for the selected category
-                            serviceCategories
-                              .find(cat => cat.id === activeCategory)
-                              ?.services.map(service => (
-                                <motion.div
-                                  key={service.id}
-                                  className={`w-full sm:w-48 p-4 border rounded-lg cursor-pointer transition-colors ${selectedServices.some(s => s.id === service.id)
-                                    ? 'bg-green-100 border-green-500'
-                                    : 'bg-white hover:bg-gray-50'
-                                    }`}
-                                  onClick={() => handleServiceToggle(service)}
-                                  whileHover={{ scale: 1.02 }}
-                                  whileTap={{ scale: 0.98 }}
-                                  initial={{ opacity: 0, y: 10 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                                >
-                                  <div className="flex flex-col h-full">
-                                    <div className="flex-grow">
-                                      <h3 className="font-medium text-sm">{service.name}</h3>
-                                      <p className="text-xs text-gray-600 mt-1">{service.duration}</p>
-                                    </div>
-                                    <div className="mt-2 flex justify-end">
-                                      <span className="font-bold text-sm">₱{service.price.toLocaleString()}.00</span>
-                                    </div>
-                                  </div>
-                                </motion.div>
-                              ))
-                          )}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -694,7 +949,9 @@ export default function ServiceOrderPage() {
                       transition={{ delay: 0.3 }}
                     >
                       <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-medium">Selected Services ({selectedServices.length})</h3>
+                        <h3 className="font-medium">
+                          Selected Services ({selectedServices.length})
+                        </h3>
                         <button
                           onClick={() => setSelectedServices([])}
                           className="text-xs text-red-500 hover:text-red-700"
@@ -704,47 +961,59 @@ export default function ServiceOrderPage() {
                       </div>
                       <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
                         <AnimatePresence>
-                          {selectedServices.map((service, index) => {
-                            const isMemberService = mockServices.some(s => s.id === service.id);
-                            const category = isMemberService
-                              ? "Members Exclusive"
-                              : serviceCategories.find(cat =>
-                                cat.services.some(s => s.id === service.id)
-                              )?.name || "Other";
+                          {[...selectedServices]
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((service, index) => {
+                              const isMemberService = mockServices.some(
+                                (s) => s.id === service.id
+                              );
+                              const category = isMemberService
+                                ? "Members Exclusive"
+                                : serviceCategories.find((cat) =>
+                                    cat.services.some(
+                                      (s) => s.id === service.id
+                                    )
+                                  )?.name || "Other";
 
-                            return (
-                              <motion.div
-                                key={service.id}
-                                className="flex justify-between items-center p-2 bg-white rounded border"
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                transition={{ delay: index * 0.05 }}
-                                whileHover={{ scale: 1.005 }}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <motion.button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleServiceToggle(service);
-                                    }}
-                                    className="text-red-500 hover:text-red-700"
-                                    whileHover={{ scale: 1.2 }}
-                                    whileTap={{ scale: 0.9 }}
-                                  >
-                                    <Trash2 size={16} />
-                                  </motion.button>
-                                  <div>
-                                    <span className="text-sm">{service.name}</span>
-                                    <span className="text-xs text-gray-500 block">{category}</span>
+                              return (
+                                <motion.div
+                                  key={service.id}
+                                  className="flex justify-between items-center p-2 bg-white rounded border"
+                                  initial={{ opacity: 0, x: -20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  exit={{ opacity: 0, x: 20 }}
+                                  transition={{ delay: index * 0.05 }}
+                                  whileHover={{ scale: 1.005 }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <motion.button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleServiceToggle(service);
+                                      }}
+                                      className="text-red-500 hover:text-red-700"
+                                      whileHover={{ scale: 1.2 }}
+                                      whileTap={{ scale: 0.9 }}
+                                    >
+                                      <Trash2 size={16} />
+                                    </motion.button>
+                                    <div>
+                                      <span className="text-sm">
+                                        {service.name}
+                                      </span>
+                                      <span className="text-xs text-gray-500 block">
+                                        {category}
+                                      </span>
+                                    </div>
                                   </div>
-                                </div>
-                                <span className="font-medium text-sm">
-                                  {isMemberService ? service.price : `₱${service.price.toLocaleString()}.00`}
-                                </span>
-                              </motion.div>
-                            );
-                          })}
+                                  <span className="font-medium text-sm">
+                                    {isMemberService
+                                      ? service.price
+                                      : `₱${service.price.toLocaleString()}.00`}
+                                  </span>
+                                </motion.div>
+                              );
+                            })}
                         </AnimatePresence>
                       </div>
                     </motion.div>
@@ -782,10 +1051,13 @@ export default function ServiceOrderPage() {
                             exit={{ opacity: 0, scale: 0.9 }}
                           >
                             <p className="mb-2 bg-gray-100 p-2 rounded">
-                              <strong>Promo</strong> is for salon only. You cannot apply Promo & Membership together.
+                              <strong>Promo</strong> is for salon only. You
+                              cannot apply Promo & Membership together.
                             </p>
                             <p className="bg-white p-2 rounded">
-                              <strong>Membership</strong> benefits apply only to salon services priced at ₱500 or below and cannot be combined with any promos.
+                              <strong>Membership</strong> benefits apply only to
+                              salon services priced at ₱500 or below and cannot
+                              be combined with any promos.
                             </p>
                           </motion.div>
                         )}
@@ -794,30 +1066,72 @@ export default function ServiceOrderPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Promo Selector */}
                     <div>
-                      <label className="block text-sm font-medium mb-1">Promo</label>
+                      <label className="block text-sm font-medium mb-1">
+                        Promo
+                      </label>
                       <motion.select
                         className="w-full p-2 border border-gray-300 rounded-lg"
-                        value={promoApplied}
-                        onChange={(e) => setPromoApplied(e.target.value)}
+                        value={promoApplied?.id || ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "") {
+                            setPromoApplied(null); // Clear promo
+                          } else {
+                            const selected = promos.find((p) => p.id == value); // ✅ Fix type mismatch
+                            setPromoApplied(selected || null);
+                          }
+                        }}
                         whileFocus={{ scale: 1.01 }}
                       >
-                        <option value="">Select Promo</option>
-                        <option value="summer2023">Summer 2023 Special</option>
-                        <option value="anniversary">Anniversary Promo</option>
-                        <option value="newcustomer">New Customer Discount</option>
+                        <option value="">Select Promo</option>{" "}
+                        {/* Default option to clear */}
+                        {promos
+                          .filter((promo) => promo.status === "active")
+                          .map((promo) => (
+                            <option key={promo.id} value={promo.id}>
+                              {promo.name}
+                            </option>
+                          ))}
                       </motion.select>
                     </div>
 
+                    {/* Discount Selector */}
                     <div>
-                      <label className="block text-sm font-medium mb-1">Discount</label>
-                      <motion.input
-                        type="number"
+                      <label className="block text-sm font-medium mb-1">
+                        Discount
+                      </label>
+                      <motion.select
                         className="w-full p-2 border border-gray-300 rounded-lg"
-                        value={discount}
-                        onChange={(e) => setDiscount(Number(e.target.value))}
+                        value={discount?.id || ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "") {
+                            setDiscount(null); // Clear discount
+                          } else {
+                            const selected = discounts.find(
+                              (d) => String(d.id) === value
+                            );
+                            setDiscount(selected || null);
+                          }
+                        }}
                         whileFocus={{ scale: 1.01 }}
-                      />
+                      >
+                        <option value="">Select Discount</option>{" "}
+                        {/* Default option to clear */}
+                        {discounts
+                          .filter((d) => d.status === "active")
+                          .map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name} (
+                              {d.discount_type === "percentage"
+                                ? `${d.value}%`
+                                : `₱${d.value}`}
+                              )
+                            </option>
+                          ))}
+                      </motion.select>
                     </div>
                   </div>
                 </motion.div>
@@ -838,7 +1152,12 @@ export default function ServiceOrderPage() {
                       transition={{ delay: 0.1 }}
                     >
                       <span>Subtotal</span>
-                      <span className="font-medium">₱{subtotal.toLocaleString()}</span>
+                      <span className="font-medium">
+                        ₱
+                        {calculatedSubtotal.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
                     </motion.div>
 
                     <motion.div
@@ -848,7 +1167,12 @@ export default function ServiceOrderPage() {
                       transition={{ delay: 0.2 }}
                     >
                       <span>Promo Reduction</span>
-                      <span>₱0</span>
+                      <span>
+                        ₱
+                        {promoReduction.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
                     </motion.div>
 
                     <motion.div
@@ -858,7 +1182,12 @@ export default function ServiceOrderPage() {
                       transition={{ delay: 0.3 }}
                     >
                       <span>Discount Reduction</span>
-                      <span>₱{discount.toLocaleString()}</span>
+                      <span>
+                        ₱
+                        {discountReduction.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                        })}
+                      </span>
                     </motion.div>
 
                     {isMember && (
@@ -869,7 +1198,13 @@ export default function ServiceOrderPage() {
                         transition={{ delay: 0.4 }}
                       >
                         <span>Membership Reduction</span>
-                        <span>P{membershipReduction.toLocaleString()}</span>
+                        <span>
+                          ₱
+                          {membershipReduction.toLocaleString("en-PH", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
                       </motion.div>
                     )}
 
@@ -883,7 +1218,11 @@ export default function ServiceOrderPage() {
                         <div className="flex justify-between font-bold">
                           <span>Remaining Membership</span>
                           <span className="text-blue-600">
-                            ₱{(membershipBalance - membershipReduction).toLocaleString()}
+                            ₱
+                            {Math.max(
+                              0,
+                              membershipBalance - membershipReduction
+                            ).toLocaleString()}
                           </span>
                         </div>
                       )}
@@ -927,18 +1266,37 @@ export default function ServiceOrderPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <h2 className="text-xl font-bold mb-6">Confirm Order Details</h2>
+                <h2 className="text-xl font-bold mb-6">
+                  Confirm Order Details
+                </h2>
 
                 <div className="space-y-6 mb-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="bg-white p-4 rounded-lg">
-                      <h3 className="font-semibold mb-3">Customer Information</h3>
+                      <h3 className="font-semibold mb-3">
+                        Customer Information
+                      </h3>
                       <div className="space-y-2">
-                        <p><span className="text-gray-600">Name:</span> {customerName}</p>
+                        <p>
+                          <span className="text-gray-600">Name:</span>{" "}
+                          {customerName}
+                        </p>
                         {isMember && (
                           <>
-                            <p><span className="text-gray-600">Membership:</span> {membershipType}</p>
-                            <p><span className="text-gray-600">Remaining Balance:</span> ₱{(membershipBalance - membershipReduction).toLocaleString()}</p>
+                            <p>
+                              <span className="text-gray-600">Membership:</span>{" "}
+                              {membershipType.toUpperCase()}
+                            </p>
+                            <p>
+                              <span className="text-gray-600">
+                                Remaining Balance:
+                              </span>
+                              ₱
+                              {Math.max(
+                                0,
+                                membershipBalance - membershipReduction
+                              ).toLocaleString()}
+                            </p>
                           </>
                         )}
                       </div>
@@ -947,8 +1305,14 @@ export default function ServiceOrderPage() {
                     <div className="bg-white p-4 rounded-lg">
                       <h3 className="font-semibold mb-3">Order Summary</h3>
                       <div className="space-y-2">
-                        <p><span className="text-gray-600">Promo:</span> {promoApplied || '-'}</p>
-                        <p><span className="text-gray-600">Discount:</span> ₱{discount.toLocaleString()}</p>
+                        <p>
+                          <span className="text-gray-600">Promo:</span>{" "}
+                          {promoApplied || "-"}
+                        </p>
+                        <p>
+                          <span className="text-gray-600">Discount:</span> ₱
+                          {discount.toLocaleString()}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -956,18 +1320,20 @@ export default function ServiceOrderPage() {
                   <div className="bg-white p-4 rounded-lg">
                     <h3 className="font-semibold mb-3">Services</h3>
                     <ul className="space-y-2">
-                      {selectedServices.map((service, index) => (
-                        <motion.li
-                          key={index}
-                          className="flex justify-between py-2 border-b last:border-b-0"
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                        >
-                          <span>{service.name}</span>
-                          <span>₱{service.price.toLocaleString()}.00</span>
-                        </motion.li>
-                      ))}
+                      {[...selectedServices]
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((service, index) => (
+                          <motion.li
+                            key={index}
+                            className="flex justify-between py-2 border-b last:border-b-0"
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                          >
+                            <span>{service.name}</span>
+                            <span>₱{service.price.toLocaleString()}.00</span>
+                          </motion.li>
+                        ))}
                     </ul>
                   </div>
 
@@ -975,14 +1341,16 @@ export default function ServiceOrderPage() {
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span>Subtotal</span>
-                        <span className="font-medium">₱{subtotal.toLocaleString()}</span>
+                        <span className="font-medium">
+                          ₱{subtotal.toLocaleString()}
+                        </span>
                       </div>
                       <div className="flex justify-between text-blue-600">
-                        <span>Promo Discount</span>
+                        <span>Promo</span>
                         <span>₱0</span>
                       </div>
                       <div className="flex justify-between text-blue-600">
-                        <span>Manual Discount</span>
+                        <span>Discount</span>
                         <span>₱{discount.toLocaleString()}</span>
                       </div>
                       {isMember && (
@@ -994,7 +1362,15 @@ export default function ServiceOrderPage() {
                       <div className="border-t pt-3 mt-3">
                         <div className="flex justify-between font-bold text-lg">
                           <span>GRAND TOTAL</span>
-                          <span>₱{(subtotal - membershipReduction - discount).toLocaleString()}.00</span>
+                          <span>
+                            ₱
+                            {(
+                              subtotal -
+                              membershipReduction -
+                              discount
+                            ).toLocaleString()}
+                            .00
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1012,14 +1388,129 @@ export default function ServiceOrderPage() {
                   </motion.button>
                   <div className="flex space-x-4">
                     <motion.button
-                      onClick={handleSave}
+                      onClick={confirmSave}
                       className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
-                      Confirm Order
+                      Confirm Acquire
                     </motion.button>
                   </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* New Step 4: Invoice Display */}
+            {currentStep === 4 && savedOrderData && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className="bg-white rounded-lg shadow-md p-6"
+              >
+                <div className="text-center mb-6">
+                  <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                  <h2 className="text-2xl font-bold text-green-600 mb-2">
+                    Order Confirmed!
+                  </h2>
+                  <p className="text-gray-600">Thank you for your purchase</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Invoice #: {savedOrderData.order_number}
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <h3 className="font-bold text-lg">Invoice</h3>
+                      <p className="text-gray-600">
+                        {new Date(savedOrderData.date).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">
+                        {savedOrderData.customer_name}
+                      </p>
+                      {savedOrderData.is_member && (
+                        <p className="text-sm text-gray-600">
+                          {savedOrderData.membership_type.toUpperCase()} Member
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-b border-gray-200 py-4 mb-4">
+                    <h4 className="font-semibold mb-3">Services Acquired</h4>
+                    <ul className="space-y-3">
+                      {savedOrderData.services.map((service, index) => (
+                        <li key={index} className="flex justify-between">
+                          <span>{service.name}</span>
+                          <span>₱{service.price.toLocaleString()}.00</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>
+                        ₱{savedOrderData.subtotal.toLocaleString()}.00
+                      </span>
+                    </div>
+                    {savedOrderData.discount > 0 && (
+                      <div className="flex justify-between text-blue-600">
+                        <span>Discount</span>
+                        <span>
+                          -₱{savedOrderData.discount.toLocaleString()}.00
+                        </span>
+                      </div>
+                    )}
+                    {savedOrderData.is_member &&
+                      savedOrderData.membershipReduction > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Membership Deduction</span>
+                          <span>
+                            -₱
+                            {savedOrderData.membershipReduction.toLocaleString()}
+                            .00
+                          </span>
+                        </div>
+                      )}
+                    <div className="border-t pt-3 mt-3">
+                      <div className="flex justify-between font-bold text-lg">
+                        <span>TOTAL PAID</span>
+                        <span>
+                          ₱{savedOrderData.grand_total.toLocaleString()}.00
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <button
+                    onClick={() => window.print()}
+                    className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 flex items-center gap-2"
+                  >
+                    <Printer size={18} />
+                    Print Invoice
+                  </button>
+                  <button
+                    onClick={handleNewTransaction}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                  >
+                    New Transaction
+                  </button>
                 </div>
               </motion.div>
             )}
@@ -1070,14 +1561,20 @@ export default function ServiceOrderPage() {
                             <motion.div
                               className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-green-500"
                               animate={{ rotate: 360 }}
-                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              transition={{
+                                duration: 1,
+                                repeat: Infinity,
+                                ease: "linear",
+                              }}
                             />
                           </motion.div>
                         ) : customers.length > 0 ? (
                           <AnimatePresence>
                             {customers
-                              .filter(customer =>
-                                customer.name.toLowerCase().includes(searchTerm.toLowerCase())
+                              .filter((customer) =>
+                                customer.name
+                                  .toLowerCase()
+                                  .includes(searchTerm.toLowerCase())
                               )
                               .map((customer, index) => (
                                 <motion.div
@@ -1090,28 +1587,36 @@ export default function ServiceOrderPage() {
                                 >
                                   <div
                                     className="cursor-pointer flex-grow"
-                                    onClick={() => handleCustomerSelect(customer)}
+                                    onClick={() =>
+                                      handleCustomerSelect(customer)
+                                    }
                                   >
-                                    <div className="font-medium">{customer.name}</div>
+                                    <div className="font-medium">
+                                      {customer.name}
+                                    </div>
                                     <div className="text-sm text-gray-600">
-                                      {customer.isMember
-                                        ? `${customer.membershipType} Membership (₱${customer.balance.toLocaleString()} remaining)`
-                                        : "Regular Customer (Non-member)"}
+                                      {customer.isMember ? (
+                                        <span>
+                                          <span className="font-medium uppercase">
+                                            {customer.membershipType}
+                                          </span>{" "}
+                                          Membership
+                                          <span className="ml-1 text-blue-600">
+                                            (₱
+                                            {parseFloat(
+                                              customer.balance
+                                            ).toLocaleString("en-PH", {
+                                              minimumFractionDigits: 2,
+                                              maximumFractionDigits: 2,
+                                            })}{" "}
+                                            remaining)
+                                          </span>
+                                        </span>
+                                      ) : (
+                                        "Regular Customer (Non-member)"
+                                      )}
                                     </div>
                                   </div>
-                                  {!customer.isMember && (
-                                    <motion.button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAddMembership(customer.id);
-                                      }}
-                                      className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
-                                      whileHover={{ scale: 1.1 }}
-                                      whileTap={{ scale: 0.9 }}
-                                    >
-                                      Add Membership
-                                    </motion.button>
-                                  )}
                                 </motion.div>
                               ))}
                           </AnimatePresence>
@@ -1123,8 +1628,7 @@ export default function ServiceOrderPage() {
                           >
                             No customers found.
                           </motion.div>
-                        )
-                        }
+                        )}
                       </div>
                     </div>
                     <div className="flex justify-end pt-4 border-t">
@@ -1169,13 +1673,18 @@ export default function ServiceOrderPage() {
                         &times;
                       </motion.button>
                     </div>
-                    <form className="space-y-4" onSubmit={handleSaveNewCustomer}>
+                    <form
+                      className="space-y-4"
+                      onSubmit={handleSaveNewCustomer}
+                    >
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
                       >
-                        <label className="block font-medium mb-1">Full Name*</label>
+                        <label className="block font-medium mb-1">
+                          Full Name*
+                        </label>
                         <div className="flex flex-col md:flex-row gap-2">
                           <motion.input
                             type="text"
@@ -1207,7 +1716,9 @@ export default function ServiceOrderPage() {
                         transition={{ delay: 0.2 }}
                       >
                         <div>
-                          <label className="block font-medium mb-1">Phone Number*</label>
+                          <label className="block font-medium mb-1">
+                            Phone Number*
+                          </label>
                           <motion.input
                             type="tel"
                             name="phone"
@@ -1219,7 +1730,9 @@ export default function ServiceOrderPage() {
                           />
                         </div>
                         <div>
-                          <label className="block font-medium mb-1">Email</label>
+                          <label className="block font-medium mb-1">
+                            Email
+                          </label>
                           <motion.input
                             type="email"
                             name="email"
@@ -1236,7 +1749,9 @@ export default function ServiceOrderPage() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 }}
                       >
-                        <label className="block font-medium mb-1">Address</label>
+                        <label className="block font-medium mb-1">
+                          Address
+                        </label>
                         <motion.textarea
                           name="address"
                           value={newCustomer.address}
@@ -1252,7 +1767,9 @@ export default function ServiceOrderPage() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4 }}
                       >
-                        <label className="block font-medium mb-1">Date of Birth</label>
+                        <label className="block font-medium mb-1">
+                          Date of Birth
+                        </label>
                         <motion.input
                           type="date"
                           name="birthday"
@@ -1274,7 +1791,9 @@ export default function ServiceOrderPage() {
                             type="checkbox"
                             className="mr-2"
                             checked={showMembershipSignup}
-                            onChange={() => setShowMembershipSignup(!showMembershipSignup)}
+                            onChange={() =>
+                              setShowMembershipSignup(!showMembershipSignup)
+                            }
                           />
                           <span>Sign up for membership</span>
                         </label>
@@ -1288,9 +1807,13 @@ export default function ServiceOrderPage() {
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.3 }}
                         >
-                          <h4 className="font-medium text-green-700">Membership Sign Up</h4>
+                          <h4 className="font-medium text-green-700">
+                            Membership Sign Up
+                          </h4>
                           <div>
-                            <label className="block text-sm font-medium mb-1">Membership Type*</label>
+                            <label className="block text-sm font-medium mb-1">
+                              Membership Type*
+                            </label>
                             <motion.select
                               name="membershipType"
                               value={newCustomer.membershipType}
@@ -1299,9 +1822,15 @@ export default function ServiceOrderPage() {
                               required
                               whileFocus={{ scale: 1.01 }}
                             >
-                              <option value="Standard">Standard (P10,000 benefits)</option>
-                              <option value="Premium">Premium (P20,000 benefits)</option>
-                              <option value="Basic">Basic (P5,000 benefits)</option>
+                              <option value="Standard">
+                                Standard (P10,000 benefits)
+                              </option>
+                              <option value="Premium">
+                                Premium (P20,000 benefits)
+                              </option>
+                              <option value="Basic">
+                                Basic (P5,000 benefits)
+                              </option>
                             </motion.select>
                           </div>
                         </motion.div>
@@ -1328,7 +1857,7 @@ export default function ServiceOrderPage() {
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >
-                          {showMembershipSignup ? "Save as Member" : "Save as Walk-in"}
+                          {showMembershipSignup ? "Save as Member" : "Save"}
                         </motion.button>
                       </motion.div>
                     </form>

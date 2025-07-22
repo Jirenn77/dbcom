@@ -1,10 +1,13 @@
 "use client";
 
+import React from "react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu } from "@headlessui/react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import {
   BarChart, Home, Users, FileText, CreditCard, Package, Layers, ShoppingCart,
   Settings, LogOut, Plus, User, UserPlus, Tag, Factory, ClipboardList, Folder, ShoppingBag, BarChart3
@@ -21,6 +24,7 @@ export default function InvoicesPage() {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
 
   useEffect(() => {
     const fetchInvoices = async () => {
@@ -82,9 +86,6 @@ export default function InvoicesPage() {
     }
   }, [searchQuery, invoices]);
 
-  const handleSearch = () => {
-    toast(`Found ${filteredInvoices.length} invoices matching "${searchQuery}"`);
-  };
 
   const handlePaymentStatusUpdate = async (invoiceId, newStatus) => {
     try {
@@ -133,27 +134,48 @@ export default function InvoicesPage() {
     window.location.href = "/";
   };
 
+  const filterInvoicesByCustomDate = (date) => {
+    setSelectedDate(date);
+
+    if (!date) {
+      setFilteredInvoices(invoices); // Reset
+      return;
+    }
+
+    const filtered = invoices.filter((invoice) => {
+      const invoiceDate = new Date(invoice.dateIssued);
+      return (
+        invoiceDate.toDateString() === new Date(date).toDateString()
+      );
+    });
+
+    setFilteredInvoices(filtered);
+    toast.success(`Showing invoices on ${date.toDateString()}`);
+  };
+
   const filterInvoicesByPeriod = (period) => {
-    const today = new Date();
+    const now = new Date();
     let filtered = [...invoices]; // Start with a copy of all invoices
 
     if (period === 'week') {
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday of this week
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday of this week
       filtered = invoices.filter(invoice => {
         const invoiceDate = new Date(invoice.dateIssued);
         return invoiceDate >= startOfWeek;
       });
     }
+
+
     else if (period === 'month') {
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       filtered = invoices.filter(invoice => {
         const invoiceDate = new Date(invoice.dateIssued);
         return invoiceDate >= startOfMonth;
       });
     }
     else if (period === 'year') {
-      const startOfYear = new Date(today.getFullYear(), 0, 1);
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
       filtered = invoices.filter(invoice => {
         const invoiceDate = new Date(invoice.dateIssued);
         return invoiceDate >= startOfYear;
@@ -163,6 +185,58 @@ export default function InvoicesPage() {
     setFilteredInvoices(filtered);
     toast.success(`Showing invoices from this ${period}`);
   };
+
+  // Group invoices by customer name (or customerId if that's better)
+  const groupedInvoices = filteredInvoices.reduce((acc, invoice) => {
+    if (!acc[invoice.name]) {
+      acc[invoice.name] = invoice;
+    } else {
+      // Optionally: update if newer invoice
+      if (new Date(invoice.dateIssued) > new Date(acc[invoice.name].dateIssued)) {
+        acc[invoice.name] = invoice;
+      }
+    }
+    return acc;
+  }, {});
+
+  const selectedCustomerName = selectedInvoice?.name;
+
+  const recentServicesForCustomer = filteredInvoices
+    .filter(inv => inv.name === selectedCustomerName)
+    .flatMap(inv => inv.services.map(service => ({
+      ...service,
+      invoiceDate: inv.dateIssued,
+      invoiceId: inv.invoiceNumber,
+      employee: service.employee || 'Staff' // fallback
+    })))
+    .sort((a, b) => new Date(b.invoiceDate) - new Date(a.invoiceDate));
+
+  const subtotal = recentServicesForCustomer.reduce((sum, service) => {
+    const price = typeof service.price === "string"
+      ? parseFloat(service.price.replace(/[₱,]/g, ''))
+      : service.price;
+    return sum + (price || 0);
+  }, 0);
+
+  const uniqueInvoices = Object.values(groupedInvoices);
+
+  // Group and sum all invoices by customer name
+  const invoiceTotalsByCustomer = filteredInvoices.reduce((acc, invoice) => {
+    const key = invoice.name;
+    const amount = typeof invoice.totalAmount === "string"
+      ? parseFloat(invoice.totalAmount.replace(/[₱,]/g, ''))
+      : invoice.totalAmount;
+
+    if (!acc[key]) acc[key] = 0;
+    acc[key] += amount || 0;
+    return acc;
+  }, {});
+
+  function formatCurrency(value) {
+    const num = typeof value === 'string' ? parseFloat(value.replace(/[₱,]/g, '')) : value;
+    if (isNaN(num)) return '₱0.00';
+    return `₱${num.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
+  }
 
   return (
     <div className="flex flex-col h-screen bg-[#77DD77] text-gray-900">
@@ -175,22 +249,13 @@ export default function InvoicesPage() {
         </div>
 
         <div className="flex items-center space-x-4 flex-grow justify-center">
-          <button className="text-2xl" onClick={() => setIsModalOpen(true)}>
-            ➕
-          </button>
           <input
             type="text"
-            placeholder="Search for..."
+            placeholder="Search customer name or invoice number..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-4 py-2 rounded-lg bg-white text-gray-900 w-64 focus:outline-none"
+            className="px-4 py-2 rounded-lg bg-white text-gray-900 w-96 focus:outline-none"
           />
-          <button
-            onClick={handleSearch}
-            className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-md"
-          >
-            Search
-          </button>
         </div>
 
         <div className="flex items-center space-x-4 relative">
@@ -198,7 +263,7 @@ export default function InvoicesPage() {
             className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg font-bold cursor-pointer"
             onClick={() => setIsProfileOpen(!isProfileOpen)}
           >
-            A
+            R
           </div>
           {isProfileOpen && (
             <div className="bg-green-500 absolute top-12 right-0 text-white shadow-lg rounded-lg w-48 p-2 flex flex-col animate-fade-in text-start">
@@ -247,7 +312,6 @@ export default function InvoicesPage() {
               {[
                 { href: "/servicess2", label: "All Services", icon: <Layers size={20} /> },
                 { href: "/membership2", label: "Memberships", icon: <UserPlus size={20} /> },
-                { href: "/membership-report2", label: "Membership Report", icon: <BarChart3 size={20} /> },
                 { href: "/items2", label: "Beauty Deals", icon: <Tag size={20} /> },
                 { href: "/serviceorder2", label: "Service Acquire", icon: <ClipboardList size={20} /> },
               ].map((link) => (
@@ -319,11 +383,17 @@ export default function InvoicesPage() {
               >
                 <span>This Year</span>
               </motion.button>
+              <DatePicker
+                selected={selectedDate}
+                onChange={(date) => filterInvoicesByCustomDate(date)}
+                placeholderText="Pick a date"
+                className="border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                dateFormat="MMM d, yyyy"
+              />
             </div>
           </motion.div>
 
-          {/* Search Bar */}
-          <div className="mb-4">
+          {/* <div className={`mb-4 ${selectedInvoice ? "max-w-[calc(100%-350px)]" : "max-w-full"} transition-all duration-300`}>
             <div className="relative">
               <input
                 type="text"
@@ -337,14 +407,8 @@ export default function InvoicesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
-              <button
-                onClick={handleSearch}
-                className="absolute right-2 top-1.5 bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600 transition-colors"
-              >
-                Search
-              </button>
             </div>
-          </div>
+          </div> */}
 
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
@@ -362,6 +426,7 @@ export default function InvoicesPage() {
                 Retry
               </button>
             </div>
+
           ) : (
             <div className="flex">
               {/* Invoice List */}
@@ -385,7 +450,7 @@ export default function InvoicesPage() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {filteredInvoices.length > 0 ? (
-                        filteredInvoices.map((invoice, index) => (
+                        uniqueInvoices.map((invoice, index) => (
                           <motion.tr
                             key={invoice.id}
                             className={`group hover:bg-gray-50 cursor-pointer transition-colors duration-200 ${selectedInvoice?.id === invoice.id ? "bg-[#E3F9E5]" : ""}`}
@@ -408,7 +473,7 @@ export default function InvoicesPage() {
                               {invoice.dateIssued}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                              {invoice.totalAmount}
+                              {formatCurrency(invoiceTotalsByCustomer[invoice.name])}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <motion.span
@@ -464,7 +529,7 @@ export default function InvoicesPage() {
               {/* Invoice Detail Panel */}
               {selectedInvoice && (
                 <div className="hidden lg:block w-2/5 pl-4">
-                  <div className="w-[350px] bg-white rounded-lg shadow-md border border-gray-400 p-4 fixed right-4 top-20 bottom-4 flex flex-col">
+                  <div className="w-[350px] bg-white rounded-lg shadow-md border border-gray-400 p-4 fixed right-4 top-20 h-[calc(100vh-6rem)] flex flex-col">
                     <div className="flex justify-between items-center mb-4 sticky top-0 bg-white z-10 pb-2 border-b border-gray-200">
                       <motion.h2
                         className="text-xl font-bold"
@@ -509,50 +574,44 @@ export default function InvoicesPage() {
                         </div>
                       </div>
 
-                      <div className="p-2 hover:bg-gray-50 rounded-lg transition-colors duration-200">
-                        <h3 className="text-md font-semibold mb-2">Services</h3>
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200 text-sm">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors">Service</th>
-                                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-blue-600 transition-colors">Price</th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {selectedInvoice.services.map((service, index) => (
-                                <motion.tr
-                                  key={index}
-                                  className="hover:bg-gray-100 transition-colors duration-150"
-                                  whileHover={{ backgroundColor: "rgba(243, 244, 246, 0.7)" }}
-                                >
-                                  <td className="px-2 py-2 whitespace-nowrap text-gray-900 hover:text-blue-600 transition-colors">
-                                    {service.name}
-                                  </td>
-                                  <td className="px-2 py-2 whitespace-nowrap text-gray-500">
-                                    {service.price}
-                                  </td>
-                                </motion.tr>
-                              ))}
-                            </tbody>
-                          </table>
+                      {/* Recent Services from all invoices of selected customer */}
+                      {selectedInvoice && (
+                        <div className="p-4">
+                          <h3 className="text-sm font-semibold text-gray-500 mb-2">
+                            Recent Services for {selectedInvoice.name}
+                          </h3>
+                          <div className="space-y-2">
+                            {recentServicesForCustomer.map((service, index) => (
+                              <motion.div
+                                key={index}
+                                className="border-b pb-2 last:border-0"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05 }}
+                              >
+                                <div className="flex justify-between">
+                                  <span className="font-medium text-sm text-gray-900">{service.name}</span>
+                                  <span className="text-sm text-gray-700">{service.price}</span>
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {service.invoiceDate} • {service.employee}
+                                </div>
+                              </motion.div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       <div className="p-2 hover:bg-gray-50 rounded-lg transition-colors duration-200">
                         <div className="flex justify-end items-center space-x-4">
                           <div className="w-full sm:w-64 space-y-2 text-sm">
                             <div className="flex justify-between py-1 border-b">
                               <span className="font-medium">Subtotal:</span>
-                              <span>{selectedInvoice.totalAmount}</span>
-                            </div>
-                            <div className="flex justify-between py-1 border-b">
-                              <span className="font-medium">Tax:</span>
-                              <span>₱0.00</span>
+                              <span>₱{subtotal.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between py-1 font-bold">
                               <span>Total:</span>
-                              <span>{selectedInvoice.totalAmount}</span>
+                              <span>₱{subtotal.toFixed(2)}</span>
                             </div>
                           </div>
                         </div>
@@ -565,9 +624,14 @@ export default function InvoicesPage() {
                         >
                           Print
                         </button>
-                        <button className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm transition-colors">
-                          Send
-                        </button>
+                        {selectedInvoice.paymentStatus === "Pending" && (
+                          <button
+                            onClick={() => handlePaymentStatusUpdate(selectedInvoice.id, "Paid")}
+                            className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm transition-colors"
+                          >
+                            Mark as Paid
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

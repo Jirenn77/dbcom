@@ -573,7 +573,7 @@ export default function CustomersPage() {
             {/* Customer Detail Panel */}
             {selectedCustomer && (
               <div className="hidden lg:block w-[350px]">
-                <div className="w-[350px] bg-white rounded-lg shadow-md border border-gray-400 p-4 fixed right-4 top-20 bottom-4 overflow-y-auto">
+                <div className="w-[350px] bg-white rounded-lg shadow-md border border-gray-400 p-4 fixed right-4 top-20 bottom-32 overflow-y-auto">
                   {/* Only add this spinner div - keep everything else exactly the same */}
                   {isLoadingDetails && (
                     <div className="flex justify-center mb-2">

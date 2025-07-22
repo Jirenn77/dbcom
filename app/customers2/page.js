@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu } from "@headlessui/react";
 import {
   BarChart, BarChart3, Home, Users, FileText, CreditCard, Package, Layers, ShoppingCart,
-  Settings, LogOut, Plus, User, UserPlus, Tag, Factory, ClipboardList, Folder, ShoppingBag, Calendar, Edit, Eye, RefreshCw
+  Settings, LogOut, Plus, User, UserPlus, Tag, Factory, ClipboardList, Folder, ShoppingBag, Calendar, Edit, Eye, RefreshCw,
+  RefreshCcwDot
 } from "lucide-react";
 
 
@@ -15,7 +16,8 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [editMode, setEditMode] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editCustomer, setEditCustomer] = useState(null);
   const [formData, setFormData] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -64,6 +66,8 @@ export default function CustomersPage() {
       setIsLoading(false);
     }
   };
+
+
 
   const fetchCustomerDetails = async (customerId) => {
     setIsLoadingDetails(true);
@@ -129,15 +133,56 @@ export default function CustomersPage() {
     setIsMembershipModalOpen(true);
   };
 
-  const handleSearch = () => {
-    toast(`Searching for: ${searchQuery}`);
-    console.log("Search query:", searchQuery);
+  useEffect(() => {
+    const delaySearch = setTimeout(() => {
+      if (searchQuery.trim() === "") {
+        fetchCustomers(activeTab);
+      } else {
+        const filtered = customers.filter(customer =>
+          customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          customer.contact.includes(searchQuery) ||
+          customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          customer.customerId.includes(searchQuery)
+        );
+        setCustomers(filtered);
+      }
+    }, 300); // 300ms debounce delay
+
+    return () => clearTimeout(delaySearch);
+  }, [searchQuery, activeTab]);
+
+  const handleEditClick = (customer) => {
+    setEditCustomer({ ...customer }); // Clone the customer
+    setIsEditModalOpen(true);
   };
 
-  const handleEdit = () => {
-    setEditMode(true);
-    setFormData(selectedCustomer);
+  const handleSaveEdit = async (updatedCustomer) => {
+    try {
+      const res = await fetch(`http://localhost/API/customers.php?action=update&id=${updatedCustomer.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedCustomer),
+      });
+
+      const result = await res.json();
+
+      if (result.success) {
+        // Update local state
+        const updatedList = customers.map((cust) =>
+          cust.id === updatedCustomer.id ? updatedCustomer : cust
+        );
+        setCustomers(updatedList);
+        toast.success("Customer updated successfully.");
+        setIsEditModalOpen(false);
+      } else {
+        toast.error(result.message || "Failed to update.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("An error occurred.");
+    }
   };
+
 
   const handleSave = () => {
     const updatedCustomers = customers.map(customer =>
@@ -228,22 +273,13 @@ export default function CustomersPage() {
         </div>
 
         <div className="flex items-center space-x-4 flex-grow justify-center">
-          <button className="text-2xl" onClick={() => setIsModalOpen(true)}>
-            ➕
-          </button>
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search customers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="px-4 py-2 rounded-lg bg-white text-gray-900 w-64 focus:outline-none"
           />
-          <button
-            onClick={handleSearch}
-            className="bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors text-md"
-          >
-            Search
-          </button>
         </div>
 
         <div className="flex items-center space-x-4 relative">
@@ -284,7 +320,7 @@ export default function CustomersPage() {
 
           {/* Home Menu Button */}
           <Menu as="div" className="relative w-full px-4 mt-4">
-            <Link href="/home2" passHref>
+            <Link href="/home" passHref>
               <Menu.Button as="div" className="w-full p-3 bg-[#467750] rounded-lg hover:bg-[#2A3F3F] text-white text-left font-normal md:font-bold flex items-center cursor-pointer">
                 <Home className="text-2xl"></Home>
                 <span className="ml-2">Dashboard</span>
@@ -300,7 +336,6 @@ export default function CustomersPage() {
               {[
                 { href: "/servicess2", label: "All Services", icon: <Layers size={20} /> },
                 { href: "/membership2", label: "Memberships", icon: <UserPlus size={20} /> },
-                { href: "/membership-report2", label: "Membership Report", icon: <BarChart3 size={20} /> },
                 { href: "/items2", label: "Beauty Deals", icon: <Tag size={20} /> },
                 { href: "/serviceorder2", label: "Service Acquire", icon: <ClipboardList size={20} /> },
               ].map((link) => (
@@ -374,7 +409,7 @@ export default function CustomersPage() {
                 whileTap={{ scale: 0.95 }}
               >
                 <Plus size={18} />
-                <span>Add Customer</span>
+                <span>New Customer</span>
               </motion.button>
             </div>
           </motion.div>
@@ -417,12 +452,6 @@ export default function CustomersPage() {
                           {/* Customer Column */}
                           <td className="px-4 py-3">
                             <div className="flex items-center">
-                              <motion.div
-                                className="flex-shrink-0 h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-800 font-bold"
-                                whileHover={{ scale: 1.1 }}
-                              >
-                                {customer.name.charAt(0)}
-                              </motion.div>
                               <div className="ml-3">
                                 <div className="text-sm font-medium text-gray-900 flex items-center">
                                   {customer.name}
@@ -459,17 +488,22 @@ export default function CustomersPage() {
                           <td className="px-4 py-3">
                             <div className="flex flex-col">
                               <motion.span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${customer.membership_status === "VIP"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : customer.membership_status === "Standard"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-gray-100 text-gray-800"
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${customer.membership_status?.toLowerCase() === "vip"
+                                  ? "bg-purple-200 text-purple-800"
+                                  : customer.membership_status?.toLowerCase() === "standard"
+                                    ? "bg-blue-200 text-blue-800"
+                                    : "bg-gray-200 text-gray-800"
                                   }`}
                                 whileHover={{ scale: 1.1 }}
                               >
-                                {customer.membership_status || "Non-Member"}
+                                {customer.membership_status?.toLowerCase() === "vip"
+                                  ? "VIP"
+                                  : customer.membership_status?.toLowerCase() === "standard"
+                                    ? "Standard"
+                                    : "Non-Member"}
                               </motion.span>
-                              {customer.membership_status !== "None" && customer.membershipDetails && (
+
+                              {customer.membership_status?.toLowerCase() !== "none" && customer.membershipDetails && (
                                 <div className="mt-1 text-xs text-gray-500">
                                   <div>Expires: {customer.membershipDetails.expireDate}</div>
                                   <div>Balance: {customer.membershipDetails.remainingBalance}</div>
@@ -481,42 +515,6 @@ export default function CustomersPage() {
                           {/* Actions Column */}
                           <td className="px-4 py-3 text-sm text-gray-500">
                             <div className="flex space-x-2">
-                              {/* {customer.membership_status === "None" ? (
-                                <motion.button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAddMembershipClick(customer);
-                                  }}
-                                  className="text-green-600 hover:text-green-800"
-                                  whileHover={{ scale: 1.2 }}
-                                  whileTap={{ scale: 0.9 }}
-                                >
-                                  <UserPlus size={16} />
-                                </motion.button>
-                              ) : (
-                                <motion.button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsRenewModalOpen(true);
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800"
-                                  whileHover={{ scale: 1.2 }}
-                                  whileTap={{ scale: 0.9 }}
-                                >
-                                  <RefreshCw size={16} />
-                                </motion.button>
-                              )} */}
-                              {/* <motion.button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Edit functionality
-                                }}
-                                className="text-gray-600 hover:text-gray-800"
-                                whileHover={{ scale: 1.2 }}
-                                whileTap={{ scale: 0.9 }}
-                              >
-                                <Edit size={16} />
-                              </motion.button> */}
                               <motion.button
                                 onClick={() => setSelectedCustomer(customer)}
                                 className="text-gray-600 hover:text-gray-800"
@@ -587,22 +585,29 @@ export default function CustomersPage() {
                     <div>
                       <h3 className="text-sm font-semibold text-gray-500 mb-2">Membership Status</h3>
                       <motion.div
-                        className={`p-3 rounded-lg ${selectedCustomer.membership === "VIP" ? "bg-purple-50" :
-                          selectedCustomer.membership === "Standard" ? "bg-blue-50" :
-                            "bg-gray-50"
+                        className={`p-3 rounded-lg ${selectedCustomer.membership?.toLowerCase() === "vip"
+                          ? "bg-purple-300 text-purple-800"
+                          : selectedCustomer.membership?.toLowerCase() === "standard"
+                            ? "bg-blue-300"
+                            : "bg-gray-300"
                           }`}
                         whileHover={{ scale: 1.01 }}
                       >
                         <div className="flex justify-between items-center">
                           <span className="font-medium">
-                            {selectedCustomer.membership || "Non-Member"}
+                            {selectedCustomer.membership?.toLowerCase() === "vip"
+                              ? "VIP"
+                              : selectedCustomer.membership?.toLowerCase() === "standard"
+                                ? "Standard"
+                                : "Non-Member"}
                           </span>
-                          {selectedCustomer.membership !== "None" && (
-                            <span className="text-xs text-gray-500">
-                              Expires: {selectedCustomer.membershipDetails?.expireDate}
+                          {selectedCustomer.membership !== "None" && selectedCustomer.membershipDetails?.expireDate && (
+                            <span className="text-xs text-gray-600">
+                              Expires: {selectedCustomer.membershipDetails.expireDate}
                             </span>
                           )}
                         </div>
+
                         {selectedCustomer.membership !== "None" && (
                           <div className="mt-2 text-sm">
                             <p>Coverage: {selectedCustomer.membershipDetails?.coverage}</p>
@@ -610,51 +615,6 @@ export default function CustomersPage() {
                           </div>
                         )}
                       </motion.div>
-                      {/* <div className="mt-2">
-                        {selectedCustomer.membership === "None" ? (
-                          <motion.button
-                            onClick={() => handleAddMembershipClick(selectedCustomer)}
-                            className="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded text-sm"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            Add Membership
-                          </motion.button>
-                        ) : (
-                          <motion.button
-                            onClick={() => setIsRenewModalOpen(true)}
-                            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded text-sm"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            Renew Membership
-                          </motion.button>
-                        )}
-                      </div> */}
-                    </div>
-
-                    {/* Recent Transactions */}
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-500 mb-2">Recent Services</h3>
-                      <div className="space-y-2">
-                        {selectedCustomer.transactions?.slice(0, 3).map((transaction, index) => (
-                          <motion.div
-                            key={index}
-                            className="border-b pb-2 last:border-0"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                          >
-                            <div className="flex justify-between">
-                              <span className="font-medium">{transaction.service}</span>
-                              <span>{transaction.total}</span>
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {transaction.date} • {transaction.employee}
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
                     </div>
                   </motion.div>
                 </div>
@@ -664,11 +624,21 @@ export default function CustomersPage() {
         </main>
       </div >
 
-      {/* Membership Modal */}
-      {
-        isMembershipModalOpen && selectedForMembership && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg w-[600px]">
+      <AnimatePresence>
+        {isMembershipModalOpen && selectedForMembership && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white p-6 rounded-lg w-[600px]"
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+            >
               <h2 className="text-xl font-bold mb-4">
                 Add Membership to {selectedForMembership.name}
               </h2>
@@ -753,29 +723,40 @@ export default function CustomersPage() {
                   Save
                 </button>
               </div>
-            </div>
-          </div>
-        )
-      }
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Renew Membership Modal */}
-      {
-        isRenewModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg w-96">
+      <AnimatePresence>
+        {isRenewModalOpen && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white p-6 rounded-lg w-96"
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+            >
               <h2 className="text-xl font-bold mb-4">Renew Membership</h2>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Membership Type</label>
                   <select className="w-full p-2 border rounded">
-                    <option>Standard (₱5,000/year)</option>
-                    <option>VIP (₱10,000/year)</option>
+                    <option>Standard (₱5,000)</option>
+                    <option>VIP (₱10,000)</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Payment Method</label>
                   <select className="w-full p-2 border rounded">
-                    <option>Credit Card</option>
+                    <option>E-wallet</option>
                     <option>Bank Transfer</option>
                     <option>Cash</option>
                   </select>
@@ -783,9 +764,8 @@ export default function CustomersPage() {
                 <div>
                   <label className="block text-sm font-medium mb-1">Duration</label>
                   <select className="w-full p-2 border rounded">
-                    <option>1 Year</option>
-                    <option>2 Years</option>
-                    <option>3 Years</option>
+                    <option>1 month</option>
+                    <option>2 months</option>
                   </select>
                 </div>
               </div>
@@ -803,16 +783,28 @@ export default function CustomersPage() {
                   Confirm Renewal
                 </button>
               </div>
-            </div>
-          </div>
-        )
-      }
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Add Customer Modal*/}
-      {
-        isModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg w-[700px] max-h-[80vh] overflow-y-auto">
+
+      {/* Add Customer Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white p-6 rounded-lg w-[700px] max-h-[80vh] overflow-y-auto"
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+            >
               <h2 className="text-xl font-bold mb-4">Add New Customer</h2>
               <div className="grid grid-cols-2 gap-4">
                 {/* Column 1 */}
@@ -822,7 +814,9 @@ export default function CustomersPage() {
                     <input
                       type="text"
                       value={newCustomer.name}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                      onChange={(e) =>
+                        setNewCustomer({ ...newCustomer, name: e.target.value })
+                      }
                       className="w-full p-2 border rounded"
                     />
                   </div>
@@ -831,7 +825,9 @@ export default function CustomersPage() {
                     <input
                       type="text"
                       value={newCustomer.contact}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, contact: e.target.value })}
+                      onChange={(e) =>
+                        setNewCustomer({ ...newCustomer, contact: e.target.value })
+                      }
                       className="w-full p-2 border rounded"
                     />
                   </div>
@@ -840,7 +836,9 @@ export default function CustomersPage() {
                     <input
                       type="text"
                       value={newCustomer.email}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                      onChange={(e) =>
+                        setNewCustomer({ ...newCustomer, email: e.target.value })
+                      }
                       className="w-full p-2 border rounded"
                     />
                   </div>
@@ -852,7 +850,9 @@ export default function CustomersPage() {
                     <label className="block text-sm font-medium mb-1">Address</label>
                     <textarea
                       value={newCustomer.address}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                      onChange={(e) =>
+                        setNewCustomer({ ...newCustomer, address: e.target.value })
+                      }
                       className="w-full p-2 border rounded h-[calc(3.5rem)]"
                     />
                   </div>
@@ -860,7 +860,9 @@ export default function CustomersPage() {
                     <label className="block text-sm font-medium mb-1">Membership</label>
                     <select
                       value={newCustomer.membership}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, membership: e.target.value })}
+                      onChange={(e) =>
+                        setNewCustomer({ ...newCustomer, membership: e.target.value })
+                      }
                       className="w-full p-2 border rounded"
                     >
                       <option value="None">Non-Member</option>
@@ -869,11 +871,15 @@ export default function CustomersPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Customer ID (optional)</label>
+                    <label className="block text-sm font-medium mb-1">
+                      Customer ID (optional)
+                    </label>
                     <input
                       type="text"
                       value={newCustomer.customerId}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, customerId: e.target.value })}
+                      onChange={(e) =>
+                        setNewCustomer({ ...newCustomer, customerId: e.target.value })
+                      }
                       className="w-full p-2 border rounded"
                       placeholder="Will auto-generate if empty"
                     />
@@ -891,13 +897,110 @@ export default function CustomersPage() {
                   onClick={handleAddCustomer}
                   className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
                 >
-                  Add Customer
+                  Save
                 </button>
               </div>
-            </div>
-          </div>
-        )
-      }
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isEditModalOpen && editCustomer && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white p-6 rounded-lg w-[700px] max-h-[85vh] overflow-y-auto"
+              initial={{ scale: 0.95, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 20, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              <h2 className="text-xl font-bold mb-4">Edit Customer Information</h2>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={editCustomer.name}
+                    onChange={(e) =>
+                      setEditCustomer({ ...editCustomer, name: e.target.value })
+                    }
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Contact</label>
+                  <input
+                    type="text"
+                    value={editCustomer.contact}
+                    onChange={(e) =>
+                      setEditCustomer({ ...editCustomer, contact: e.target.value })
+                    }
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={editCustomer.email}
+                    onChange={(e) =>
+                      setEditCustomer({ ...editCustomer, email: e.target.value })
+                    }
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Address</label>
+                  <input
+                    type="text"
+                    value={editCustomer.address}
+                    onChange={(e) =>
+                      setEditCustomer({ ...editCustomer, address: e.target.value })
+                    }
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Birthday</label>
+                  <input
+                    type="date"
+                    value={editCustomer.birthday}
+                    onChange={(e) =>
+                      setEditCustomer({ ...editCustomer, birthday: e.target.value })
+                    }
+                    className="w-full p-2 border rounded"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2 mt-6">
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleSaveEdit(editCustomer)}
+                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div >
   );
 }

@@ -49,6 +49,8 @@ export default function Dashboard() {
                 const response = await fetch(`http://localhost/API/home.php?${params.toString()}`);
                 const data = await response.json();
                 console.log("data ng dasghboard", data)
+                console.log("pie chart ni", data.revenue_distribution);
+
 
                 setDashboardData({
                     topServices: data.top_services || [],
@@ -65,6 +67,8 @@ export default function Dashboard() {
 
         fetchDashboardData();
     }, [period, dateRange]); // Add dateRange to dependencies
+
+    const testData = [...dashboardData.revenueByService];
 
     const handlePeriodChange = (newPeriod) => {
         setPeriod(newPeriod);
@@ -271,6 +275,8 @@ export default function Dashboard() {
                                         start: new Date(e.target.value)
                                     }))}
                                     className="border px-3 py-1 rounded"
+                                    min={`${new Date().getFullYear()}-01-01`} // Jan 1 this year
+                                    max={`${new Date().getFullYear()}-12-31`} // Dec 31 this year
                                 />
                                 <span>to</span>
                                 <input
@@ -281,6 +287,7 @@ export default function Dashboard() {
                                         end: new Date(e.target.value)
                                     }))}
                                     min={dateRange.start.toISOString().slice(0, 10)}
+                                    max={`${new Date().getFullYear()}-12-31`}
                                     className="border px-3 py-1 rounded"
                                 />
                             </div>
@@ -302,7 +309,7 @@ export default function Dashboard() {
                                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
                                 </div>
                             ) : dashboardData.topServices.length > 0 ? (
-                                <div className="space-y-4">
+                                <div className="max-h-64 overflow-y-auto space-y-4" style={{ scrollbarWidth: 'none' }}>
                                     {dashboardData.topServices.map((service, index) => (
                                         <motion.div
                                             key={index}
@@ -339,14 +346,14 @@ export default function Dashboard() {
                                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
                                 </div>
                             ) : dashboardData.revenueByService.length > 0 ? (
-                                <div className="space-y-4">
+                                <div className="max-h-64 overflow-y-auto space-y-4" style={{ scrollbarWidth: 'none' }}>
                                     {dashboardData.revenueByService.map((service, index) => (
                                         <motion.div
                                             key={index}
                                             className="flex justify-between items-center"
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: index * 0.1 }}
+                                            transition={{ delay: index * 0.05 }}
                                         >
                                             <span>{service.name}</span>
                                             <span className="font-bold">₱{service.revenue.toLocaleString()}</span>
@@ -418,59 +425,66 @@ export default function Dashboard() {
                                         transition={{ type: "spring", stiffness: 100, damping: 10 }}
                                     >
                                         <svg viewBox="0 0 100 100" className="w-full h-full">
-                                            {dashboardData.revenueDistribution.reduce((acc, branch, index) => {
-                                                const startAngle = acc.currentAngle;
-                                                const endAngle = startAngle + (branch.percentage / 100) * 360;
-                                                const largeArcFlag = branch.percentage > 50 ? 1 : 0;
+                                            {
+                                                (() => {
+                                                    const result = dashboardData.revenueDistribution.reduce((acc, branch, index) => {
+                                                        const startAngle = acc.currentAngle;
+                                                        const endAngle = startAngle + (branch.percentage / 100) * 360;
+                                                        const largeArcFlag = branch.percentage > 50 ? 1 : 0;
 
-                                                const x1 = 50 + 50 * Math.cos(Math.PI * startAngle / 180);
-                                                const y1 = 50 + 50 * Math.sin(Math.PI * startAngle / 180);
-                                                const x2 = 50 + 50 * Math.cos(Math.PI * endAngle / 180);
-                                                const y2 = 50 + 50 * Math.sin(Math.PI * endAngle / 180);
+                                                        const x1 = 50 + 50 * Math.cos(Math.PI * startAngle / 180);
+                                                        const y1 = 50 + 50 * Math.sin(Math.PI * startAngle / 180);
+                                                        const x2 = 50 + 50 * Math.cos(Math.PI * endAngle / 180);
+                                                        const y2 = 50 + 50 * Math.sin(Math.PI * endAngle / 180);
 
-                                                acc.paths.push(
-                                                    <motion.path
-                                                        key={index}
-                                                        d={`M50,50 L${x1},${y1} A50,50 0 ${largeArcFlag},1 ${x2},${y2} Z`}
-                                                        fill={branch.color_code || '#3B82F6'}
-                                                        className="hover:opacity-90 transition-opacity"
-                                                        initial={{ pathLength: 0, opacity: 0 }}
-                                                        animate={{ pathLength: 1, opacity: 1 }}
-                                                        transition={{
-                                                            duration: 1,
-                                                            delay: index * 0.2,
-                                                            ease: "easeInOut"
-                                                        }}
-                                                        whileHover={{ scale: 1.05 }}
-                                                    />
-                                                );
+                                                        const midAngle = (startAngle + endAngle) / 2;
+                                                        const labelRadius = 30;
+                                                        const labelX = 50 + labelRadius * Math.cos(Math.PI * midAngle / 180);
+                                                        const labelY = 50 + labelRadius * Math.sin(Math.PI * midAngle / 180);
 
-                                                acc.currentAngle = endAngle;
-                                                return acc;
-                                            }, { paths: [], currentAngle: 0 }).paths}
+                                                        acc.elements.push(
+                                                            <motion.path
+                                                                key={`path-${index}`}
+                                                                d={`M50,50 L${x1},${y1} A50,50 0 ${largeArcFlag},1 ${x2},${y2} Z`}
+                                                                fill={branch.color_code || '#3B82F6'}
+                                                                className="hover:opacity-90 transition-opacity"
+                                                                initial={{ pathLength: 0, opacity: 0 }}
+                                                                animate={{ pathLength: 1, opacity: 1 }}
+                                                                transition={{
+                                                                    duration: 1,
+                                                                    delay: index * 0.2,
+                                                                    ease: "easeInOut"
+                                                                }}
+                                                                whileHover={{ scale: 1.05 }}
+                                                            />
+                                                        );
+
+                                                        acc.elements.push(
+                                                            <motion.text
+                                                                key={`text-${index}`}
+                                                                x={labelX}
+                                                                y={labelY}
+                                                                textAnchor="middle"
+                                                                dominantBaseline="middle"
+                                                                fill="black"
+                                                                fontSize="4"
+                                                                fontWeight="bold"
+                                                                initial={{ opacity: 0 }}
+                                                                animate={{ opacity: 1 }}
+                                                                transition={{ delay: 0.6 + index * 0.2 }}
+                                                            >
+                                                                {branch.percentage}%
+                                                            </motion.text>
+                                                        );
+
+                                                        acc.currentAngle = endAngle;
+                                                        return acc;
+                                                    }, { elements: [], currentAngle: 0 });
+
+                                                    return result.elements;
+                                                })()
+                                            }
                                         </svg>
-                                    </motion.div>
-
-                                    {/* Labels under pie */}
-                                    <motion.div
-                                        className="mt-4 flex flex-wrap justify-center gap-3 text-xs"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: 0.8 }}
-                                    >
-                                        {dashboardData.revenueDistribution.map((branch, index) => (
-                                            <motion.div
-                                                key={index}
-                                                className="flex items-center"
-                                                whileHover={{ scale: 1.1 }}
-                                            >
-                                                <span
-                                                    className="w-3 h-3 rounded-full mr-1"
-                                                    style={{ backgroundColor: branch.color_code || '#3B82F6' }}
-                                                ></span>
-                                                <span>{branch.branch_name} {branch.percentage}%</span>
-                                            </motion.div>
-                                        ))}
                                     </motion.div>
                                 </div>
                             ) : (
