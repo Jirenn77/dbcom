@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jul 11, 2025 at 07:53 AM
+-- Generation Time: Jul 22, 2025 at 02:56 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -58,10 +58,10 @@ CREATE TABLE `branches` (
 --
 
 INSERT INTO `branches` (`id`, `name`, `color_code`) VALUES
-(1, 'Pabayo', '#3B82F6'),
-(2, 'Gingoog City', '#10B981'),
-(3, 'Patag', '#F59E0B'),
-(4, 'Bukidnon', '#EF4444');
+(1, 'Condoy Building Room 201, Pabayp Gomez Street, CDO', '#3B82F6'),
+(2, 'CV Lugod Street, Gingoog City', '#10B981'),
+(3, 'Zone-1 Crossing Camp Evangelista,\r\nGwen\'s Place 3rd Door Patag, CDO', '#F59E0B'),
+(4, 'Ostrea Buildng Door 2, L Binauro Street Tankulan Manolo Fortich Bukidnon', '#EF4444');
 
 -- --------------------------------------------------------
 
@@ -100,9 +100,9 @@ CREATE TABLE `customers` (
 --
 
 INSERT INTO `customers` (`id`, `name`, `contact`, `email`, `address`, `membership_status`, `customerId`, `birthday`) VALUES
-(1, 'Mrs. Jefferson', '+639 053 2322', 'Jeff_23@yahoo.com', '123 Main St, Anytown', 'VIP', '110234', '1997-03-23'),
-(2, 'Mrs. Shane', '+639 053 2324', 'shane@gmail.com', '456 Elm St, Othertown', 'None', '110424', '1990-04-15'),
-(3, 'Mrs. Cee', '+639 034 2324', 'cee@gmail.com', '789 Oak St, Somewhere', 'None', '122324', '1985-12-05');
+(1, 'Victoria', '+639 053 2322', 'victoria_13@gmail.com', '123 Main St, Anytown', 'VIP', '110234', '1997-03-23'),
+(2, 'Shane', '+639 053 2324', 'shane@gmail.com', '456 Elm St, Othertown', 'None', '110424', '1990-04-15'),
+(3, 'Alice', '+639 034 2324', 'alice@gmail.com', '789 Oak St, Somewhere', 'None', '122324', '1985-12-05');
 
 -- --------------------------------------------------------
 
@@ -124,10 +124,10 @@ CREATE TABLE `discounts` (
 --
 
 INSERT INTO `discounts` (`discount_id`, `name`, `description`, `discount_type`, `value`, `status`) VALUES
-(1, 'Holloween Discount', 'Input customers', 'percentage', 0.00, 'active'),
+(1, 'Holloween Discount', 'Input customers', '', 0.00, 'inactive'),
 (2, 'Holiday Discount', '10% off', 'percentage', 10.00, 'active'),
 (3, 'Birthday Discount', 'Special for birthdays', 'percentage', 15.00, 'active'),
-(4, 'Loyalty Discount', 'For loyal customers', 'fixed', 100.00, 'inactive');
+(4, 'Loyalty Discount', 'For loyal customers', '', 100.00, 'active');
 
 -- --------------------------------------------------------
 
@@ -166,11 +166,18 @@ CREATE TABLE `invoices` (
 INSERT INTO `invoices` (`invoice_id`, `invoice_number`, `customer_id`, `service_id`, `invoice_date`, `quantity`, `total_price`, `status`, `notes`) VALUES
 (1, '112344', 1, 24, '2025-02-26', 1, 150.00, 'Paid', NULL),
 (2, '112344', 1, 2, '2025-02-26', 1, 1299.00, 'Paid', NULL),
-(3, '132325', 2, 10, '2025-02-25', 1, 120.00, 'Pending', NULL),
-(4, '132325', 2, 11, '2025-02-25', 1, 150.00, 'Pending', NULL),
-(5, '122325', 3, 0, '2025-02-20', 1, 1000.00, 'Pending', NULL),
-(9, 'INV-20250618-8432', 1, 10, '2025-06-18', 1, 120.00, 'Pending', NULL),
-(10, 'INV-20250618-8432', 1, 11, '2025-06-18', 1, 150.00, 'Pending', NULL);
+(3, '132325', 2, 10, '2025-02-25', 1, 120.00, 'Paid', NULL),
+(4, '132325', 2, 11, '2025-02-25', 1, 150.00, 'Paid', NULL),
+(5, '122325', 3, 0, '2025-02-20', 1, 1000.00, 'Paid', NULL),
+(9, 'INV-20250618-8432', 1, 10, '2025-06-18', 1, 120.00, 'Paid', NULL),
+(10, 'INV-20250618-8432', 1, 11, '2025-06-18', 1, 150.00, 'Paid', NULL),
+(12, 'INV-20250716-3923', 2, 83, '2025-07-16', 1, 99.00, 'Paid', NULL),
+(13, 'INV-20250716-3425', 2, 83, '2025-07-16', 1, 99.00, 'Paid', NULL),
+(14, 'INV-20250716-3625', 2, 82, '2025-07-16', 1, 99.00, 'Paid', NULL),
+(15, 'INV-20250716-4754', 2, 21, '2025-07-16', 1, 399.00, 'Paid', NULL),
+(16, 'INV-20250716-7763', 2, 71, '2025-07-16', 1, 599.00, 'Paid', NULL),
+(17, 'INV-20250716-3923', 1, 84, '2025-07-16', 1, 198.00, 'Paid', NULL),
+(18, 'INV-20250716-3923', 1, 2, '2025-07-16', 1, 1299.00, 'Paid', NULL);
 
 -- --------------------------------------------------------
 
@@ -235,16 +242,17 @@ CREATE TABLE `membership` (
   `description` text NOT NULL,
   `duration` int(11) NOT NULL DEFAULT 30,
   `status` enum('active','inactive') NOT NULL DEFAULT 'active',
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `type` varchar(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `membership`
 --
 
-INSERT INTO `membership` (`id`, `name`, `discount`, `description`, `duration`, `status`, `created_at`) VALUES
-(1, 'VIP', '50%', 'Priority services and bigger discounts', 12, 'active', '2025-05-30 13:11:54'),
-(2, 'Standard', '30%', 'Affordable benefits for loyal clients', 12, 'active', '2025-05-30 13:11:54');
+INSERT INTO `membership` (`id`, `name`, `discount`, `description`, `duration`, `status`, `created_at`, `type`) VALUES
+(1, 'VIP', '50%', 'Priority services and bigger discounts', 12, 'active', '2025-05-30 13:11:54', 'vip'),
+(2, 'Standard', '30%', 'Affordable benefits for loyal clients', 12, 'active', '2025-05-30 13:11:54', 'standard');
 
 -- --------------------------------------------------------
 
@@ -256,8 +264,8 @@ CREATE TABLE `memberships` (
   `id` int(11) NOT NULL,
   `customer_id` int(11) DEFAULT NULL,
   `type` varchar(50) DEFAULT NULL,
-  `coverage` varchar(20) DEFAULT NULL,
-  `remaining_balance` varchar(20) DEFAULT NULL,
+  `coverage` decimal(10,2) DEFAULT 0.00,
+  `remaining_balance` decimal(10,2) DEFAULT 0.00,
   `date_registered` date DEFAULT NULL,
   `expire_date` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -267,7 +275,7 @@ CREATE TABLE `memberships` (
 --
 
 INSERT INTO `memberships` (`id`, `customer_id`, `type`, `coverage`, `remaining_balance`, `date_registered`, `expire_date`) VALUES
-(1, 1, 'vip', '10000', '10000', '2025-06-29', '2025-08-29');
+(1, 1, 'VIP', 10000.00, 9251.50, '2025-06-29', '2025-08-29');
 
 -- --------------------------------------------------------
 
@@ -309,7 +317,32 @@ INSERT INTO `orders` (`id`, `branch_id`, `service_id`, `order_date`, `amount`, `
 (20, 2, 3, '2025-06-01 00:00:00', 180.00, NULL),
 (21, 2, 4, '2025-06-01 00:00:00', 250.00, NULL),
 (22, 3, 5, '2025-06-01 00:00:00', 150.00, NULL),
-(28, 1, 5, '2025-05-29 00:00:00', 104.59, NULL);
+(28, 1, 5, '2025-05-29 00:00:00', 104.59, NULL),
+(43, 1, 1, '2025-07-14 13:03:39', 999.99, NULL),
+(44, 1, 1, '2025-07-14 13:13:42', 888.88, NULL),
+(45, 1, 6, '2025-07-14 13:18:35', 500.00, NULL),
+(46, 1, 7, '2025-07-14 13:18:35', 450.00, NULL),
+(47, 1, 8, '2025-07-14 13:18:35', 420.00, NULL),
+(48, 1, 9, '2025-07-14 13:18:35', 399.00, NULL),
+(49, 1, 10, '2025-07-14 13:18:35', 370.00, NULL),
+(50, 1, 11, '2025-07-14 13:18:35', 350.00, NULL),
+(51, 1, 1, '2025-07-14 20:30:02', 500.00, NULL),
+(52, 2, 2, '2025-07-14 20:48:03', 800.00, NULL),
+(53, 3, 3, '2025-07-14 20:48:03', 300.00, NULL),
+(54, 4, 4, '2025-07-14 20:48:07', 100.00, NULL),
+(55, 3, 3, '2025-07-12 20:55:15', 300.00, NULL),
+(56, 4, 4, '2025-06-29 20:55:18', 100.00, NULL),
+(57, 1, 2, '2025-02-10 10:00:00', 700.00, NULL),
+(58, 2, 3, '2025-03-05 14:00:00', 900.00, NULL),
+(59, 3, 4, '2025-04-20 12:30:00', 600.00, NULL),
+(60, 1, 1, '2025-07-14 21:06:26', 500.00, NULL),
+(61, 2, 2, '2025-07-12 21:06:26', 750.00, NULL),
+(62, 3, 3, '2025-07-07 21:06:26', 300.00, NULL),
+(63, 4, 4, '2025-06-14 21:06:26', 200.00, NULL),
+(64, 1, 2, '2025-02-15 13:00:00', 600.00, NULL),
+(65, 1, 1, '2025-07-15 11:23:59', 500.00, NULL),
+(66, 2, 2, '2025-07-15 11:23:59', 800.00, NULL),
+(67, 3, 3, '2025-07-15 11:23:59', 300.00, NULL);
 
 -- --------------------------------------------------------
 
@@ -382,18 +415,19 @@ CREATE TABLE `promos` (
   `description` text DEFAULT NULL,
   `valid_from` date DEFAULT NULL,
   `valid_to` date DEFAULT NULL,
-  `status` enum('active','inactive') DEFAULT 'active'
+  `status` enum('active','inactive') DEFAULT 'active',
+  `discounted_price` decimal(10,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `promos`
 --
 
-INSERT INTO `promos` (`promo_id`, `type`, `name`, `description`, `valid_from`, `valid_to`, `status`) VALUES
-(1, 'Membership', 'Facial Spa + Footspa', 'Bundled Promo', '2025-01-10', '2025-01-25', 'active'),
-(2, 'Beauty Deals', 'Hair Rebond + Haircut', 'Bundled Promo for 1000 only', '2025-01-10', '2025-01-25', 'active'),
-(3, 'Skincare', 'Facial + Diamond Peel', 'Glow-up bundle', '2025-02-01', '2025-02-15', 'active'),
-(4, 'Massage Deals', 'Loyalty Discount', 'For loyal customers', '1970-01-01', '1970-01-01', 'active');
+INSERT INTO `promos` (`promo_id`, `type`, `name`, `description`, `valid_from`, `valid_to`, `status`, `discounted_price`) VALUES
+(1, 'Membership', 'Facial Spa + Footspa', 'Bundled Promo', '2025-01-10', '2025-01-25', 'active', NULL),
+(2, 'Beauty Deals', 'Diode Laser', 'Bundled Promo for 1000 only', '1970-01-01', '1970-01-01', 'active', 100.00),
+(3, 'Skincare', 'Facial + Diamond Peel', 'Glow-up bundle', '2025-02-01', '2025-02-15', 'active', NULL),
+(4, 'Massage Deals', 'Loyalty Discount', 'For loyal customers', '1970-01-01', '1970-01-01', 'active', NULL);
 
 -- --------------------------------------------------------
 
@@ -547,9 +581,7 @@ CREATE TABLE `service_groups` (
 --
 
 INSERT INTO `service_groups` (`group_id`, `group_name`, `description`, `status`, `created_at`, `updated_at`, `group_type`) VALUES
-(2, 'Basic Hair Services', 'Regular hair maintenance services', 'Active', '2025-05-18 14:42:04', '2025-05-21 07:34:04', 'custom'),
-(3, 'Diode Laser', 'Laser hair removal services', 'Active', '2025-05-18 14:43:47', '2025-05-18 14:43:47', 'custom'),
-(4, 'Nails & Foot', 'Nail and foot care services', 'Active', '2025-05-18 14:43:47', '2025-05-18 14:43:47', 'custom'),
+(2, 'Diode Laser', 'Diode Laser Services', 'Active', '2025-05-18 14:42:04', '2025-07-14 13:31:16', 'custom'),
 (5, 'Hair Treatments', 'Hair treatments and services', 'Active', '2025-05-18 14:43:47', '2025-05-21 07:16:22', 'custom'),
 (18, 'Special Treatments', 'Group for special facial and skin treatments', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34', 'custom'),
 (19, 'Body & Relaxing Services', 'Massages and body care treatments', 'Active', '2025-06-28 03:34:34', '2025-06-28 03:34:34', 'custom'),
@@ -583,9 +615,8 @@ CREATE TABLE `service_group_mappings` (
 --
 
 INSERT INTO `service_group_mappings` (`mapping_id`, `group_id`, `service_id`, `sort_order`, `created_at`) VALUES
-(7, 2, 7, 0, '2025-05-18 14:42:19'),
-(8, 2, 8, 0, '2025-05-18 14:42:19'),
-(9, 2, 9, 0, '2025-05-18 14:42:19');
+(86, 2, 2, 0, '2025-07-13 14:08:22'),
+(87, 2, 1, 0, '2025-07-13 14:08:22');
 
 -- --------------------------------------------------------
 
@@ -611,7 +642,14 @@ INSERT INTO `transactions` (`id`, `customer_id`, `service_date`, `service_descri
 (9, 1, '2025-06-18', 'Classic Manicure, Classic Pedicure', 'Admin', 'INV-20250618-8432', 135.00),
 (10, 2, '2025-02-25', 'Classic Manicure', 'Admin', '132325', 120.00),
 (11, 2, '2025-02-25', 'Classic Pedicure', 'Admin', '132325', 150.00),
-(12, 3, '2025-02-20', 'Package Deal', 'Admin', '122325', 1000.00);
+(12, 3, '2025-02-20', 'Package Deal', 'Admin', '122325', 1000.00),
+(16, 1, '2025-07-16', '24k Gold Mask Facial', 'Admin', 'INV-20250716-5442', 49.50),
+(26, 2, '2025-07-16', 'Diamond Peel', 'Admin', 'INV-20250716-3923', 99.00),
+(27, 2, '2025-07-16', 'Diamond Peel', 'Admin', 'INV-20250716-3425', 99.00),
+(28, 2, '2025-07-16', '24k Gold Mask Facial', 'Admin', 'INV-20250716-3625', 99.00),
+(29, 2, '2025-07-16', 'Hair Cellophane', 'Admin', 'INV-20250716-4754', 399.00),
+(30, 2, '2025-07-16', 'Brazilian Wax Women', 'Admin', 'INV-20250716-7763', 599.00),
+(31, 1, '2025-07-16', 'Facial With Diamond Peel, Face', 'Admin', 'INV-20250716-3923', 748.50);
 
 -- --------------------------------------------------------
 
@@ -828,7 +866,7 @@ ALTER TABLE `inventory`
 -- AUTO_INCREMENT for table `invoices`
 --
 ALTER TABLE `invoices`
-  MODIFY `invoice_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `invoice_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `invoice_service`
@@ -858,7 +896,7 @@ ALTER TABLE `memberships`
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=68;
 
 --
 -- AUTO_INCREMENT for table `payments`
@@ -894,13 +932,13 @@ ALTER TABLE `service_groups`
 -- AUTO_INCREMENT for table `service_group_mappings`
 --
 ALTER TABLE `service_group_mappings`
-  MODIFY `mapping_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+  MODIFY `mapping_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=88;
 
 --
 -- AUTO_INCREMENT for table `transactions`
 --
 ALTER TABLE `transactions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT for table `users`

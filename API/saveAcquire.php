@@ -41,6 +41,7 @@ try {
         $membershipReduction = isset($input['membershipReduction']) ? floatval($input['membershipReduction']) : 0;
         $finalAmount = $subtotal - $membershipReduction;
         $serviceDate = date("Y-m-d");
+        $updateMembershipBalance = isset($input['new_membership_balance']) ? floatval($input['new_membership_balance']) : null;
 
         try {
             $pdo->beginTransaction();
@@ -49,9 +50,9 @@ try {
             $invoiceNumber = 'INV-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
 
             // Combine service names into description
-            $serviceDescription = implode(', ', array_map(function($s) {
-    return $s['name'] ?? 'Unknown Service';
-}, $services));
+            $serviceDescription = implode(', ', array_map(function ($s) {
+                return $s['name'] ?? 'Unknown Service';
+            }, $services));
 
 
             // Insert into transactions table
@@ -71,23 +72,32 @@ try {
 
             // Insert each service into invoices
             foreach ($services as $service) {
-    if (!isset($service['service_id']) || !isset($service['price'])) {
-        throw new Exception('Invalid service data');
-    }
+                if (!isset($service['service_id']) || !isset($service['price'])) {
+                    throw new Exception('Invalid service data');
+                }
 
-    $stmt = $pdo->prepare("
-        INSERT INTO invoices 
-        (invoice_number, customer_id, service_id, invoice_date, quantity, total_price)
-        VALUES (:invoice_number, :customer_id, :service_id, :invoice_date, 1, :total_price)
-    ");
-    $stmt->execute([
-        ':invoice_number' => $invoiceNumber,
-        ':customer_id' => $customerId,
-        ':service_id' => $service['service_id'],
-        ':invoice_date' => $serviceDate,
-        ':total_price' => $service['price']
-    ]);
-}
+                $stmt = $pdo->prepare("
+    INSERT INTO invoices 
+    (invoice_number, customer_id, service_id, invoice_date, quantity, total_price, status)
+    VALUES (:invoice_number, :customer_id, :service_id, :invoice_date, 1, :total_price, :status)
+");
+                $stmt->execute([
+                    ':invoice_number' => $invoiceNumber,
+                    ':customer_id' => $customerId,
+                    ':service_id' => $service['service_id'],
+                    ':invoice_date' => $serviceDate,
+                    ':total_price' => $service['price'],
+                    ':status' => 'Paid'  // ✅ This now matches your actual column name
+                ]);
+            }
+
+            if (!is_null($updateMembershipBalance)) {
+                $updateStmt = $pdo->prepare("UPDATE memberships SET remaining_balance = :balance WHERE customer_id = :customer_id");
+                $updateStmt->execute([
+                    ':balance' => $updateMembershipBalance,
+                    ':customer_id' => $customerId
+                ]);
+            }
 
             $pdo->commit();
 

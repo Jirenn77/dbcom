@@ -18,9 +18,9 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     $action = $_GET['action'] ?? 'dashboard';
-$period = $_GET['period'] ?? 'day';
-$startDate = $_GET['start_date'] ?? null;
-$endDate = $_GET['end_date'] ?? null;
+    $period = $_GET['period'] ?? 'day';
+    $startDate = $_GET['start_date'] ?? null;
+    $endDate = $_GET['end_date'] ?? null;
 
     switch ($action) {
         case 'dashboard':
@@ -35,7 +35,8 @@ $endDate = $_GET['end_date'] ?? null;
     echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
 }
 
-function getDashboardData($pdo, $period, $startDate = null, $endDate = null) {
+function getDashboardData($pdo, $period, $startDate = null, $endDate = null)
+{
     return [
         'top_services' => getTopServicesData($pdo, $period, $startDate, $endDate),
         'revenue_by_service' => getRevenueByServiceData($pdo, $period, $startDate, $endDate),
@@ -45,10 +46,10 @@ function getDashboardData($pdo, $period, $startDate = null, $endDate = null) {
 }
 
 
-// Get top 5 ordered services (UPDATED)
-function getTopServicesData($pdo, $period, $startDate = null, $endDate = null) {
+function getTopServicesData($pdo, $period, $startDate = null, $endDate = null)
+{
     $dateCondition = getDateCondition($period, 'o', $startDate, $endDate);
-    
+
     $query = "SELECT 
                 s.name, 
                 COUNT(o.id) as count
@@ -56,21 +57,21 @@ function getTopServicesData($pdo, $period, $startDate = null, $endDate = null) {
               JOIN services s ON o.service_id = s.service_id
               WHERE $dateCondition
               GROUP BY s.name
-              ORDER BY count DESC
-              LIMIT 5";
-    
+              ORDER BY count DESC";
+
+
     try {
         $stmt = $pdo->prepare($query);
         $stmt->execute();
-        
+
         $result = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $result[] = [
                 'name' => $row['name'],
-                'count' => (int)$row['count']
+                'count' => (int) $row['count']
             ];
         }
-        
+
         // Fallback sample data if no results
         if (empty($result)) {
             return [
@@ -81,9 +82,9 @@ function getTopServicesData($pdo, $period, $startDate = null, $endDate = null) {
                 ['name' => 'Hair Spa', 'count' => 7]
             ];
         }
-        
+
         return $result;
-        
+
     } catch (PDOException $e) {
         error_log("Top Services Error: " . $e->getMessage());
         return [
@@ -97,9 +98,10 @@ function getTopServicesData($pdo, $period, $startDate = null, $endDate = null) {
 }
 
 // Get top 5 revenue generating services (UPDATED)
-function getRevenueByServiceData($pdo, $period, $startDate = null, $endDate = null) {
+function getRevenueByServiceData($pdo, $period, $startDate = null, $endDate = null)
+{
     $dateCondition = getDateCondition($period, 'o', $startDate, $endDate);
-    
+
     $query = "SELECT 
                 s.name, 
                 SUM(o.amount) as revenue
@@ -107,34 +109,27 @@ function getRevenueByServiceData($pdo, $period, $startDate = null, $endDate = nu
               JOIN services s ON o.service_id = s.service_id
               WHERE $dateCondition
               GROUP BY s.name
-              ORDER BY revenue DESC
-              LIMIT 5";
-    
+              ORDER BY revenue DESC";
+
     try {
         $stmt = $pdo->prepare($query);
         $stmt->execute();
-        
+
         $result = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $result[] = [
                 'name' => $row['name'],
-                'revenue' => (float)$row['revenue']
+                'revenue' => (float) $row['revenue']
             ];
         }
-        
+
         // Fallback sample data if no results
         if (empty($result)) {
-            return [
-                ['name' => 'All Parts Diode Laser', 'revenue' => 5000],
-                ['name' => '3D Balayage', 'revenue' => 2500],
-                ['name' => 'Brazilian', 'revenue' => 1500],
-                ['name' => 'Classic Balayage', 'revenue' => 1500],
-                ['name' => 'Face', 'revenue' => 1300]
-            ];
+            return [];
         }
-        
+
         return $result;
-        
+
     } catch (PDOException $e) {
         error_log("Revenue by Service Error: " . $e->getMessage());
         return [
@@ -147,7 +142,8 @@ function getRevenueByServiceData($pdo, $period, $startDate = null, $endDate = nu
     }
 }
 
-function getBranchesData($pdo) {
+function getBranchesData($pdo)
+{
     $query = "SELECT id, name, color_code FROM branches";
     $stmt = $pdo->query($query);
 
@@ -162,20 +158,22 @@ function getBranchesData($pdo) {
 
     return $result;
 }
-function getRevenueDistributionData($pdo, $period, $startDate = null, $endDate = null) {
+function getRevenueDistributionData($pdo, $period, $startDate = null, $endDate = null)
+{
     try {
         // 1. Get branches
         $branches = $pdo->query("SELECT id, name, color_code FROM branches")->fetchAll(PDO::FETCH_ASSOC);
-        if (empty($branches)) return [];
+        if (empty($branches))
+            return [];
 
         // 2. Get date condition
         $dateCondition = getDateCondition($period, 'orders', $startDate, $endDate);
-        
+
         // 3. Calculate totals
         $totalStmt = $pdo->prepare("SELECT SUM(amount) FROM orders WHERE $dateCondition");
         $totalStmt->execute();
-        $totalRevenue = (float)$totalStmt->fetchColumn();
-        
+        $totalRevenue = (float) $totalStmt->fetchColumn();
+
         // 4. Process branches
         $result = [];
         $branchStmt = $pdo->prepare("
@@ -183,32 +181,33 @@ function getRevenueDistributionData($pdo, $period, $startDate = null, $endDate =
             FROM orders 
             WHERE branch_id = :branch_id AND $dateCondition
         ");
-        
+
         foreach ($branches as $branch) {
             $branchStmt->execute([':branch_id' => $branch['id']]);
-            $revenue = (float)$branchStmt->fetchColumn() ?: 0;
-            
+            $revenue = (float) $branchStmt->fetchColumn() ?: 0;
+
             $result[] = [
                 'branch_id' => $branch['id'],
                 'branch_name' => $branch['name'],
                 'color_code' => $branch['color_code'],
                 'revenue' => $revenue,
-                'percentage' => $totalRevenue > 0 ? round(($revenue/$totalRevenue)*100, 2) : 0
+                'percentage' => $totalRevenue > 0 ? round(($revenue / $totalRevenue) * 100, 2) : 0
             ];
         }
-        
+
         // 5. Sort by revenue
         usort($result, fn($a, $b) => $b['revenue'] <=> $a['revenue']);
-        
+
         return $result;
-        
+
     } catch (PDOException $e) {
         error_log("Revenue Distribution Error: " . $e->getMessage());
         return [];
     }
 }
 
-function getDateCondition($period, $tableAlias, $startDate = null, $endDate = null) {
+function getDateCondition($period, $tableAlias, $startDate = null, $endDate = null)
+{
     $column = "$tableAlias.order_date";
     $today = date('Y-m-d');
 
