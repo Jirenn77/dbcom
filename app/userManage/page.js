@@ -12,98 +12,103 @@ import {
   Home,
   Users,
   Shield,
+  Mail,
+  Phone,
+  Calendar,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronRight,
+  ChevronsRight,
   Plus,
-  MoreVertical,
   Search,
   X,
   Edit,
   Eye,
   Trash2,
-  ChevronLeft,
-  ChevronsLeft,
-  ChevronRight,
-  ChevronsRight,
-  ChevronDown,
+  UserPlus,
+  Lock,
   Leaf,
-  Phone,
+  ChevronDown,
 } from "lucide-react";
 
-export default function BranchManagementPage() {
-    const router = useRouter();
+export default function UserManagement() {
+  const router = useRouter();
   const pathname = usePathname();
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [branches, setBranches] = useState([]);
+  const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedBranch, setSelectedBranch] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editBranch, setEditBranch] = useState(null);
+  const [editUser, setEditUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [branchesPerPage] = useState(5);
+  const [usersPerPage] = useState(10);
 
-  const [newBranch, setNewBranch] = useState({
+  const [newUser, setNewUser] = useState({
     name: "",
-    address: "",
-    contactNumber: "",
-    manager: "",
+    username: "",
+    password: "",
+    confirmPassword: "",
+    role: "",
+    status: "Active",
   });
 
   useEffect(() => {
-    fetchBranches();
+    fetchUsers();
   }, []);
 
-  const fetchBranches = async () => {
+  const fetchUsers = async () => {
     try {
       setIsLoading(true);
       // Replace with your actual API endpoint
-      const response = await fetch("http://localhost/API/branches.php");
-      if (!response.ok) throw new Error("Failed to fetch branches");
+      const response = await fetch("http://localhost/API/users.php");
+      if (!response.ok) throw new Error("Failed to fetch users");
       const data = await response.json();
-      setBranches(data);
+      setUsers(data);
     } catch (error) {
-      toast.error("Failed to load branches");
+      toast.error("Failed to load users");
       console.error(error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchBranchDetails = async (branchId) => {
-    try {
-      const res = await fetch(
-        `http://localhost/API/branches.php?id=${branchId}`
-      );
-      const data = await res.json();
-      setSelectedBranch(data);
-    } catch (error) {
-      console.error("Error fetching branch details:", error);
-    }
-  };
+  const fetchUserDetails = async (userId) => {
+  try {
+    const res = await fetch(`http://localhost/API/users.php?action=get&id=${userId}`);
+    const data = await res.json();
+    setSelectedUser(data);
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+  }
+};
 
-  const handleEditClick = (branch) => {
-    setEditBranch({ ...branch });
+
+  const handleEditClick = (user) => {
+    setEditUser({ ...user });
     setIsEditModalOpen(true);
   };
 
-  const handleSaveEdit = async (updatedBranch) => {
+  const handleSaveEdit = async (updatedUser) => {
     try {
       const res = await fetch(
-        `http://localhost/API/branches.php?action=update&id=${updatedBranch.id}`,
+        `http://localhost/API/users.php?action=update&id=${updatedUser.id}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedBranch),
+          body: JSON.stringify(updatedUser),
         }
       );
 
       const result = await res.json();
       if (result.success) {
-        const updatedList = branches.map((b) =>
-          b.id === updatedBranch.id ? updatedBranch : b
+        const updatedList = users.map((u) =>
+          u.id === updatedUser.id ? updatedUser : u
         );
-        setBranches(updatedList);
-        toast.success("Branch updated successfully");
+        setUsers(updatedList);
+        toast.success("User updated successfully");
         setIsEditModalOpen(false);
       } else {
         toast.error(result.message || "Failed to update");
@@ -114,12 +119,12 @@ export default function BranchManagementPage() {
     }
   };
 
-  const handleDeleteBranch = async (branchId) => {
-    if (!confirm("Are you sure you want to delete this branch?")) return;
+  const handleDeleteUser = async (userId) => {
+    if (!confirm("Are you sure you want to delete this user?")) return;
 
     try {
       const res = await fetch(
-        `http://localhost/API/branches.php?action=delete&id=${branchId}`,
+        `http://localhost/API/users.php?action=delete&id=${userId}`,
         {
           method: "DELETE",
         }
@@ -127,10 +132,10 @@ export default function BranchManagementPage() {
 
       const result = await res.json();
       if (result.success) {
-        setBranches(branches.filter((b) => b.id !== branchId));
-        toast.success("Branch deleted successfully");
-        if (selectedBranch?.id === branchId) {
-          setSelectedBranch(null);
+        setUsers(users.filter((u) => u.id !== userId));
+        toast.success("User deleted successfully");
+        if (selectedUser?.id === userId) {
+          setSelectedUser(null);
         }
       } else {
         toast.error(result.message || "Failed to delete");
@@ -141,58 +146,68 @@ export default function BranchManagementPage() {
     }
   };
 
-  const handleAddBranch = async () => {
+  const handleAddUser = async () => {
     try {
-      if (!newBranch.name || !newBranch.address) {
-        toast.error("Name and address are required");
+      if (!newUser.name || !newUser.username || !newUser.password) {
+        toast.error("Name, username and password are required");
         return;
       }
 
-      const response = await fetch("http://localhost/API/branches.php", {
+      if (newUser.password !== newUser.confirmPassword) {
+        toast.error("Passwords do not match");
+        return;
+      }
+
+      const response = await fetch("http://localhost/API/users.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "add",
-          ...newBranch,
+          ...newUser,
         }),
       });
 
       const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.message || "Failed to add branch");
+      if (!response.ok) throw new Error(result.message || "Failed to add user");
 
-      setBranches([...branches, result]);
+      setUsers([...users, result]);
       setIsModalOpen(false);
-      setNewBranch({
+      setNewUser({
         name: "",
-        address: "",
-        contactNumber: "",
-        manager: "",
+        username: "",
+        password: "",
+        confirmPassword: "",
+        role: "",
+        status: "Active",
       });
-      toast.success("Branch added successfully");
+      toast.success("User added successfully");
     } catch (error) {
-      console.error("Error adding branch:", error);
-      toast.error(error.message || "Failed to add branch");
+      console.error("Error adding user:", error);
+      toast.error(error.message || "Failed to add user");
     }
   };
 
-  const filteredBranches = branches.filter((branch) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      branch.name.toLowerCase().includes(query) ||
-      branch.address.toLowerCase().includes(query) ||
-      (branch.manager && branch.manager.toLowerCase().includes(query))
-    );
-  });
+  const filteredUsers = users
+    .filter((user) => {
+      if (activeTab === "all") return true;
+      if (activeTab === "active") return user.status === "Active";
+      if (activeTab === "inactive") return user.status === "Inactive";
+      return true;
+    })
+    .filter((user) => {
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        user.name.toLowerCase().includes(query) ||
+        user.username.toLowerCase().includes(query) ||
+        user.role.toLowerCase().includes(query)
+      );
+    });
 
-  const indexOfLastBranch = currentPage * branchesPerPage;
-  const indexOfFirstBranch = indexOfLastBranch - branchesPerPage;
-  const currentBranches = filteredBranches.slice(
-    indexOfFirstBranch,
-    indexOfLastBranch
-  );
-  const totalPages = Math.ceil(filteredBranches.length / branchesPerPage);
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -227,7 +242,7 @@ export default function BranchManagementPage() {
             />
             <input
               type="text"
-              placeholder="Search branches..."
+              placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-4 py-2 rounded-lg bg-white/90 text-gray-800 w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -273,7 +288,7 @@ export default function BranchManagementPage() {
         </div>
       </header>
 
-{/* Enhanced Sidebar */}
+      {/* Enhanced Sidebar */}
       <div className="flex flex-1">
         <nav className="w-64 h-screen bg-gradient-to-b from-emerald-800 to-emerald-700 text-white flex flex-col items-start py-6 fixed top-0 left-0 shadow-lg z-10">
           {/* Branding with Logo */}
@@ -308,7 +323,6 @@ export default function BranchManagementPage() {
               </div>
             </Link>
 
-            
             <Link href="/roles" passHref>
               <div
                 className={`w-full p-3 rounded-lg text-left flex items-center cursor-pointer transition-all ${router.pathname === "/roles" ? "bg-emerald-600 shadow-md" : "hover:bg-emerald-600/70"}`}
@@ -426,7 +440,7 @@ export default function BranchManagementPage() {
         </nav>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 bg-gray-50 ml-64 overflow-x-hidden">
+        <main className="flex-1 p-6 bg-gray-50 ml-64">
           {/* Header Section */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -436,10 +450,10 @@ export default function BranchManagementPage() {
           >
             <div>
               <h1 className="text-2xl font-bold text-gray-800">
-                Branch Management
+                User Management
               </h1>
               <p className="text-sm text-gray-500 mt-1">
-                Manage your clinic branches and locations
+                Manage system users and their permissions
               </p>
             </div>
 
@@ -450,17 +464,50 @@ export default function BranchManagementPage() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <Plus size={18} />
-                <span>New Branch</span>
+                <UserPlus size={18} />
+                <span>New User</span>
               </motion.button>
             </div>
           </motion.div>
 
+          {/* Filter Tabs */}
+          <motion.div
+            className="mb-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+              {["all", "active", "inactive"].map((tab) => (
+                <motion.button
+                  key={tab}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === tab
+                      ? "bg-white text-emerald-600 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                  onClick={() => {
+                    setActiveTab(tab);
+                    setCurrentPage(1);
+                  }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  {tab === "all"
+                    ? "All Users"
+                    : tab === "active"
+                      ? "Active"
+                      : "Inactive"}
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+
           {/* Main Content Area */}
-          <div className="flex flex-col xl:flex-row gap-6 w-full">
-            {/* Branch Table - Takes full width when no branch is selected */}
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* User Table */}
             <motion.div
-              className={`${selectedBranch ? "xl:w-[70%]" : "w-full"} transition-all duration-300`}
+              className={`${selectedUser ? "lg:w-[calc(100%-350px)]" : "w-full"} transition-all duration-300`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
@@ -471,13 +518,16 @@ export default function BranchManagementPage() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Branch Name
+                          User
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Address
+                          Username
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Manager
+                          Role
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
@@ -487,55 +537,88 @@ export default function BranchManagementPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {isLoading ? (
                         <tr>
-                          <td colSpan="4" className="px-6 py-4 text-center">
-                            Loading branches...
+                          <td colSpan="5" className="px-6 py-4 text-center">
+                            Loading users...
                           </td>
                         </tr>
-                      ) : currentBranches.length === 0 ? (
+                      ) : currentUsers.length === 0 ? (
                         <tr>
                           <td
-                            colSpan="4"
+                            colSpan="5"
                             className="px-6 py-4 text-center text-gray-500"
                           >
-                            No branches found
+                            No users found
                           </td>
                         </tr>
                       ) : (
-                        currentBranches.map((branch) => (
+                        currentUsers.map((user) => (
                           <motion.tr
-                            key={branch.id}
+                            key={user.id}
                             className={`hover:bg-gray-50 cursor-pointer ${
-                              selectedBranch?.id === branch.id
+                              selectedUser?.id === user.id
                                 ? "bg-emerald-50"
                                 : ""
                             }`}
-                            onClick={() => fetchBranchDetails(branch.id)}
+                            onClick={() => fetchUserDetails(user.id)}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.2 }}
                             whileHover={{ backgroundColor: "#f9fafb" }}
                           >
+                            {/* User Column */}
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">
-                                {branch.name}
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                                  <User
+                                    className="text-emerald-600"
+                                    size={18}
+                                  />
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {user.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {user.email || "No email"}
+                                  </div>
+                                </div>
                               </div>
                             </td>
+
+                            {/* Username Column */}
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
-                                {branch.address}
+                                {user.username}
                               </div>
                             </td>
+
+                            {/* Role Column */}
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
-                                {branch.manager || "Not assigned"}
+                                {user.role}
                               </div>
                             </td>
+
+                            {/* Status Column */}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  user.status === "Active"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {user.status}
+                              </span>
+                            </td>
+
+                            {/* Actions Column */}
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div className="flex space-x-3">
                                 <motion.button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleEditClick(branch);
+                                    handleEditClick(user);
                                   }}
                                   className="text-gray-600 hover:text-gray-800"
                                   whileHover={{ scale: 1.2 }}
@@ -547,7 +630,7 @@ export default function BranchManagementPage() {
                                 <motion.button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    fetchBranchDetails(branch.id);
+                                    fetchUserDetails(user.id);
                                   }}
                                   className="text-gray-600 hover:text-gray-800"
                                   whileHover={{ scale: 1.2 }}
@@ -559,7 +642,7 @@ export default function BranchManagementPage() {
                                 <motion.button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDeleteBranch(branch.id);
+                                    handleDeleteUser(user.id);
                                   }}
                                   className="text-red-600 hover:text-red-800"
                                   whileHover={{ scale: 1.2 }}
@@ -575,91 +658,225 @@ export default function BranchManagementPage() {
                       )}
                     </tbody>
                   </table>
+
+                  {/* Pagination Controls */}
+                  <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                    <div className="flex-1 flex justify-between sm:hidden">
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        Next
+                      </button>
+                    </div>
+                    <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm text-gray-700">
+                          Showing{" "}
+                          <span className="font-medium">
+                            {(currentPage - 1) * usersPerPage + 1}
+                          </span>{" "}
+                          to{" "}
+                          <span className="font-medium">
+                            {Math.min(
+                              currentPage * usersPerPage,
+                              filteredUsers.length
+                            )}
+                          </span>{" "}
+                          of{" "}
+                          <span className="font-medium">
+                            {filteredUsers.length}
+                          </span>{" "}
+                          users
+                        </p>
+                      </div>
+                      <div>
+                        <nav
+                          className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                          aria-label="Pagination"
+                        >
+                          <button
+                            onClick={() => handlePageChange(1)}
+                            disabled={currentPage === 1}
+                            className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                          >
+                            <span className="sr-only">First</span>
+                            <ChevronsLeft className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                          >
+                            <span className="sr-only">Previous</span>
+                            <ChevronLeft className="h-5 w-5" />
+                          </button>
+
+                          {/* Page numbers */}
+                          {Array.from(
+                            { length: Math.min(5, totalPages) },
+                            (_, i) => {
+                              let pageNum;
+                              if (totalPages <= 5) {
+                                pageNum = i + 1;
+                              } else if (currentPage <= 3) {
+                                pageNum = i + 1;
+                              } else if (currentPage >= totalPages - 2) {
+                                pageNum = totalPages - 4 + i;
+                              } else {
+                                pageNum = currentPage - 2 + i;
+                              }
+
+                              return (
+                                <button
+                                  key={pageNum}
+                                  onClick={() => handlePageChange(pageNum)}
+                                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                    currentPage === pageNum
+                                      ? "z-10 bg-emerald-50 border-emerald-500 text-emerald-600"
+                                      : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                                  }`}
+                                >
+                                  {pageNum}
+                                </button>
+                              );
+                            }
+                          )}
+
+                          <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                          >
+                            <span className="sr-only">Next</span>
+                            <ChevronRight className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handlePageChange(totalPages)}
+                            disabled={currentPage === totalPages}
+                            className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                          >
+                            <span className="sr-only">Last</span>
+                            <ChevronsRight className="h-5 w-5" />
+                          </button>
+                        </nav>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
 
-            {/* Branch Details Panel */}
-            {selectedBranch && (
+            {/* User Details Panel */}
+            {selectedUser && (
               <motion.div
-                className="xl:w-[30%] w-full"
+                className="lg:w-[350px]"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6 max-h-[calc(100vh-120px)] overflow-y-auto">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6 h-[calc(100vh-120px)] overflow-y-auto">
+                  {/* Panel Header */}
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold text-gray-800">
-                      {selectedBranch.name}
+                      {selectedUser.name}
                     </h2>
                     <button
-                      onClick={() => setSelectedBranch(null)}
+                      onClick={() => setSelectedUser(null)}
                       className="text-gray-400 hover:text-gray-600"
                     >
                       <X size={20} />
                     </button>
                   </div>
 
+                  {/* User Information */}
                   <div className="space-y-6">
+                    {/* Basic Info */}
                     <div>
                       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                        Branch Information
+                        Account Information
                       </h3>
                       <div className="space-y-2">
                         <div className="flex items-start">
-                          <Home
+                          <User
                             className="flex-shrink-0 mt-0.5 mr-2 text-gray-400"
                             size={16}
                           />
                           <span className="text-sm">
-                            {selectedBranch.address || "N/A"}
+                            {selectedUser.username || "N/A"}
                           </span>
                         </div>
                         <div className="flex items-start">
-                          <Phone
+                          <Shield
                             className="flex-shrink-0 mt-0.5 mr-2 text-gray-400"
                             size={16}
                           />
                           <span className="text-sm">
-                            {selectedBranch.contactNumber || "N/A"}
+                            {selectedUser.role || "N/A"}
                           </span>
                         </div>
                       </div>
                     </div>
 
+                    {/* Status */}
                     <div>
                       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                        Manager
+                        Account Status
                       </h3>
-                      <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-                        <div className="text-sm font-medium text-gray-900">
-                          {selectedBranch.manager || "Not assigned"}
+                      <div
+                        className={`p-4 rounded-lg ${
+                          selectedUser.status === "Active"
+                            ? "bg-green-100 border border-green-200"
+                            : "bg-gray-100 border border-gray-200"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">
+                            {selectedUser.status}
+                          </span>
                         </div>
                       </div>
                     </div>
 
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                        Branch Statistics
-                      </h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
-                          <div className="text-xs text-blue-800">Users</div>
-                          <div className="text-lg font-bold text-blue-900">
-                            {selectedBranch.users || 0}
+                    {/* Contact Info */}
+                    {selectedUser.email && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                          Contact Information
+                        </h3>
+                        <div className="space-y-2">
+                          <div className="flex items-start">
+                            <Mail
+                              className="flex-shrink-0 mt-0.5 mr-2 text-gray-400"
+                              size={16}
+                            />
+                            <span className="text-sm">
+                              {selectedUser.email}
+                            </span>
                           </div>
-                        </div>
-                        <div className="p-3 rounded-lg bg-green-50 border border-green-100">
-                          <div className="text-xs text-green-800">
-                            Employees
-                          </div>
-                          <div className="text-lg font-bold text-green-900">
-                            {selectedBranch.employees || 0}
-                          </div>
+                          {selectedUser.phone && (
+                            <div className="flex items-start">
+                              <Phone
+                                className="flex-shrink-0 mt-0.5 mr-2 text-gray-400"
+                                size={16}
+                              />
+                              <span className="text-sm">
+                                {selectedUser.phone}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -668,7 +885,7 @@ export default function BranchManagementPage() {
         </main>
       </div>
 
-      {/* Add Branch Modal */}
+      {/* Add User Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div
@@ -685,7 +902,7 @@ export default function BranchManagementPage() {
             >
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold">Add New Branch</h3>
+                  <h3 className="text-lg font-bold">Add New User</h3>
                   <button onClick={() => setIsModalOpen(false)}>
                     <X size={20} />
                   </button>
@@ -693,14 +910,14 @@ export default function BranchManagementPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Branch Name
+                      Name
                     </label>
                     <input
                       type="text"
                       name="name"
-                      value={newBranch.name}
+                      value={newUser.name}
                       onChange={(e) =>
-                        setNewBranch({ ...newBranch, name: e.target.value })
+                        setNewUser({ ...newUser, name: e.target.value })
                       }
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
                       required
@@ -708,14 +925,14 @@ export default function BranchManagementPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Address
+                      Username
                     </label>
                     <input
                       type="text"
-                      name="address"
-                      value={newBranch.address}
+                      name="username"
+                      value={newUser.username}
                       onChange={(e) =>
-                        setNewBranch({ ...newBranch, address: e.target.value })
+                        setNewUser({ ...newUser, username: e.target.value })
                       }
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
                       required
@@ -723,34 +940,84 @@ export default function BranchManagementPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Contact Number
+                      Role
                     </label>
-                    <input
-                      type="text"
-                      name="contactNumber"
-                      value={newBranch.contactNumber}
+                    <select
+                      name="role"
+                      value={newUser.role}
                       onChange={(e) =>
-                        setNewBranch({
-                          ...newBranch,
-                          contactNumber: e.target.value,
-                        })
+                        setNewUser({ ...newUser, role: e.target.value })
                       }
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                    />
+                      required
+                    >
+                      <option value="">Select Role</option>
+                      <option value="Alubijid">Alubijid</option>
+                      <option value="Bukidnon">Bukidnon</option>
+                      <option value="Gingoog City">Gingoog City</option>
+                      <option value="Patag">Patag</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Manager
+                      Password
                     </label>
-                    <input
-                      type="text"
-                      name="manager"
-                      value={newBranch.manager}
+                    <div className="relative">
+                      <Lock
+                        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                        size={16}
+                      />
+                      <input
+                        type="password"
+                        name="password"
+                        value={newUser.password}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, password: e.target.value })
+                        }
+                        className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <Lock
+                        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                        size={16}
+                      />
+                      <input
+                        type="password"
+                        name="confirmPassword"
+                        value={newUser.confirmPassword}
+                        onChange={(e) =>
+                          setNewUser({
+                            ...newUser,
+                            confirmPassword: e.target.value,
+                          })
+                        }
+                        className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Status
+                    </label>
+                    <select
+                      name="status"
+                      value={newUser.status}
                       onChange={(e) =>
-                        setNewBranch({ ...newBranch, manager: e.target.value })
+                        setNewUser({ ...newUser, status: e.target.value })
                       }
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                    />
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
                   </div>
                 </div>
                 <div className="mt-6 flex justify-end space-x-3">
@@ -761,10 +1028,10 @@ export default function BranchManagementPage() {
                     Cancel
                   </button>
                   <button
-                    onClick={handleAddBranch}
+                    onClick={handleAddUser}
                     className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
                   >
-                    Add Branch
+                    Add User
                   </button>
                 </div>
               </div>
@@ -773,9 +1040,9 @@ export default function BranchManagementPage() {
         )}
       </AnimatePresence>
 
-      {/* Edit Branch Modal */}
+      {/* Edit User Modal */}
       <AnimatePresence>
-        {isEditModalOpen && editBranch && (
+        {isEditModalOpen && editUser && (
           <motion.div
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
             initial={{ opacity: 0 }}
@@ -790,7 +1057,7 @@ export default function BranchManagementPage() {
             >
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold">Edit Branch</h3>
+                  <h3 className="text-lg font-bold">Edit User</h3>
                   <button onClick={() => setIsEditModalOpen(false)}>
                     <X size={20} />
                   </button>
@@ -798,14 +1065,14 @@ export default function BranchManagementPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Branch Name
+                      Name
                     </label>
                     <input
                       type="text"
                       name="name"
-                      value={editBranch.name}
+                      value={editUser.name}
                       onChange={(e) =>
-                        setEditBranch({ ...editBranch, name: e.target.value })
+                        setEditUser({ ...editUser, name: e.target.value })
                       }
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
                       required
@@ -813,17 +1080,14 @@ export default function BranchManagementPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Address
+                      Username
                     </label>
                     <input
                       type="text"
-                      name="address"
-                      value={editBranch.address}
+                      name="username"
+                      value={editUser.username}
                       onChange={(e) =>
-                        setEditBranch({
-                          ...editBranch,
-                          address: e.target.value,
-                        })
+                        setEditUser({ ...editUser, username: e.target.value })
                       }
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
                       required
@@ -831,38 +1095,72 @@ export default function BranchManagementPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Contact Number
+                      Role
                     </label>
-                    <input
-                      type="text"
-                      name="contactNumber"
-                      value={editBranch.contactNumber}
+                    <select
+                      name="role"
+                      value={editUser.role}
                       onChange={(e) =>
-                        setEditBranch({
-                          ...editBranch,
-                          contactNumber: e.target.value,
-                        })
+                        setEditUser({ ...editUser, role: e.target.value })
                       }
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                    />
+                      required
+                    >
+                      <option value="">Select Role</option>
+                      <option value="Alubijid">Alubijid</option>
+                      <option value="Bukidnon">Bukidnon</option>
+                      <option value="Gingoog City">Gingoog City</option>
+                      <option value="Patag">Patag</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Manager
+                      Status
                     </label>
-                    <input
-                      type="text"
-                      name="manager"
-                      value={editBranch.manager}
+                    <select
+                      name="status"
+                      value={editUser.status}
                       onChange={(e) =>
-                        setEditBranch({
-                          ...editBranch,
-                          manager: e.target.value,
-                        })
+                        setEditUser({ ...editUser, status: e.target.value })
                       }
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                    />
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
                   </div>
+                  {editUser.email && (
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={editUser.email}
+                        onChange={(e) =>
+                          setEditUser({ ...editUser, email: e.target.value })
+                        }
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  )}
+                  {editUser.phone && (
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Phone
+                      </label>
+                      <input
+                        type="text"
+                        name="phone"
+                        value={editUser.phone}
+                        onChange={(e) =>
+                          setEditUser({ ...editUser, phone: e.target.value })
+                        }
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="mt-6 flex justify-end space-x-3">
                   <button
@@ -872,7 +1170,7 @@ export default function BranchManagementPage() {
                     Cancel
                   </button>
                   <button
-                    onClick={() => handleSaveEdit(editBranch)}
+                    onClick={() => handleSaveEdit(editUser)}
                     className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
                   >
                     Save Changes
