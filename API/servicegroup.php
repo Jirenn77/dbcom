@@ -25,34 +25,42 @@ try {
             break;
 
         case 'premium_services':
-            try {
-                $minPrice = isset($_GET['min_price']) ? (float) $_GET['min_price'] : 500.00;
-                $membershipType = isset($_GET['membership_type']) ? strtolower(trim($_GET['membership_type'])) : null;
+            $membershipType = isset($_GET['membership_type']) ? strtolower(trim($_GET['membership_type'])) : null;
 
-                // Validate membership type if provided
-                if ($membershipType && !in_array($membershipType, ['vip', 'standard'])) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Invalid membership type. Must be "vip" or "standard"']);
-                    exit;
-                }
+            // Debug output
+            error_log("Received membership type: " . $membershipType);
 
-                // Validate minimum price
-                if ($minPrice < 0) {
-                    http_response_code(400);
-                    echo json_encode(['error' => 'Minimum price cannot be negative']);
-                    exit;
-                }
+            $services = getPremiumServices($pdo, $membershipType);
 
-                $services = getPremiumServices($pdo, $minPrice, $membershipType);
-                header('Content-Type: application/json');
-                echo json_encode($services);
-            } catch (PDOException $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
-            } catch (Exception $e) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+            // Debug output
+            error_log("Returning services: " . print_r($services, true));
+
+            header('Content-Type: application/json');
+            echo json_encode($services);
+            break;
+
+        case 'add_service':
+            $rawData = file_get_contents('php://input');
+            error_log("RAW input: " . $rawData);
+
+            $data = json_decode($rawData, true);
+
+            if (!$data) {
+                error_log("JSON decode failed: " . json_last_error_msg());
+                echo json_encode(['success' => false, 'message' => 'Invalid JSON']);
+                exit;
             }
+
+            error_log("Parsed JSON: " . print_r($data, true));
+
+            if (!isset($data['service'], $data['group_id'])) {
+                error_log("Missing service or group_id");
+                echo json_encode(['success' => false, 'message' => 'Missing service or group_id']);
+                exit;
+            }
+
+            $result = addServices($pdo, $data['service'], $data['group_id']);
+            echo json_encode($result);
             break;
 
         case 'get_groups':
@@ -123,6 +131,39 @@ try {
     echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
 }
 
+function addServices($pdo, $service, $groupId)
+{
+    try {
+        if (empty($service['name']) || !isset($service['price']) || !isset($service['category'])) {
+            return ['success' => false, 'message' => 'Missing required service fields.'];
+        }
+
+        $stmt = $pdo->prepare("
+            INSERT INTO services (name, price, description, duration, category)
+            VALUES (?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $service['name'],
+            $service['price'],
+            $service['description'] ?? null,
+            $service['duration'] ?? null,
+            $service['category']
+        ]);
+
+        $serviceId = $pdo->lastInsertId();
+
+        $stmtMapping = $pdo->prepare("
+            INSERT INTO service_group_mappings (group_id, service_id)
+            VALUES (?, ?)
+        ");
+        $stmtMapping->execute([$groupId, $serviceId]);
+
+        return ['success' => true, 'service_id' => $serviceId];
+    } catch (PDOException $e) {
+        return ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
+    }
+}
+
 function getAllServices($pdo)
 {
     $stmt = $pdo->query("
@@ -142,6 +183,7 @@ function getDealsWithServices($pdo)
 {
     $deals = [];
 
+    // Get all promos
     $stmt = $pdo->query("SELECT * FROM promos ORDER BY promo_id");
     $promos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -149,25 +191,37 @@ function getDealsWithServices($pdo)
         $groupName = trim($promo['name']);
         $groupId = $promo['promo_id'];
 
+        // Fetch services linked to this promo
         $stmtServices = $pdo->prepare("
             SELECT 
                 s.service_id,
                 s.name,
                 s.category,
                 s.price AS originalPrice,
-                ROUND(s.price * 0.9, 2) AS discountedPrice
+                CASE 
+                    WHEN p.discount_type = 'percentage' 
+                        THEN ROUND(s.price * (1 - (p.discount_value / 100)), 2)
+                    WHEN p.discount_type = 'fixed' 
+                        THEN GREATEST(0, ROUND(s.price - p.discount_value, 2))
+                    ELSE s.price
+                END AS discountedPrice,
+                p.discount_type,
+                p.discount_value
             FROM 
                 service_group_mappings gm
             JOIN 
                 services s ON s.service_id = gm.service_id
+            JOIN
+                promos p ON p.promo_id = gm.group_id
             WHERE 
                 gm.group_id = ?
             ORDER BY s.name
         ");
+
         $stmtServices->execute([$groupId]);
         $services = $stmtServices->fetchAll(PDO::FETCH_ASSOC);
 
-        // 3. Join service names
+        // Join service names for the description
         $serviceNames = array_column($services, 'name');
         $joinedNames = implode(' + ', $serviceNames);
 
@@ -180,6 +234,8 @@ function getDealsWithServices($pdo)
             'validFrom' => $promo['valid_from'],
             'validTo' => $promo['valid_to'],
             'status' => $promo['status'],
+            'discount_type' => $promo['discount_type'],
+            'discount_value' => $promo['discount_value'],
             'services' => $services
         ];
     }
@@ -197,18 +253,19 @@ function getDiscountsWithServices($pdo)
     foreach ($rows as $discount) {
         $discountId = $discount['discount_id'];
 
-        // Determine membership type based on discount value
-        $type = ($discount['value'] == 50) ? 'vip' :
-            (($discount['value'] == 30) ? 'standard' : 'custom');
-
         $stmtServices = $pdo->prepare("
             SELECT 
                 s.service_id,
                 s.name,
                 s.category,
                 s.price AS originalPrice,
-                ROUND(s.price * (1 - (d.value / 100)), 2) AS discountedPrice,
-                d.value AS discountPercentage
+                CASE 
+                    WHEN d.discount_type = 'percentage' 
+                        THEN ROUND(s.price * (1 - (d.value / 100)), 2)
+                    ELSE GREATEST(s.price - d.value, 0)
+                END AS discountedPrice,
+                d.value AS discountValue,
+                d.discount_type AS discountType
             FROM 
                 service_group_mappings gm
             JOIN 
@@ -225,9 +282,8 @@ function getDiscountsWithServices($pdo)
             'id' => $discountId,
             'name' => $discount['name'],
             'description' => $discount['description'],
-            'type' => $type,  // Added type field
-            'value' => $discount['value'],  // Keep original value
-            'discountType' => ($discount['value'] == 50 || $discount['value'] == 30) ? 'membership' : 'promotional',
+            'discountType' => $discount['discount_type'],  // ✅ fixed
+            'value' => $discount['value'],
             'status' => $discount['status'],
             'services' => $services
         ];
@@ -235,6 +291,8 @@ function getDiscountsWithServices($pdo)
 
     return $discounts;
 }
+
+
 
 function getMembershipsWithServices($pdo)
 {
@@ -307,8 +365,9 @@ function getGroupsWithServices($pdo)
     return $groups;
 }
 
-function getPremiumServices($pdo, $minPrice = 500.00, $membershipType = null)
+function getPremiumServices($pdo, $membershipType = null)
 {
+    // Base query for all premium services (₱499 and above)
     $query = "
         SELECT 
             service_id, 
@@ -318,35 +377,29 @@ function getPremiumServices($pdo, $minPrice = 500.00, $membershipType = null)
             description,
             duration
         FROM services
-        WHERE price >= :minPrice
-        ORDER BY price DESC, name
+        WHERE price >= 499
     ";
 
+    // Exclude Glow Drip for Basic membership
+    if ($membershipType === 'basic') {
+        $query .= " AND name != 'Glow Drip'";
+    }
+
+    $query .= " ORDER BY price DESC, name";
+
     $stmt = $pdo->prepare($query);
-    $stmt->bindParam(':minPrice', $minPrice, PDO::PARAM_STR);
     $stmt->execute();
     $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    if ($membershipType) {
-        // Define discounts
-        $discounts = [
-            'vip' => 0.5,      // 50% for VIP
-            'standard' => 0.3   // 30% for Standard
-        ];
-        $discount = $discounts[$membershipType];
+    // Apply 50% discount for both membership types
+    foreach ($services as &$service) {
+        $originalPrice = (float) $service['originalPrice'];
+        $discountedPrice = round($originalPrice * 0.5, 2); // 50% discount
 
-        foreach ($services as &$service) {
-            // Ensure originalPrice is treated as float
-            $originalPrice = (float) $service['originalPrice'];
-
-            // Calculate discounted price (rounded to 2 decimal places)
-            $discountedPrice = round($originalPrice * (1 - $discount), 2);
-
-            $service['originalPrice'] = number_format($originalPrice, 2, '.', '');
-            $service['discountedPrice'] = number_format($discountedPrice, 2, '.', '');
-            $service['discountPercentage'] = ($discount * 100) . '%';
-            $service['membershipType'] = $membershipType;
-        }
+        $service['originalPrice'] = number_format($originalPrice, 2, '.', '');
+        $service['discountedPrice'] = number_format($discountedPrice, 2, '.', '');
+        $service['discountPercentage'] = '50%';
+        $service['membershipType'] = $membershipType;
     }
 
     return $services;

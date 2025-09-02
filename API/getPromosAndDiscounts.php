@@ -24,6 +24,64 @@ try {
     $pdo = new PDO("mysql:host=localhost;dbname=dbcom", "root", "");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+
+// ================================
+// ADD PROMO or DISCOUNT (Unified)
+// ================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action'])) {
+    $input = json_decode(file_get_contents("php://input"), true);
+    $action = $_GET['action'];
+
+    if ($action === 'addPromo') {
+        // Insert promo
+        $type = $input['promoType'] ?? '';
+        $name = $input['name'] ?? '';
+        $description = $input['description'] ?? '';
+        $validFrom = $input['validFrom'] ?? null;
+        $validTo = $input['validTo'] ?? null;
+        $status = $input['status'] ?? 'active';
+        $discountType = $input['discountType'] ?? 'percentage';
+        $discountValue = isset($input['value']) ? (float)$input['value'] : 0;
+
+        $stmt = $pdo->prepare("
+            INSERT INTO promos (type, name, description, valid_from, valid_to, status, discount_type, discount_value)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $type,
+            $name,
+            $description,
+            $validFrom ? date('Y-m-d', strtotime($validFrom)) : null,
+            $validTo ? date('Y-m-d', strtotime($validTo)) : null,
+            $status,
+            $discountType,
+            $discountValue
+        ]);
+
+        echo json_encode(['success' => true, 'message' => 'Promo added successfully.']);
+        exit;
+    }
+
+    if ($action === 'addDiscount') {
+        // Insert discount
+        $name = $input['name'] ?? '';
+        $description = $input['description'] ?? '';
+        $status = $input['status'] ?? 'active';
+        $discountType = $input['discountType'] ?? 'percentage';
+        $value = isset($input['value']) ? (float)$input['value'] : 0;
+
+        $stmt = $pdo->prepare("
+            INSERT INTO discounts (name, description, status, discount_type, value)
+            VALUES (?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([$name, $description, $status, $discountType, $value]);
+
+        echo json_encode(['success' => true, 'message' => 'Discount added successfully.']);
+        exit;
+    }
+}
+
+
     // Handle update promo
     if ($_SERVER['REQUEST_METHOD'] === 'PUT' && isset($_GET['action']) && $_GET['action'] === 'update_deal') {
         $input = json_decode(file_get_contents("php://input"), true);
@@ -47,20 +105,31 @@ try {
         $pdo->beginTransaction();
 
         // Update the promo including discounted_price
+        $discountType = $input['discount_type'] ?? ($input['discountType'] ?? 'fixed');
+        $discountValue = isset($input['discount_value'])
+            ? (float) $input['discount_value']
+            : (isset($input['discountedPrice']) ? (float) $input['discountedPrice'] : 0);
+
+        $type = $input['type'] ?? ''; // 👈 capture type from request
+
         $stmt = $pdo->prepare("
-        UPDATE promos
-        SET name = ?, description = ?, valid_from = ?, valid_to = ?, status = ?, discounted_price = ?
-        WHERE promo_id = ?
-    ");
+    UPDATE promos
+    SET type = ?, name = ?, description = ?, valid_from = ?, valid_to = ?, status = ?, 
+        discount_type = ?, discount_value = ?
+    WHERE promo_id = ?
+");
         $stmt->execute([
+            $type,
             $name,
             $description,
             date('Y-m-d', strtotime($validFrom)),
             date('Y-m-d', strtotime($validTo)),
             $status,
-            $discountedPrice,
+            $discountType,
+            $discountValue,
             $promo_id
         ]);
+
 
         // Update mappings
         $deleteStmt = $pdo->prepare("DELETE FROM service_group_mappings WHERE group_id = ?");
@@ -92,7 +161,7 @@ try {
         $serviceIds = $input['services'] ?? [];
 
         if (!$discount_id) {
-            http_response_code(400);
+            http_response_code( 400);
             echo json_encode(['success' => false, 'error' => 'Missing discount ID.']);
             exit;
         }
@@ -128,17 +197,17 @@ try {
     // Fetch promos and discounts
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // Fetch promos
-        $promoStmt = $pdo->query("SELECT promo_id, type, name, description, valid_from, valid_to, status, discounted_price FROM promos");
+        $promoStmt = $pdo->query("SELECT promo_id, type, name, description, valid_from, valid_to, status, discount_type, discount_value FROM promos");
         $promos = $promoStmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($promos as &$promo) {
             $promo['id'] = $promo['promo_id'];
             $promo['validFrom'] = date("Y-m-d", strtotime($promo['valid_from']));
             $promo['validTo'] = date("Y-m-d", strtotime($promo['valid_to']));
-            $promo['discountedPrice'] = $promo['discounted_price']; // 💰
-            unset($promo['valid_from'], $promo['valid_to'], $promo['promo_id'], $promo['discounted_price']);
+            $promo['discountType'] = $promo['discount_type'];
+            $promo['discountValue'] = $promo['discount_value'];
+            unset($promo['valid_from'], $promo['valid_to'], $promo['promo_id'], $promo['discount_type'], $promo['discount_value']);
         }
-
 
         // Fetch discounts
         $discountStmt = $pdo->query("SELECT discount_id, name, description, discount_type, value, status FROM discounts");

@@ -19,6 +19,7 @@ try {
         exit;
     }
 
+    // -------------------- ADD CUSTOMER --------------------
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['action'] === 'add') {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
@@ -26,33 +27,25 @@ try {
             if (!$data) throw new Exception("Invalid or missing JSON payload.");
 
             $name = trim($data['name'] ?? '');
-            $phone = trim($data['phone'] ?? '');
-            $email = trim($data['email'] ?? '');
-            $address = trim($data['address'] ?? '');
-            $birthday = !empty($data['birthday']) ? $data['birthday'] : null;
+            $contact = trim($data['phone'] ?? ''); // frontend sends "phone", but DB column is "contact"
+            $email = isset($data['email']) && trim($data['email']) !== '' ? trim($data['email']) : null;
+            $address = isset($data['address']) && trim($data['address']) !== '' ? trim($data['address']) : null;
+            $birthday = isset($data['birthday']) && trim($data['birthday']) !== '' ? $data['birthday'] : null;
             $isMember = !empty($data['isMember']) ? 1 : 0;
             $membershipType = $data['membershipType'] ?? null;
 
-            if (empty($name) || empty($phone)) throw new Exception("Name and phone are required.");
+            if (empty($name) || empty($contact))
+                throw new Exception("Name and contact number are required.");
 
             $pdo->beginTransaction();
 
-            $duplicateCheckStmt = $pdo->prepare("SELECT COUNT(*) FROM customers WHERE (name = ? AND phone = ?) OR (email = ? AND email != '')");
-            $duplicateCheckStmt->execute([$name, $phone, $email]);
-            if ($duplicateCheckStmt->fetchColumn() > 0) {
-                $pdo->rollBack();
-                echo json_encode(['success' => false, 'message' => 'Customer already exists with the same name and phone or email.']);
-                exit;
-            }
-
-            $stmt = $pdo->prepare("INSERT INTO customers (name, phone, email, address, birthday) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$name, $phone, $email, $address, $birthday]);
+            $stmt = $pdo->prepare("INSERT INTO customers (name, contact, email, address, birthday) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$name, $contact, $email, $address, $birthday]);
             $customerId = $pdo->lastInsertId();
 
             if ($isMember && $membershipType) {
                 $coverage = match ($membershipType) {
-                    'Premium' => 20000,
-                    'Standard' => 10000,
+                    'PRO' => 10000,
                     'Basic' => 5000,
                     default => 0
                 };
@@ -64,7 +57,8 @@ try {
             }
 
             $pdo->commit();
-            echo json_encode(['success' => true, 'message' => 'Customer added successfully.']);
+            echo json_encode(['success' => true, 'message' => 'Customer added successfully.', 'customer_id' => $customerId]);
+
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
             http_response_code(400);
@@ -73,6 +67,49 @@ try {
         exit;
     }
 
+    // -------------------- UPDATE CUSTOMER --------------------
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['action'] === 'update') {
+        try {
+            $id = $_GET['id'] ?? null;
+            if (!$id) throw new Exception("Missing customer ID.");
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!$data) throw new Exception("Invalid or missing JSON payload.");
+
+            $name = trim($data['name'] ?? '');
+            $contact = trim($data['contact'] ?? '');
+            $email = isset($data['email']) && trim($data['email']) !== '' ? trim($data['email']) : null;
+            $address = isset($data['address']) && trim($data['address']) !== '' ? trim($data['address']) : null;
+            $birthday = isset($data['birthday']) && trim($data['birthday']) !== '' ? $data['birthday'] : null;
+            $customerId = isset($data['customerId']) && trim($data['customerId']) !== '' ? trim($data['customerId']) : null;
+
+            if (empty($name) || empty($contact))
+                throw new Exception("Name and contact number are required.");
+
+            $stmt = $pdo->prepare("UPDATE customers 
+                                   SET name = :name, contact = :contact, email = :email, address = :address, birthday = :birthday, customerId = :customerId 
+                                   WHERE id = :id");
+            $stmt->execute([
+                ':name' => $name,
+                ':contact' => $contact,
+                ':email' => $email,
+                ':address' => $address,
+                ':birthday' => $birthday,
+                ':customerId' => $customerId,
+                ':id' => $id
+            ]);
+
+            echo json_encode(['success' => true, 'message' => 'Customer updated successfully.']);
+
+        } catch (Exception $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Failed to update customer: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+
+
+    // -------------------- GET SINGLE CUSTOMER --------------------
     if (isset($_GET['customerId'])) {
         $customerId = $_GET['customerId'];
 
@@ -124,6 +161,8 @@ try {
         exit;
     }
 
+    
+    // -------------------- LIST CUSTOMERS --------------------
     $filter = $_GET['filter'] ?? 'all';
     $stmt = $pdo->prepare("SELECT * FROM customers ORDER BY id");
     $stmt->execute();
@@ -148,8 +187,10 @@ try {
             $customer['membership_status'] = 'None';
         }
 
-        if ($filter === 'member' && $customer['membership_status'] === 'None') continue;
-        if ($filter === 'nonMember' && $customer['membership_status'] !== 'None') continue;
+        if ($filter === 'member' && $customer['membership_status'] === 'None')
+            continue;
+        if ($filter === 'nonMember' && $customer['membership_status'] !== 'None')
+            continue;
 
         $stmtTrans = $pdo->prepare("SELECT invoice_number, invoice_date, GROUP_CONCAT(s.name SEPARATOR ', ') as services, SUM(i.total_price) as amount, i.status FROM invoices i JOIN services s ON i.service_id = s.service_id WHERE i.customer_id = ? GROUP BY invoice_number ORDER BY invoice_date DESC LIMIT 10");
         $stmtTrans->execute([$customer['id']]);

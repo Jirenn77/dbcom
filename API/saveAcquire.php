@@ -27,19 +27,37 @@ try {
         if (
             !isset($input['customer_id']) ||
             !isset($input['services']) ||
-            !isset($input['subtotal'])
+            !is_array($input['services'])
         ) {
             http_response_code(400);
-            echo json_encode(['error' => 'Missing required fields']);
+            echo json_encode(['error' => 'Missing or invalid required fields']);
             exit;
         }
 
         $customerId = filter_var($input['customer_id'], FILTER_SANITIZE_NUMBER_INT);
         $employeeName = isset($input['employee_name']) ? $input['employee_name'] : 'N/A';
-        $services = $input['services']; // array of { id, name, price }
-        $subtotal = floatval($input['subtotal']);
+        $services = $input['services'];
+
+        // Recalculate subtotal from services to ensure accuracy
+        $subtotal = 0;
+        foreach ($services as $service) {
+            if (!isset($service['price']) || !isset($service['quantity']) || !isset($service['service_id'])) {
+                throw new Exception('Invalid service data: missing price, quantity, or service_id');
+            }
+            $subtotal += floatval($service['price']) * intval($service['quantity']);
+        }
+
+        // Get reductions from input
+        $promoReduction = isset($input['promoReduction']) ? floatval($input['promoReduction']) : 0;
+        $discountReduction = isset($input['discountReduction']) ? floatval($input['discountReduction']) : 0;
         $membershipReduction = isset($input['membershipReduction']) ? floatval($input['membershipReduction']) : 0;
-        $finalAmount = $subtotal - $membershipReduction;
+
+        // Final total matches frontend logic
+        $finalAmount = $subtotal - $promoReduction - $discountReduction - $membershipReduction;
+        if ($finalAmount < 0) {
+            $finalAmount = 0; // Prevent negative totals
+        }
+
         $serviceDate = date("Y-m-d");
         $updateMembershipBalance = isset($input['new_membership_balance']) ? floatval($input['new_membership_balance']) : null;
 
@@ -53,7 +71,6 @@ try {
             $serviceDescription = implode(', ', array_map(function ($s) {
                 return $s['name'] ?? 'Unknown Service';
             }, $services));
-
 
             // Insert into transactions table
             $stmt = $pdo->prepare("
@@ -72,25 +89,41 @@ try {
 
             // Insert each service into invoices
             foreach ($services as $service) {
-                if (!isset($service['service_id']) || !isset($service['price'])) {
-                    throw new Exception('Invalid service data');
-                }
-
                 $stmt = $pdo->prepare("
-    INSERT INTO invoices 
-    (invoice_number, customer_id, service_id, invoice_date, quantity, total_price, status)
-    VALUES (:invoice_number, :customer_id, :service_id, :invoice_date, 1, :total_price, :status)
-");
+                    INSERT INTO invoices 
+                    (invoice_number, customer_id, service_id, invoice_date, quantity, total_price, status)
+                    VALUES (:invoice_number, :customer_id, :service_id, :invoice_date, :quantity, :total_price, :status)
+                ");
                 $stmt->execute([
                     ':invoice_number' => $invoiceNumber,
                     ':customer_id' => $customerId,
                     ':service_id' => $service['service_id'],
                     ':invoice_date' => $serviceDate,
-                    ':total_price' => $service['price'],
-                    ':status' => 'Paid'  // ✅ This now matches your actual column name
+                    ':quantity' => intval($service['quantity']),
+                    ':total_price' => floatval($service['price']) * intval($service['quantity']),
+                    ':status' => 'Paid'
                 ]);
             }
 
+            // Insert into orders table for dashboard stats
+            // Using a dummy branch_id = 1 temporarily
+            $dummyBranchId = 1;
+            foreach ($services as $service) {
+                $stmtOrders = $pdo->prepare("
+                    INSERT INTO orders
+                    (branch_id, service_id, order_date, amount, customer_id)
+                    VALUES (:branch_id, :service_id, :order_date, :amount, :customer_id)
+                ");
+                $stmtOrders->execute([
+                    ':branch_id' => $dummyBranchId,
+                    ':service_id' => $service['service_id'],
+                    ':order_date' => $serviceDate . ' ' . date('H:i:s'),
+                    ':amount' => floatval($service['price']) * intval($service['quantity']),
+                    ':customer_id' => $customerId,
+                ]);
+            }
+
+            // Update membership balance if applicable
             if (!is_null($updateMembershipBalance)) {
                 $updateStmt = $pdo->prepare("UPDATE memberships SET remaining_balance = :balance WHERE customer_id = :customer_id");
                 $updateStmt->execute([
@@ -104,7 +137,8 @@ try {
             http_response_code(201);
             echo json_encode([
                 'message' => 'Order saved successfully',
-                'invoice_number' => $invoiceNumber
+                'invoice_number' => $invoiceNumber,
+                'calculated_total' => $finalAmount
             ]);
             exit;
 
