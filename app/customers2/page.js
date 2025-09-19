@@ -29,7 +29,7 @@ import {
   Factory,
   ClipboardList,
   Folder,
-  ShoppingBag,
+  BarChart2,
   Calendar,
   Edit,
   Eye,
@@ -39,9 +39,8 @@ import {
   ChevronsLeft,
   ChevronRight,
   ChevronsRight,
-  Leaf,
   ChevronDown,
-  BarChart2,
+  Leaf,
 } from "lucide-react";
 
 export default function CustomersPage() {
@@ -67,7 +66,8 @@ export default function CustomersPage() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [customerMemberships, setCustomerMemberships] = useState([]);
   const [isRenewing, setIsRenewing] = useState(false);
-    const [membershipLogs, setMembershipLogs] = useState([]);
+  const [membershipLogs, setMembershipLogs] = useState([]);
+  const [membershipTemplates, setMembershipTemplates] = useState([]);
 
   // Membership-related states
   const [isMembershipModalOpen, setIsMembershipModalOpen] = useState(false);
@@ -97,6 +97,20 @@ export default function CustomersPage() {
     valid_until: "",
     no_expiration: false,
   });
+
+  useEffect(() => {
+    const fetchMembershipTemplates = async () => {
+      try {
+        const res = await fetch("http://localhost/API/memberships.php");
+        const data = await res.json();
+        setMembershipTemplates(data);
+      } catch (error) {
+        console.error("Failed to fetch memberships:", error);
+      }
+    };
+
+    fetchMembershipTemplates();
+  }, []);
 
   useEffect(() => {
     fetchCustomers(activeTab);
@@ -171,118 +185,188 @@ export default function CustomersPage() {
   });
 
   const handleRenewMembership = async (
-  customerId,
-  membershipId,
-  type,
-  payment,
-  renewMembership
-) => {
-  try {
-    const { price, consumable_amount, valid_until, no_expiration } =
-      renewMembership;
+    customerId,
+    type,
+    payment,
+    renewMembership
+  ) => {
+    try {
+      console.log("Renewing membership with:", {
+        customerId,
+        type,
+        payment,
+        renewMembership,
+      });
 
-    // 🔍 Find the current membership
-    const currentMembership = customerMemberships.find(
-      (m) => m.customer_id === customerId
-    );
+      const { price, consumable_amount, valid_until, no_expiration } =
+        renewMembership;
 
-    // ❌ Prevent renewal if there's still remaining balance
-    if (currentMembership) {
-      const remaining = parseFloat(currentMembership.remaining_balance || 0);
-      const hasBalance = !isNaN(remaining) && remaining > 0;
-
-      if (hasBalance) {
-        toast.error(
-          `❌ Cannot renew "${type.toUpperCase()}" membership.\n₱${remaining.toFixed(
-            2
-          )} remaining. Please use it up before renewing.`
+      // Fetch the latest membership
+      let currentMembership = null;
+      try {
+        const response = await fetch(
+          `http://localhost/API/members.php?customer_id=${customerId}`
         );
+        const memberships = await response.json();
+
+        if (memberships && memberships.length > 0) {
+          currentMembership = memberships.sort(
+            (a, b) => new Date(b.date_registered) - new Date(a.date_registered)
+          )[0];
+        }
+      } catch (fetchError) {
+        console.warn("Could not fetch membership from API:", fetchError);
+        const customerMembershipHistory = customerMemberships
+          .filter((m) => m.customer_id === customerId)
+          .sort(
+            (a, b) =>
+              new Date(b.date_registered).getTime() -
+              new Date(a.date_registered).getTime()
+          );
+
+        currentMembership = customerMembershipHistory[0];
+      }
+
+      // If no current membership, create instead of renew
+      if (!currentMembership) {
+        const confirmCreate = window.confirm(
+          "No existing membership found. Would you like to create a new membership instead of renewing?"
+        );
+
+        if (confirmCreate) {
+          let coverage = 0;
+          let price = 0;
+          let expireDate = null;
+
+          if (type === "basic") {
+            coverage = 5000;
+            price = 5000;
+          } else if (type === "pro") {
+            coverage = 10000;
+            price = 10000;
+          } else if (type === "promo") {
+            coverage = parseFloat(consumable_amount || 0);
+            price = parseFloat(price || 0);
+          }
+
+          if (!expireDate && type !== "promo") {
+            const today = new Date();
+            today.setMonth(today.getMonth() + (type === "pro" ? 2 : 1));
+            expireDate = today.toISOString().split("T")[0];
+          }
+
+          const payload = {
+            customer_id: customerId,
+            action: "renew",
+            type,
+            coverage,
+            price,
+            expire_date: expireDate,
+            payment_method: payment,
+          };
+
+          const response = await fetch("http://localhost/API/members.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await response.json();
+          if (data.error) {
+            toast.error(`❌ ${data.error}`);
+            return;
+          }
+
+          setCustomerMemberships((prev) => [...prev, data]);
+          toast.success("✅ New membership created successfully!");
+          return;
+        } else {
+          return;
+        }
+      }
+
+      // ✅ Proceed with renewal setup (no balance check anymore)
+      let coverage = 0;
+      let expireDate = null;
+
+      if (type === "basic") {
+        coverage = 5000;
+      } else if (type === "pro") {
+        coverage = 10000;
+      } else if (type === "promo") {
+        coverage = parseFloat(consumable_amount || 0);
+        if (!no_expiration && valid_until) {
+          expireDate = valid_until;
+        }
+      }
+
+      if (type !== "promo") {
+        const today = new Date();
+        today.setMonth(today.getMonth() + (type === "pro" ? 2 : 1));
+        expireDate = today.toISOString().split("T")[0];
+      }
+
+      const membershipId = currentMembership.id;
+      if (!membershipId) {
+        toast.error("❌ Cannot determine membership ID for renewal");
+        console.error("Current membership object:", currentMembership);
         return;
       }
-    }
 
-    // ✅ Proceed with renewal setup
-    let coverage = 0;
-    let expireDate = null;
-
-    if (type === "basic") {
-      coverage = 5000;
-    } else if (type === "pro") {
-      coverage = 10000;
-    } else if (type === "promo") {
-      coverage = parseFloat(consumable_amount || 0);
-      if (!no_expiration && valid_until) {
-        expireDate = valid_until;
-      }
-    }
-
-    if (type !== "promo") {
-      const today = new Date();
-      today.setMonth(today.getMonth() + (type === "pro" ? 2 : 1));
-      expireDate = today.toISOString().split("T")[0];
-    }
-
-    const payload = {
-      customer_id: customerId,
-      membership_id: membershipId,
-      action: "renew",
-      type,
-      coverage,
-      price: parseFloat(price || 0),
-      expire_date: expireDate,
-      no_expiration: type !== "promo" ? 1 : no_expiration ? 1 : 0,
-      payment_method: payment,
-    };
-
-    const response = await fetch("http://localhost/API/members.php", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) throw new Error("Failed to renew membership");
-
-    const updatedMembership = await response.json();
-
-    // 📦 Log the renewal
-    await fetch("http://localhost/API/membership_logs.php", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+      const payload = {
         customer_id: customerId,
         membership_id: membershipId,
-        action: "renewal",
+        action: "renew",
         type,
-        amount: coverage,
+        coverage, // new coverage to add
+        price: parseFloat(price || 0),
+        expire_date: expireDate,
         payment_method: payment,
-      }),
-    });
+      };
 
-    // 🧠 Update state
-    setCustomerMemberships((prev) =>
-      prev.map((m) =>
-        m.customer_id === customerId ? { ...m, ...updatedMembership } : m
-      )
-    );
+      console.log("Sending payload to backend:", payload);
 
-    setCustomers((prev) =>
-      prev.map((c) =>
-        c.id === customerId ? { ...c, membershipUpdatedAt: Date.now() } : c
-      )
-    );
+      const response = await fetch("http://localhost/API/members.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    fetchMembershipLogs(customerId);
+      const data = await response.json();
+      if (data.error) {
+        toast.error(`❌ ${data.error}`);
+        return;
+      }
 
-    toast.success("✅ Membership renewed successfully!");
-  } catch (error) {
-    toast.error("❌ Failed to renew membership.");
-    console.error("Renewal error:", error);
-  }
-};
+      const newMembership = data;
+
+      await fetch("http://localhost/API/membership_logs.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_id: customerId,
+          membership_id: newMembership.id,
+          action: "renewal",
+          type,
+          amount: coverage,
+          payment_method: payment,
+        }),
+      });
+
+      setCustomerMemberships((prev) => [...prev, newMembership]);
+      setCustomers((prev) =>
+        prev.map((c) =>
+          c.id === customerId ? { ...c, membershipUpdatedAt: Date.now() } : c
+        )
+      );
+
+      fetchMembershipLogs(customerId);
+      toast.success("✅ Membership renewed successfully!");
+    } catch (error) {
+      toast.error("❌ Failed to renew membership.");
+      console.error("Renewal error:", error);
+    }
+  };
 
   const handleSaveMembership = async () => {
     const customer = selectedForMembership;
@@ -330,16 +414,16 @@ export default function CustomersPage() {
         const updatedCustomers = customers.map((c) =>
           c.id === customer.id
             ? {
-                ...c,
-                membership_status: data.type.toUpperCase(), // From response
-                membershipDetails: {
-                  type: data.type,
-                  coverage: data.coverage,
-                  remainingBalance: data.remaining_balance,
-                  dateRegistered: data.date_registered,
-                  expireDate: data.expire_date,
-                },
-              }
+              ...c,
+              membership_status: data.type.toUpperCase(), // From response
+              membershipDetails: {
+                type: data.type,
+                coverage: data.coverage,
+                remainingBalance: data.remaining_balance,
+                dateRegistered: data.date_registered,
+                expireDate: data.expire_date,
+              },
+            }
             : c
         );
 
@@ -390,13 +474,19 @@ export default function CustomersPage() {
       if (searchQuery.trim() === "") {
         fetchCustomers(activeTab);
       } else {
-        const filtered = customers.filter(
-          (customer) =>
-            customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            customer.contact.includes(searchQuery) ||
-            customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            customer.customerId.includes(searchQuery)
-        );
+        const filtered = customers.filter((customer) => {
+          const name = customer.name ? customer.name.toLowerCase() : "";
+          const email = customer.email ? customer.email.toLowerCase() : "";
+          const contact = customer.contact || "";
+          const customerId = customer.customerId || "";
+
+          return (
+            name.includes(searchQuery.toLowerCase()) ||
+            contact.includes(searchQuery) ||
+            email.includes(searchQuery.toLowerCase()) ||
+            customerId.includes(searchQuery)
+          );
+        });
         setCustomers(filtered);
       }
     }, 300); // 300ms debounce delay
@@ -405,18 +495,34 @@ export default function CustomersPage() {
   }, [searchQuery, activeTab]);
 
   const handleEditClick = (customer) => {
-    setEditCustomer({ ...customer }); // Clone the customer
+    const sanitizedCustomer = Object.fromEntries(
+      Object.entries(customer).map(([key, value]) => [key, value ?? ""])
+    );
+
+    setEditCustomer(sanitizedCustomer);
     setIsEditModalOpen(true);
   };
 
   const handleSaveEdit = async (updatedCustomer) => {
     try {
+      // Clean up values before sending to backend
+      const payload = {
+        ...updatedCustomer,
+        email: updatedCustomer.email?.trim() || null,
+        customerId: updatedCustomer.customerId?.trim() || null,
+        birthday:
+          updatedCustomer.birthday?.trim() &&
+            updatedCustomer.birthday !== "0000-00-00"
+            ? updatedCustomer.birthday
+            : null,
+      };
+
       const res = await fetch(
         `http://localhost/API/customers.php?action=update&id=${updatedCustomer.id}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedCustomer),
+          body: JSON.stringify(payload),
         }
       );
 
@@ -425,7 +531,7 @@ export default function CustomersPage() {
       if (result.success) {
         // Update local state
         const updatedList = customers.map((cust) =>
-          cust.id === updatedCustomer.id ? updatedCustomer : cust
+          cust.id === updatedCustomer.id ? { ...cust, ...payload } : cust
         );
         setCustomers(updatedList);
         toast.success("Customer updated successfully.");
@@ -574,24 +680,26 @@ export default function CustomersPage() {
           <AnimatePresence>
             {isProfileOpen && (
               <motion.div
-                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden"
+                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden z-50"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <Link href="/edit-profile">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <User size={16} /> Profile
-                  </button>
+                <Link
+                  href="/profiles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <User size={16} /> Profile
                 </Link>
-                <Link href="/settings">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <Settings size={16} /> Settings
-                  </button>
+                <Link
+                  href="/roles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <Settings size={16} /> Settings
                 </Link>
                 <button
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-left text-red-500"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-red-500"
                   onClick={handleLogout}
                 >
                   <LogOut size={16} /> Logout
@@ -606,7 +714,7 @@ export default function CustomersPage() {
       <div className="flex flex-1">
         <nav className="w-64 h-screen bg-gradient-to-b from-emerald-800 to-emerald-700 text-white flex flex-col items-start py-6 fixed top-0 left-0 shadow-lg z-10">
           {/* Logo/Branding with subtle animation */}
-          <motion.div 
+          <motion.div
             className="flex items-center space-x-2 mb-8 px-6"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -619,7 +727,7 @@ export default function CustomersPage() {
               Lizly Skin Care Clinic
             </h1>
           </motion.div>
-      
+
           {/* Search for Mobile (hidden on desktop) */}
           <div className="px-4 mb-4 w-full lg:hidden">
             <div className="relative">
@@ -631,7 +739,7 @@ export default function CustomersPage() {
               />
             </div>
           </div>
-      
+
           {/* Menu Items with Active State Highlight */}
           <div className="w-full px-4 space-y-1 overflow-y-auto flex-grow custom-scrollbar">
             {/* Dashboard */}
@@ -646,7 +754,7 @@ export default function CustomersPage() {
                   </div>
                   <span>Dashboard</span>
                   {router.pathname === '/home2' && (
-                    <motion.div 
+                    <motion.div
                       className="ml-auto w-2 h-2 bg-white rounded-full"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
@@ -655,12 +763,12 @@ export default function CustomersPage() {
                 </Menu.Button>
               </Link>
             </Menu>
-      
+
             {/* Services Dropdown - Enhanced */}
             <Menu as="div" className="relative w-full">
               {({ open }) => (
                 <>
-                  <Menu.Button 
+                  <Menu.Button
                     className={`w-full p-3 rounded-lg text-left flex items-center justify-between transition-all ${open ? 'bg-emerald-600' : 'hover:bg-emerald-600/70'}`}
                   >
                     <div className="flex items-center">
@@ -677,7 +785,7 @@ export default function CustomersPage() {
                       <ChevronDown size={18} />
                     </motion.div>
                   </Menu.Button>
-      
+
                   <AnimatePresence>
                     {open && (
                       <Menu.Items
@@ -728,12 +836,12 @@ export default function CustomersPage() {
                 </>
               )}
             </Menu>
-      
+
             {/* Sales Dropdown - Enhanced */}
             <Menu as="div" className="relative w-full">
               {({ open }) => (
                 <>
-                  <Menu.Button 
+                  <Menu.Button
                     className={`w-full p-3 rounded-lg text-left flex items-center justify-between transition-all ${open ? 'bg-emerald-600' : 'hover:bg-emerald-600/70'}`}
                   >
                     <div className="flex items-center">
@@ -750,7 +858,7 @@ export default function CustomersPage() {
                       <ChevronDown size={18} />
                     </motion.div>
                   </Menu.Button>
-      
+
                   <AnimatePresence>
                     {open && (
                       <Menu.Items
@@ -763,8 +871,8 @@ export default function CustomersPage() {
                         className="mt-1 ml-3 w-full bg-emerald-700/90 text-white rounded-lg shadow-lg overflow-hidden"
                       >
                         {[
-                          { href: "/customers2", label: "Customers", icon: <Users size={16} />, count: 3 },
-                          { href: "/invoices2", label: "Invoices", icon: <FileText size={16} />, count: 17 },
+                          { href: "/customers2", label: "Customers", icon: <Users size={16} />, count: 6 },
+                          { href: "/invoices2", label: "Invoices", icon: <FileText size={16} />, count: 30 },
                         ].map((link, index) => (
                           <Menu.Item key={link.href}>
                             {({ active }) => (
@@ -800,9 +908,9 @@ export default function CustomersPage() {
               )}
             </Menu>
           </div>
-      
+
           {/* Enhanced Sidebar Footer */}
-          <motion.div 
+          <motion.div
             className="mt-auto px-6 w-full"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -875,11 +983,10 @@ export default function CustomersPage() {
               {["all", "member", "nonMember"].map((tab) => (
                 <motion.button
                   key={tab}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === tab
-                      ? "bg-white text-emerald-600 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === tab
+                    ? "bg-white text-emerald-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                    }`}
                   onClick={() => {
                     setActiveTab(tab);
                     fetchCustomers(tab);
@@ -930,11 +1037,10 @@ export default function CustomersPage() {
                         {currentCustomers.map((customer) => (
                           <motion.tr
                             key={customer.id}
-                            className={`hover:bg-gray-50 cursor-pointer ${
-                              selectedCustomer?.id === customer.id
-                                ? "bg-emerald-50"
-                                : ""
-                            }`}
+                            className={`hover:bg-gray-50 cursor-pointer ${selectedCustomer?.id === customer.id
+                              ? "bg-emerald-50"
+                              : ""
+                              }`}
                             onClick={() => fetchCustomerDetails(customer.id)}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -979,7 +1085,7 @@ export default function CustomersPage() {
                                   const rawStatus = customer.membership_status;
                                   const type =
                                     rawStatus &&
-                                    rawStatus.trim().toLowerCase() !== "none"
+                                      rawStatus.trim().toLowerCase() !== "none"
                                       ? rawStatus.trim().toLowerCase()
                                       : null;
 
@@ -990,7 +1096,7 @@ export default function CustomersPage() {
                                   else if (type === "basic")
                                     badgeClass = "bg-blue-100 text-blue-800";
                                   else if (type === "promo")
-                                    badgeClass = "bg-green-100 text-green-800";
+                                    badgeClass = "bg-amber-200 text-amber-800";
 
                                   return (
                                     <>
@@ -1025,6 +1131,7 @@ export default function CustomersPage() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div className="flex space-x-3">
                                 {customer.membership_status === "None" ? (
+                                  // Add Membership
                                   <motion.button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -1038,11 +1145,12 @@ export default function CustomersPage() {
                                     <UserPlus size={16} />
                                   </motion.button>
                                 ) : (
+                                  // Renew Membership (✅ always enabled now)
                                   <motion.button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleRenewMembershipClick(customer); // ✅ Set the selected customer here
-                                      setIsRenewModalOpen(true); // ✅ Then open the modal
+                                      handleRenewMembershipClick(customer);
+                                      setIsRenewModalOpen(true);
                                     }}
                                     className="text-blue-600 hover:text-blue-800"
                                     whileHover={{ scale: 1.2 }}
@@ -1068,7 +1176,7 @@ export default function CustomersPage() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedCustomer(customer);
-                                    fetchCustomerDetails(customer.id)
+                                    fetchCustomerDetails(customer.id);
                                   }}
                                   className="text-gray-600 hover:text-gray-800"
                                   whileHover={{ scale: 1.2 }}
@@ -1165,11 +1273,10 @@ export default function CustomersPage() {
                                 <button
                                   key={pageNum}
                                   onClick={() => handlePageChange(pageNum)}
-                                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                    currentPage === pageNum
-                                      ? "z-10 bg-emerald-50 border-emerald-500 text-emerald-600"
-                                      : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                                  }`}
+                                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === pageNum
+                                    ? "z-10 bg-emerald-50 border-emerald-500 text-emerald-600"
+                                    : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                                    }`}
                                 >
                                   {pageNum}
                                 </button>
@@ -1284,24 +1391,29 @@ export default function CustomersPage() {
                         Membership Status
                       </h3>
                       <div
-                        className={`p-4 rounded-lg ${
-                          selectedCustomer.membership?.toLowerCase() === "pro"
-                            ? "bg-purple-200 border border-purple-500"
+                        className={`p-4 rounded-lg ${selectedCustomer.membership?.toLowerCase() === "pro"
+                          ? "bg-purple-200 border border-purple-500"
+                          : selectedCustomer.membership?.toLowerCase() ===
+                            "basic"
+                            ? "bg-blue-200 border border-blue-500"
                             : selectedCustomer.membership?.toLowerCase() ===
-                                "basic"
-                              ? "bg-blue-200 border border-blue-500"
+                              "promo"
+                              ? "bg-amber-200 border border-amber-500"
                               : "bg-gray-100 border border-gray-300"
-                        }`}
+                          }`}
                       >
                         <div className="flex justify-between items-center">
                           <span className="font-medium">
                             {selectedCustomer.membership?.toLowerCase() ===
-                            "pro"
+                              "pro"
                               ? "PRO Member"
                               : selectedCustomer.membership?.toLowerCase() ===
-                                  "basic"
+                                "basic"
                                 ? "Basic Member"
-                                : "No Membership"}
+                                : selectedCustomer.membership?.toLowerCase() ===
+                                  "promo"
+                                  ? "Membership Promo"
+                                  : "No Membership"}
                           </span>
                           {selectedCustomer.membership !== "None" && (
                             <span className="text-xs text-gray-500">
@@ -1344,14 +1456,21 @@ export default function CustomersPage() {
                             Add Membership
                           </motion.button>
                         ) : (
-                          <motion.button
-                            onClick={() => setIsRenewModalOpen(true)}
-                            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            Renew Membership
-                          </motion.button>
+                          <div className="mt-2">
+                            <motion.button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsRenewModalOpen(true);
+                                handleRenewMembershipClick(selectedCustomer);
+                              }}
+                              className="w-full py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              title="Renew Membership"
+                            >
+                              Renew Membership
+                            </motion.button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1434,19 +1553,35 @@ export default function CustomersPage() {
                     value={membershipForm.type}
                     onChange={(e) => {
                       const type = e.target.value;
+                      const template = membershipTemplates.find(
+                        (m) => m.type === type
+                      );
+
                       setMembershipForm({
                         ...membershipForm,
                         type,
-                        name:
-                          type === "basic"
+                        name: template
+                          ? template.name
+                          : type === "basic"
                             ? "Basic"
-                            : type === "pro"
-                              ? "Pro"
-                              : "Promo",
-                        fee:
-                          type === "basic" ? 3000 : type === "pro" ? 6000 : "",
-                        consumable:
-                          type === "basic" ? 5000 : type === "pro" ? 10000 : "",
+                            : "Pro",
+                        fee: template
+                          ? template.price
+                          : type === "basic"
+                            ? 3000
+                            : 6000,
+                        consumable: template
+                          ? template.consumable_amount
+                          : type === "basic"
+                            ? 5000
+                            : 10000,
+                        validTo:
+                          template && template.valid_until
+                            ? template.valid_until
+                            : "",
+                        noExpiration: template
+                          ? template.no_expiration === 1
+                          : false,
                       });
                     }}
                     className="w-full p-2 border rounded"
@@ -1457,7 +1592,13 @@ export default function CustomersPage() {
                     <option value="pro">
                       Pro (₱6,000 for 10,000 consumable)
                     </option>
-                    <option value="promo">Promo (Custom)</option>
+                    {membershipTemplates
+                      .filter((m) => m.type === "promo")
+                      .map((m) => (
+                        <option key={m.id} value="promo">
+                          {m.name} (Promo)
+                        </option>
+                      ))}
                   </select>
                 </div>
 
@@ -1516,23 +1657,6 @@ export default function CustomersPage() {
                         className="w-full p-2 border rounded"
                       />
                     </div>
-
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="noExpiration"
-                        checked={membershipForm.noExpiration || false}
-                        onChange={(e) =>
-                          setMembershipForm({
-                            ...membershipForm,
-                            noExpiration: e.target.checked,
-                          })
-                        }
-                        className="mr-2"
-                      />
-                      <label htmlFor="noExpiration">No Expiration</label>
-                    </div>
-
                     {!membershipForm.noExpiration && (
                       <div>
                         <label className="block mb-1 text-sm">
@@ -1732,21 +1856,57 @@ export default function CustomersPage() {
                   onClick={async () => {
                     if (!selectedCustomer) return;
                     setIsRenewing(true);
-                    await handleRenewMembership(
-                      selectedCustomer.id,
-                      selectedCustomer.membership_id,
-                      selectedType,
-                      paymentMethod,
-                      renewMembership
-                    );
-                    setIsRenewing(false);
-                    setIsRenewModalOpen(false);
+                    try {
+                      const latestMembership = selectedCustomer.membershipDetails
+                        ? {
+                          id: selectedCustomer.membershipDetails.id,
+                          type: selectedCustomer.membership,
+                          coverage: Number(selectedCustomer.membershipDetails.coverage),
+                          remaining_balance: Number(
+                            selectedCustomer.membershipDetails.remainingBalance
+                          ),
+                          date_registered: selectedCustomer.membershipDetails.dateRegistered,
+                          expire_date: selectedCustomer.membershipDetails.expireDate,
+                          customer_id: selectedCustomer.id,
+                        }
+                        : null;
+
+                      if (!latestMembership) {
+                        toast.error("❌ No membership found for this customer.");
+                        return;
+                      }
+
+                      // 🚫 Block renewals for promo type
+                      if (latestMembership.type.toLowerCase() === "promo") {
+                        toast.error("❌ Promo memberships cannot be renewed because they have fixed expiration.");
+                        return;
+                      }
+
+                      const renewMembershipPayload = {
+                        price: Number(latestMembership.coverage || 0),
+                        consumable_amount: Number(
+                          latestMembership.remaining_balance || 0
+                        ),
+                        valid_until: latestMembership.expire_date || null,
+                        no_expiration: false,
+                      };
+
+                      await handleRenewMembership(
+                        selectedCustomer.id,
+                        latestMembership.type || "basic",
+                        paymentMethod,
+                        renewMembershipPayload
+                      );
+
+                      setIsRenewModalOpen(false);
+                    } finally {
+                      setIsRenewing(false);
+                    }
                   }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-                    isRenewing
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg ${isRenewing
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    }`}
                 >
                   {isRenewing ? "Processing..." : "Confirm Renewal"}
                 </button>

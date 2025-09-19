@@ -613,13 +613,13 @@ export default function BeautyDeals() {
                             href: "/customers2",
                             label: "Customers",
                             icon: <Users size={16} />,
-                            count: 3,
+                            count: 6,
                           },
                           {
                             href: "/invoices2",
                             label: "Invoices",
                             icon: <FileText size={16} />,
-                            count: 17,
+                            count: 30,
                           },
                         ].map((link, index) => (
                           <Menu.Item key={link.href}>

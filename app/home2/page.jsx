@@ -403,8 +403,8 @@ export default function Dashboard() {
                         className="mt-1 ml-3 w-full bg-emerald-700/90 text-white rounded-lg shadow-lg overflow-hidden"
                       >
                         {[
-                          { href: "/customers2", label: "Customers", icon: <Users size={16} />, count: 3 },
-                          { href: "/invoices2", label: "Invoices", icon: <FileText size={16} />, count: 17 },
+                          { href: "/customers2", label: "Customers", icon: <Users size={16} />, count: 6 },
+                          { href: "/invoices2", label: "Invoices", icon: <FileText size={16} />, count: 30 },
                         ].map((link, index) => (
                           <Menu.Item key={link.href}>
                             {({ active }) => (

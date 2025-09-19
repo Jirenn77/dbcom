@@ -7,9 +7,9 @@ import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog } from "@headlessui/react";
 import { Menu } from "@headlessui/react";
-import { BarChart, BarChart3 } from "lucide-react";
+import { BarChart, BarChart3, ChevronLeft, PieChart, X } from "lucide-react";
 import { User, Settings, LogOut, Tag } from "lucide-react";
-import { Folder, ClipboardList, Factory, Calendar } from "lucide-react";
+import { Folder, ClipboardList, Factory, Calendar, MapPin } from "lucide-react";
 import {
   Home,
   Users,
@@ -24,6 +24,10 @@ import {
   Plus,
   Leaf,
   ChevronDown,
+  TrendingUp,
+  DollarSign,
+  Activity,
+  ChevronsLeft,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -31,7 +35,6 @@ export default function Dashboard() {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [period, setPeriod] = useState("day");
   const [customDate, setCustomDate] = useState(new Date());
@@ -39,16 +42,40 @@ export default function Dashboard() {
     start: new Date(),
     end: new Date(),
   });
+  const [selectedBranch, setSelectedBranch] = useState(null); // Track selected branch
+  const [branches, setBranches] = useState([]); // Store branches separately
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
   const [dashboardData, setDashboardData] = useState({
     topServices: [],
     revenueByService: [],
-    branches: [],
     revenueDistribution: [],
     loading: true,
   });
+
+  const [branchData, setBranchData] = useState({
+    topServices: [],
+    revenueByService: [],
+    loading: false,
+  });
+
+  // Fetch branches separately
+  const fetchBranches = async () => {
+    try {
+      const response = await fetch("http://localhost/API/branches.php");
+      if (!response.ok) throw new Error("Failed to fetch branches");
+      const data = await response.json();
+      setBranches(data);
+    } catch (error) {
+      toast.error("Failed to load branches");
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchBranches();
+  }, []);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -79,7 +106,6 @@ export default function Dashboard() {
         setDashboardData({
           topServices: data.top_services || [],
           revenueByService: data.revenue_by_service || [],
-          branches: data.branches || [],
           revenueDistribution: data.revenue_distribution || [],
           loading: false,
         });
@@ -96,6 +122,47 @@ export default function Dashboard() {
 
     fetchDashboardData();
   }, [period, dateRange]);
+
+  // Function to fetch branch-specific data
+  const fetchBranchData = async (branchId) => {
+    setBranchData({ loading: true });
+
+    const params = new URLSearchParams({
+      action: "branch_dashboard",
+      branch_id: branchId,
+      period: period,
+    });
+
+    if (
+      period === "custom" &&
+      dateRange.start instanceof Date &&
+      !isNaN(dateRange.start) &&
+      dateRange.end instanceof Date &&
+      !isNaN(dateRange.end)
+    ) {
+      params.append("start_date", dateRange.start.toISOString().slice(0, 10));
+      params.append("end_date", dateRange.end.toISOString().slice(0, 10));
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost/API/home.php?${params.toString()}`
+      );
+      const data = await response.json();
+      setBranchData({
+        topServices: data.top_services || [],
+        revenueByService: data.revenue_by_service || [],
+        loading: false,
+      });
+    } catch (error) {
+      console.error("Error fetching branch data:", error);
+      setBranchData({
+        topServices: [],
+        revenueByService: [],
+        loading: false,
+      });
+    }
+  };
 
   const handlePeriodChange = (newPeriod) => {
     setPeriod(newPeriod);
@@ -123,6 +190,11 @@ export default function Dashboard() {
     }
 
     setDateRange({ start: startDate, end: endDate });
+
+    // If a branch is selected, refetch its data with the new period
+    if (selectedBranch) {
+      fetchBranchData(selectedBranch.id);
+    }
   };
 
   const handleSearch = async () => {
@@ -150,34 +222,53 @@ export default function Dashboard() {
     window.location.href = "/";
   };
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
+  // Handle branch selection
+  const handleBranchSelect = (branch) => {
+    setSelectedBranch(branch);
+    fetchBranchData(branch.id);
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 },
+  // Handle going back to all branches view
+  const handleBackToAllBranches = () => {
+    setSelectedBranch(null);
   };
 
-  const cardVariants = {
-    offscreen: { y: 50, opacity: 0 },
-    onscreen: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: "spring",
-        bounce: 0.4,
-        duration: 0.8,
-      },
-    },
-  };
+  // Calculate total revenue
+  const totalRevenue = dashboardData.revenueDistribution.reduce(
+    (sum, branch) => sum + (branch.revenue || 0),
+    0
+  );
+
+  // Combine branches with revenue data
+  const combinedBranchesData = branches.map((branch) => {
+    const revenueData = dashboardData.revenueDistribution.find(
+      (rev) => rev.branch_id === branch.id
+    );
+    return {
+      ...branch,
+      revenue: revenueData ? revenueData.revenue : 0,
+      percentage:
+        revenueData && totalRevenue > 0
+          ? Math.round((revenueData.revenue / totalRevenue) * 100)
+          : 0,
+    };
+  });
+
+  // Sort branches by revenue (highest first)
+  const sortedBranches = [...combinedBranchesData].sort(
+    (a, b) => (b.revenue || 0) - (a.revenue || 0)
+  );
+
+  // Get data for display (either all branches or selected branch)
+  const displayData = selectedBranch ? branchData : dashboardData;
+  const displayLoading = selectedBranch
+    ? branchData.loading
+    : dashboardData.loading;
+
+  // Safe access to data properties
+  const topServices = displayData.topServices || [];
+  const revenueByService = displayData.revenueByService || [];
+  const topServiceName = topServices.length > 0 ? topServices[0]?.name : "N/A";
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 text-gray-800">
@@ -189,29 +280,6 @@ export default function Dashboard() {
           {/* Space for potential left-aligned elements */}
         </div>
 
-        {/* <div className="flex items-center space-x-4 flex-grow justify-center">
-          <button
-            className="p-2 bg-emerald-600 rounded-full hover:bg-emerald-500 transition-colors"
-            onClick={() => setIsModalOpen(true)}
-          >
-            <Plus size={20} />
-          </button>
-          <div className="relative">
-            <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 rounded-lg bg-white/90 text-gray-800 w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-            />
-          </div>
-        </div> */}
-
         <div className="flex items-center space-x-4 relative">
           <div
             className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-lg font-bold cursor-pointer hover:bg-amber-600 transition-colors"
@@ -222,24 +290,26 @@ export default function Dashboard() {
           <AnimatePresence>
             {isProfileOpen && (
               <motion.div
-                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden"
+                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden z-50"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <Link href="/profiles">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <User size={16} /> Profile
-                  </button>
+                <Link
+                  href="/profiles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <User size={16} /> Profile
                 </Link>
-                <Link href="/roles">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <Settings size={16} /> Settings
-                  </button>
+                <Link
+                  href="/roles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <Settings size={16} /> Settings
                 </Link>
                 <button
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-left text-red-500"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-red-500"
                   onClick={handleLogout}
                 >
                   <LogOut size={16} /> Logout
@@ -452,13 +522,13 @@ export default function Dashboard() {
                             href: "/customers",
                             label: "Customers",
                             icon: <Users size={16} />,
-                            count: 3,
+                            count: 6,
                           },
                           {
                             href: "/invoices",
                             label: "Invoices",
                             icon: <FileText size={16} />,
-                            count: 17,
+                            count: 30,
                           },
                         ].map((link, index) => (
                           <Menu.Item key={link.href}>
@@ -532,6 +602,36 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <main className="flex-1 p-8 max-w-screen-xl mx-auto ml-64 bg-gray-50 min-h-screen pt-26">
+          {/* Header with Stats */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                  {selectedBranch
+                    ? `${selectedBranch.name} Dashboard`
+                    : "Dashboard Overview"}
+                </h1>
+                <p className="text-gray-600">
+                  {selectedBranch
+                    ? `Performance insights for ${selectedBranch.name}`
+                    : "Performance insights for your business across all branches"}
+                </p>
+              </div>
+
+              {selectedBranch && (
+                <motion.button
+                  onClick={handleBackToAllBranches}
+                  className="flex items-center gap-2 px-2 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <ChevronsLeft size={16} />
+                  Back to All Branches
+                </motion.button>
+              )}
+            </div>
+          </div>
+
           {/* Time Period Filter */}
           <div className="flex justify-between items-center mb-8">
             <div className="flex space-x-2 bg-white p-1 rounded-lg shadow-sm">
@@ -611,6 +711,136 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {/* Total Revenue Card */}
+            <motion.div
+              className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">
+                    {selectedBranch ? "Branch Revenue" : "Total Revenue"}
+                  </p>
+                  <h3 className="text-2xl font-bold text-gray-800 mt-1">
+                    {selectedBranch
+                      ? `₱${(selectedBranch.revenue || 0).toLocaleString()}`
+                      : `₱${totalRevenue.toLocaleString()}`}
+                  </h3>
+                </div>
+                <div className="p-3 bg-emerald-100 rounded-full">
+                  <DollarSign className="text-emerald-600" size={24} />
+                </div>
+              </div>
+              <div className="flex items-center mt-4">
+                <TrendingUp className="text-emerald-500 mr-1" size={16} />
+                <span className="text-sm text-emerald-600">
+                  +12.3% from last {period}
+                </span>
+              </div>
+            </motion.div>
+
+            {/* Top Performing Branch Card - Only show when viewing all branches */}
+            {!selectedBranch && (
+              <motion.div
+                className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">
+                      Top Performing Branch
+                    </p>
+                    <h3 className="text-xl font-bold text-gray-800 mt-1">
+                      {sortedBranches[0]?.name || "N/A"}
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      ₱{(sortedBranches[0]?.revenue || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-amber-100 rounded-full">
+                    <MapPin className="text-amber-600" size={24} />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-amber-500 h-2 rounded-full"
+                      style={{
+                        width: `${sortedBranches[0]?.percentage || 0}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {sortedBranches[0]?.percentage || 0}% of total revenue
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Branch Info Card - Only show when viewing a specific branch */}
+            {selectedBranch && (
+              <motion.div
+                className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Branch Information</p>
+                    <h3 className="text-xl font-bold text-gray-800 mt-1">
+                      {selectedBranch.name}
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {selectedBranch.address}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-blue-100 rounded-full">
+                    <MapPin className="text-blue-600" size={24} />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <p className="text-xs text-gray-500">
+                    Contribution: {selectedBranch.percentage || 0}% of total
+                    revenue
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Services Performance Card */}
+            <motion.div
+              className="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Services Performance</p>
+                  <h3 className="text-2xl font-bold text-gray-800 mt-1">
+                    {topServices.length}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">Active services</p>
+                </div>
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <Activity className="text-blue-600" size={24} />
+                </div>
+              </div>
+              <div className="flex items-center mt-4">
+                <span className="text-sm text-gray-600">
+                  Top service: {topServiceName}
+                </span>
+              </div>
+            </motion.div>
+          </div>
+
           {/* Stats Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Top Ordered Services */}
@@ -622,7 +852,9 @@ export default function Dashboard() {
             >
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">
-                  Top Ordered Services
+                  {selectedBranch
+                    ? "Branch Top Services"
+                    : "Top Ordered Services"}
                 </h2>
                 <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
                   {period === "custom" && dateRange.start && dateRange.end
@@ -630,13 +862,13 @@ export default function Dashboard() {
                     : `This ${period}`}
                 </span>
               </div>
-              {dashboardData.loading ? (
+              {displayLoading ? (
                 <div className="flex justify-center items-center h-40">
                   <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500"></div>
                 </div>
-              ) : dashboardData.topServices.length > 0 ? (
+              ) : topServices.length > 0 ? (
                 <div className="space-y-4 max-h-64 overflow-y-auto pr-2 scrollbar-hide">
-                  {dashboardData.topServices.map((service, index) => (
+                  {topServices.map((service, index) => (
                     <motion.div
                       key={index}
                       className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg transition-colors"
@@ -670,7 +902,9 @@ export default function Dashboard() {
             >
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">
-                  Service Revenue
+                  {selectedBranch
+                    ? "Branch Service Revenue"
+                    : "Service Revenue"}
                 </h2>
                 <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
                   {period === "custom" && dateRange.start && dateRange.end
@@ -678,13 +912,13 @@ export default function Dashboard() {
                     : `This ${period}`}
                 </span>
               </div>
-              {dashboardData.loading ? (
+              {displayLoading ? (
                 <div className="flex justify-center items-center h-40">
                   <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500"></div>
                 </div>
-              ) : dashboardData.revenueByService.length > 0 ? (
+              ) : revenueByService.length > 0 ? (
                 <div className="space-y-4 max-h-64 overflow-y-auto pr-2 scrollbar-hide">
-                  {dashboardData.revenueByService.map((service, index) => (
+                  {revenueByService.map((service, index) => (
                     <motion.div
                       key={index}
                       className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg transition-colors"
@@ -697,7 +931,7 @@ export default function Dashboard() {
                         <span className="text-gray-700">{service.name}</span>
                       </div>
                       <span className="font-medium text-gray-900">
-                        ₱{service.revenue.toLocaleString()}
+                        ₱{(service.revenue || 0).toLocaleString()}
                       </span>
                     </motion.div>
                   ))}
@@ -710,72 +944,48 @@ export default function Dashboard() {
             </motion.div>
           </div>
 
-          {/* Bottom Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Branches List */}
+          {/* Combined Branch Performance - Only show when viewing all branches */}
+          {!selectedBranch && (
             <motion.div
-              className="p-6 bg-white rounded-xl shadow-sm border border-gray-200"
+              className="p-6 bg-white rounded-xl shadow-sm border border-gray-200 mb-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.2 }}
             >
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                Branches
-              </h2>
-              {dashboardData.loading ? (
-                <div className="flex justify-center items-center h-40">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500"></div>
-                </div>
-              ) : dashboardData.branches.length > 0 ? (
-                <div className="grid grid-cols-1 gap-5">
-                  {dashboardData.branches.map((branch, index) => (
-                    <motion.div
-                      key={index}
-                      className="flex items-center p-3 bg-gray-50 rounded-lg"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      <span
-                        className="w-3 h-3 rounded-full mr-3"
-                        style={{
-                          backgroundColor: branch.color_code || "#10B981",
-                        }}
-                      ></span>
-                      <span className="text-gray-700">{branch.name}</span>
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex justify-center items-center h-40 text-gray-500">
-                  No branches found
-                </div>
-              )}
-            </motion.div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  Branch Performance Overview
+                </h2>
+                <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                  {period === "custom" && dateRange.start && dateRange.end
+                    ? `${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}`
+                    : `This ${period}`}
+                </span>
+              </div>
 
-            {/* Revenue Distribution Pie Chart */}
-            <motion.div
-              className="p-6 bg-white rounded-xl shadow-sm border border-gray-200"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.3 }}
-            >
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                Revenue Distribution
-              </h2>
               {dashboardData.loading ? (
                 <div className="flex justify-center items-center h-64">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
                 </div>
-              ) : dashboardData.revenueDistribution.length > 0 ? (
-                <div className="flex flex-col items-center">
-                  <div className="relative w-64 h-64">
-                    <svg viewBox="0 0 100 100" className="w-full h-full">
-                      {(() => {
-                        let currentAngle = 0;
-                        return dashboardData.revenueDistribution.map(
-                          (branch, index) => {
-                            const percentage = branch.percentage;
+              ) : sortedBranches.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Donut Chart */}
+                  <div className="flex flex-col items-center">
+                    <div className="relative w-64 h-64">
+                      <svg viewBox="0 0 100 100" className="w-full h-full">
+                        {(() => {
+                          let currentAngle = 0;
+                          const colors = [
+                            "#10B981",
+                            "#3B82F6",
+                            "#F59E0B",
+                            "#EF4444",
+                            "#8B5CF6",
+                            "#EC4899",
+                          ];
+
+                          return sortedBranches.map((branch, index) => {
+                            const percentage = branch.percentage || 0;
                             const angle = (percentage / 100) * 360;
                             const largeArcFlag = percentage > 50 ? 1 : 0;
 
@@ -798,178 +1008,110 @@ export default function Dashboard() {
                                   (Math.PI * (currentAngle + angle)) / 180
                                 );
 
-                            const midAngle = currentAngle + angle / 2;
-                            const labelX =
-                              50 + 35 * Math.cos((Math.PI * midAngle) / 180);
-                            const labelY =
-                              50 + 35 * Math.sin((Math.PI * midAngle) / 180);
-
                             currentAngle += angle;
 
                             return (
-                              <g key={index}>
-                                <motion.path
-                                  d={`M50,50 L${x1},${y1} A50,50 0 ${largeArcFlag},1 ${x2},${y2} Z`}
-                                  fill={
-                                    branch.color_code ||
-                                    [
-                                      "#10B981",
-                                      "#3B82F6",
-                                      "#F59E0B",
-                                      "#EF4444",
-                                    ][index % 4]
-                                  }
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  transition={{ delay: index * 0.2 }}
-                                />
-                                <motion.text
-                                  x={labelX}
-                                  y={labelY}
-                                  textAnchor="middle"
-                                  dominantBaseline="middle"
-                                  fill="white"
-                                  fontSize="5"
-                                  fontWeight="bold"
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  transition={{ delay: 0.6 + index * 0.2 }}
-                                >
-                                  {percentage}%
-                                </motion.text>
-                              </g>
+                              <motion.path
+                                key={index}
+                                d={`M50,50 L${x1},${y1} A50,50 0 ${largeArcFlag},1 ${x2},${y2} Z`}
+                                fill={colors[index % colors.length]}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: index * 0.2 }}
+                              />
                             );
-                          }
-                        );
-                      })()}
-                    </svg>
-                  </div>
-                  <div className="mt-4 w-full">
-                    {dashboardData.revenueDistribution.map((branch, index) => (
-                      <div key={index} className="flex items-center mb-2">
-                        <span
-                          className="w-3 h-3 rounded-full mr-2"
-                          style={{
-                            backgroundColor:
-                              branch.color_code ||
-                              ["#10B981", "#3B82F6", "#F59E0B", "#EF4444"][
-                                index % 4
-                              ],
-                          }}
-                        ></span>
-                        <span className="text-sm text-black-500">
-                          {branch.name}: {branch.percentage}%
+                          });
+                        })()}
+                        {/* Donut Hole */}
+                        <circle cx="50" cy="50" r="25" fill="white" />
+                      </svg>
+                      {/* Center Label */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-sm text-gray-500">
+                          Total Revenue
+                        </span>
+                        <span className="text-lg font-bold text-gray-800">
+                          ₱{totalRevenue.toLocaleString()}
                         </span>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Branch List with Performance Metrics */}
+                  <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                    {sortedBranches.map((branch, index) => (
+                      <motion.div
+                        key={branch.id}
+                        className="p-4 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.4 + index * 0.1 }}
+                        onClick={() => handleBranchSelect(branch)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-start">
+                            <div
+                              className="w-3 h-3 rounded-full mt-1.5 mr-3"
+                              style={{
+                                backgroundColor: [
+                                  "#10B981",
+                                  "#3B82F6",
+                                  "#F59E0B",
+                                  "#EF4444",
+                                  "#8B5CF6",
+                                  "#EC4899",
+                                ][index % 6],
+                              }}
+                            ></div>
+                            <div>
+                              <h3 className="font-medium text-gray-800">
+                                {branch.name}
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                {branch.address}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-gray-900">
+                              ₱{(branch.revenue || 0).toLocaleString()}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {branch.percentage || 0}% of total
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="h-2 rounded-full"
+                              style={{
+                                width: `${branch.percentage || 0}%`,
+                                backgroundColor: [
+                                  "#10B981",
+                                  "#3B82F6",
+                                  "#F59E0B",
+                                  "#EF4444",
+                                  "#8B5CF6",
+                                  "#EC4899",
+                                ][index % 6],
+                              }}
+                            ></div>
+                          </div>
+                        </div>
+                      </motion.div>
                     ))}
                   </div>
                 </div>
               ) : (
                 <div className="flex justify-center items-center h-64 text-gray-500">
-                  No revenue distribution data
+                  No branch performance data available
                 </div>
               )}
             </motion.div>
-          </div>
+          )}
         </main>
       </div>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <Dialog
-          open={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-          aria-labelledby="modal-title"
-          aria-describedby="modal-description"
-        >
-          <Dialog.Panel className="bg-gradient-to-b from-[#77DD77] to-[#56A156] text-gray-900 p-6 rounded-lg shadow-xl w-full max-w-lg">
-            <Dialog.Title
-              id="modal-title"
-              className="text-lg font-bold text-gray-900 mb-4"
-            >
-              Select Option
-            </Dialog.Title>
-            <div id="modal-description" className="grid grid-cols-2 gap-6">
-              {/* General Section */}
-              <div>
-                <div className="flex items-center space-x-2 mb-4">
-                  <div className="text-xl">📊</div>
-                  <h2 className="font-semibold text-[#FFFFFF]-700">General</h2>
-                </div>
-                <ul className="space-y-2">
-                  <li>
-                    <button
-                      onClick={handleAddUser}
-                      className="text-[#FFFFFF]-600 hover:underline hover:text-blue-600"
-                    >
-                      + Add Users
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={handleAddService}
-                      className="text-[#FFFFFF]-600 hover:underline hover:text-blue-600"
-                    >
-                      + Services
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={handleAddServiceGroup}
-                      className="text-[#FFFFFF]-600 hover:underline hover:text-blue-600"
-                    >
-                      + Services Item Groups
-                    </button>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Sales Section */}
-              <div>
-                <div className="flex items-center space-x-2 mb-4">
-                  <div className="text-xl">🛒</div>
-                  <h2 className="font-semibold text-[#FFFFFF]-700">Sales</h2>
-                </div>
-                <ul className="space-y-2">
-                  <li>
-                    <button
-                      onClick={() =>
-                        toast("Customers functionality triggered.")
-                      }
-                      className="text-[#FFFFFF]-600 hover:underline hover:text-blue-600"
-                    >
-                      + Customers
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => toast("Invoices functionality triggered.")}
-                      className="text-[#FFFFFF]-600 hover:underline hover:text-blue-600"
-                    >
-                      + Invoices
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => toast("Payments functionality triggered.")}
-                      className="text-[#FFFFFF]-600 hover:underline hover:text-blue-600"
-                    >
-                      + Payments
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="mt-6 w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 focus:ring-2 focus:ring-red-400 focus:outline-none"
-            >
-              Close
-            </button>
-          </Dialog.Panel>
-        </Dialog>
-      )}
     </div>
   );
 }

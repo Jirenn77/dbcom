@@ -241,25 +241,25 @@ export default function MembershipExpirationReport() {
   };
 
   // Example login function
-  const handleLogin = async () => {
-    const response = await fetch("http://localhost/API/users.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+  // const handleLogin = async () => {
+  //   const response = await fetch("http://localhost/API/users.php", {
+  //     method: "POST",
+  //     headers: { "Content-Type": "application/json" },
+  //     body: JSON.stringify({ email, password }),
+  //   });
 
-    if (!response.ok) {
-      toast.error("Invalid credentials");
-      return;
-    }
+  //   if (!response.ok) {
+  //     toast.error("Invalid credentials");
+  //     return;
+  //   }
 
-    const user = await response.json();
+  //   const user = await response.json();
 
-    // Save user in localStorage
-    localStorage.setItem("user", JSON.stringify(user));
+  //   // Save user in localStorage
+  //   localStorage.setItem("user", JSON.stringify(user));
 
-    toast.success(`Welcome ${user.name}!`);
-  };
+  //   toast.success(`Welcome ${user.name}!`);
+  // };
 
   const handleRenew = async (
     customerId,
@@ -269,11 +269,11 @@ export default function MembershipExpirationReport() {
     renewMembership
   ) => {
     try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user) {
-        toast.error("User not logged in.");
-        return;
-      }
+      // const user = JSON.parse(localStorage.getItem("user"));
+      // if (!user) {
+      //   toast.error("User not logged in.");
+      //   return;
+      // }
 
       const { price, consumable_amount, valid_until, no_expiration } =
         renewMembership;
@@ -354,8 +354,8 @@ export default function MembershipExpirationReport() {
           type,
           amount: coverage,
           payment_method: payment,
-          branch_id: user.branch_id, // now coming from localStorage
-          performed_by: user.user_id, // now coming from localStorage
+          // branch_id: user.branch_id, // now coming from localStorage
+          // performed_by: user.user_id, // now coming from localStorage
         }),
       });
 
@@ -508,24 +508,26 @@ export default function MembershipExpirationReport() {
           <AnimatePresence>
             {isProfileOpen && (
               <motion.div
-                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden"
+                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden z-50"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <Link href="/profiles">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <User size={16} /> Profile
-                  </button>
+                <Link
+                  href="/profiles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <User size={16} /> Profile
                 </Link>
-                <Link href="/roles">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <Settings size={16} /> Settings
-                  </button>
+                <Link
+                  href="/roles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <Settings size={16} /> Settings
                 </Link>
                 <button
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-left text-red-500"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-red-500"
                   onClick={handleLogout}
                 >
                   <LogOut size={16} /> Logout
@@ -738,13 +740,13 @@ export default function MembershipExpirationReport() {
                             href: "/customers",
                             label: "Customers",
                             icon: <Users size={16} />,
-                            count: 3,
+                            count: 6,
                           },
                           {
                             href: "/invoices",
                             label: "Invoices",
                             icon: <FileText size={16} />,
-                            count: 17,
+                            count: 30,
                           },
                         ].map((link, index) => (
                           <Menu.Item key={link.href}>
@@ -1035,12 +1037,6 @@ export default function MembershipExpirationReport() {
                                 >
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
-                                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                                        <User
-                                          className="text-emerald-600"
-                                          size={18}
-                                        />
-                                      </div>
                                       <div className="ml-4">
                                         <div className="text-sm font-medium text-gray-900">
                                           {customer.first_name ||
@@ -1312,7 +1308,6 @@ export default function MembershipExpirationReport() {
                       <option value="all">All Activities</option>
                       <option value="new">New Memberships</option>
                       <option value="renewal">Renewals</option>
-                      <option value="upgrade">Upgrades</option>
                     </select>
                   </motion.div>
                 </div>

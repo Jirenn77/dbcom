@@ -15,7 +15,7 @@ import {
   CreditCard,
   Package,
   Layers,
-  ShoppingCart,
+  Star,
   Search,
   X,
   Phone,
@@ -26,15 +26,15 @@ import {
   User,
   UserPlus,
   Tag,
-  Factory,
+  Activity,
   ClipboardList,
-  Folder,
+  UserX,
   BarChart2,
   Calendar,
   Edit,
   Eye,
   RefreshCw,
-  RefreshCcwDot,
+  UserCheck,
   ChevronLeft,
   ChevronsLeft,
   ChevronRight,
@@ -67,6 +67,7 @@ export default function CustomersPage() {
   const [customerMemberships, setCustomerMemberships] = useState([]);
   const [isRenewing, setIsRenewing] = useState(false);
   const [membershipLogs, setMembershipLogs] = useState([]);
+  const [membershipTemplates, setMembershipTemplates] = useState([]);
 
   // Membership-related states
   const [isMembershipModalOpen, setIsMembershipModalOpen] = useState(false);
@@ -96,6 +97,20 @@ export default function CustomersPage() {
     valid_until: "",
     no_expiration: false,
   });
+
+  useEffect(() => {
+    const fetchMembershipTemplates = async () => {
+      try {
+        const res = await fetch("http://localhost/API/memberships.php");
+        const data = await res.json();
+        setMembershipTemplates(data);
+      } catch (error) {
+        console.error("Failed to fetch memberships:", error);
+      }
+    };
+
+    fetchMembershipTemplates();
+  }, []);
 
   useEffect(() => {
     fetchCustomers(activeTab);
@@ -171,36 +186,106 @@ export default function CustomersPage() {
 
   const handleRenewMembership = async (
     customerId,
-    membershipId,
     type,
     payment,
     renewMembership
   ) => {
     try {
+      console.log("Renewing membership with:", {
+        customerId,
+        type,
+        payment,
+        renewMembership,
+      });
+
       const { price, consumable_amount, valid_until, no_expiration } =
         renewMembership;
 
-      // 🔍 Find the current membership
-      const currentMembership = customerMemberships.find(
-        (m) => m.customer_id === customerId
-      );
+      // Fetch the latest membership
+      let currentMembership = null;
+      try {
+        const response = await fetch(
+          `http://localhost/API/members.php?customer_id=${customerId}`
+        );
+        const memberships = await response.json();
 
-      // ❌ Prevent renewal if there's still remaining balance
-      if (currentMembership) {
-        const remaining = parseFloat(currentMembership.remaining_balance || 0);
-        const hasBalance = !isNaN(remaining) && remaining > 0;
-
-        if (hasBalance) {
-          toast.error(
-            `❌ Cannot renew "${type.toUpperCase()}" membership.\n₱${remaining.toFixed(
-              2
-            )} remaining. Please use it up before renewing.`
+        if (memberships && memberships.length > 0) {
+          currentMembership = memberships.sort(
+            (a, b) => new Date(b.date_registered) - new Date(a.date_registered)
+          )[0];
+        }
+      } catch (fetchError) {
+        console.warn("Could not fetch membership from API:", fetchError);
+        const customerMembershipHistory = customerMemberships
+          .filter((m) => m.customer_id === customerId)
+          .sort(
+            (a, b) =>
+              new Date(b.date_registered).getTime() -
+              new Date(a.date_registered).getTime()
           );
+
+        currentMembership = customerMembershipHistory[0];
+      }
+
+      // If no current membership, create instead of renew
+      if (!currentMembership) {
+        const confirmCreate = window.confirm(
+          "No existing membership found. Would you like to create a new membership instead of renewing?"
+        );
+
+        if (confirmCreate) {
+          let coverage = 0;
+          let price = 0;
+          let expireDate = null;
+
+          if (type === "basic") {
+            coverage = 5000;
+            price = 5000;
+          } else if (type === "pro") {
+            coverage = 10000;
+            price = 10000;
+          } else if (type === "promo") {
+            coverage = parseFloat(consumable_amount || 0);
+            price = parseFloat(price || 0);
+          }
+
+          if (!expireDate && type !== "promo") {
+            const today = new Date();
+            today.setMonth(today.getMonth() + (type === "pro" ? 2 : 1));
+            expireDate = today.toISOString().split("T")[0];
+          }
+
+          const payload = {
+            customer_id: customerId,
+            action: "renew",
+            type,
+            coverage,
+            price,
+            expire_date: expireDate,
+            payment_method: payment,
+          };
+
+          const response = await fetch("http://localhost/API/members.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await response.json();
+          if (data.error) {
+            toast.error(`❌ ${data.error}`);
+            return;
+          }
+
+          setCustomerMemberships((prev) => [...prev, data]);
+          toast.success("✅ New membership created successfully!");
+          return;
+        } else {
           return;
         }
       }
 
-      // ✅ Proceed with renewal setup
+      // ✅ Proceed with renewal setup (no balance check anymore)
       let coverage = 0;
       let expireDate = null;
 
@@ -221,39 +306,46 @@ export default function CustomersPage() {
         expireDate = today.toISOString().split("T")[0];
       }
 
+      const membershipId = currentMembership.id;
+      if (!membershipId) {
+        toast.error("❌ Cannot determine membership ID for renewal");
+        console.error("Current membership object:", currentMembership);
+        return;
+      }
+
       const payload = {
         customer_id: customerId,
         membership_id: membershipId,
         action: "renew",
         type,
-        coverage,
+        coverage, // new coverage to add
         price: parseFloat(price || 0),
         expire_date: expireDate,
-        no_expiration: type !== "promo" ? 1 : no_expiration ? 1 : 0,
         payment_method: payment,
       };
 
+      console.log("Sending payload to backend:", payload);
+
       const response = await fetch("http://localhost/API/members.php", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error("Failed to renew membership");
+      const data = await response.json();
+      if (data.error) {
+        toast.error(`❌ ${data.error}`);
+        return;
+      }
 
-      const updatedMembership = await response.json();
+      const newMembership = data;
 
-      // 📦 Log the renewal
       await fetch("http://localhost/API/membership_logs.php", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customer_id: customerId,
-          membership_id: membershipId,
+          membership_id: newMembership.id,
           action: "renewal",
           type,
           amount: coverage,
@@ -261,13 +353,7 @@ export default function CustomersPage() {
         }),
       });
 
-      // 🧠 Update state
-      setCustomerMemberships((prev) =>
-        prev.map((m) =>
-          m.customer_id === customerId ? { ...m, ...updatedMembership } : m
-        )
-      );
-
+      setCustomerMemberships((prev) => [...prev, newMembership]);
       setCustomers((prev) =>
         prev.map((c) =>
           c.id === customerId ? { ...c, membershipUpdatedAt: Date.now() } : c
@@ -275,7 +361,6 @@ export default function CustomersPage() {
       );
 
       fetchMembershipLogs(customerId);
-
       toast.success("✅ Membership renewed successfully!");
     } catch (error) {
       toast.error("❌ Failed to renew membership.");
@@ -329,16 +414,16 @@ export default function CustomersPage() {
         const updatedCustomers = customers.map((c) =>
           c.id === customer.id
             ? {
-                ...c,
-                membership_status: data.type.toUpperCase(), // From response
-                membershipDetails: {
-                  type: data.type,
-                  coverage: data.coverage,
-                  remainingBalance: data.remaining_balance,
-                  dateRegistered: data.date_registered,
-                  expireDate: data.expire_date,
-                },
-              }
+              ...c,
+              membership_status: data.type.toUpperCase(), // From response
+              membershipDetails: {
+                type: data.type,
+                coverage: data.coverage,
+                remainingBalance: data.remaining_balance,
+                dateRegistered: data.date_registered,
+                expireDate: data.expire_date,
+              },
+            }
             : c
         );
 
@@ -389,13 +474,19 @@ export default function CustomersPage() {
       if (searchQuery.trim() === "") {
         fetchCustomers(activeTab);
       } else {
-        const filtered = customers.filter(
-          (customer) =>
-            customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            customer.contact.includes(searchQuery) ||
-            customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            customer.customerId.includes(searchQuery)
-        );
+        const filtered = customers.filter((customer) => {
+          const name = customer.name ? customer.name.toLowerCase() : "";
+          const email = customer.email ? customer.email.toLowerCase() : "";
+          const contact = customer.contact || "";
+          const customerId = customer.customerId || "";
+
+          return (
+            name.includes(searchQuery.toLowerCase()) ||
+            contact.includes(searchQuery) ||
+            email.includes(searchQuery.toLowerCase()) ||
+            customerId.includes(searchQuery)
+          );
+        });
         setCustomers(filtered);
       }
     }, 300); // 300ms debounce delay
@@ -404,54 +495,55 @@ export default function CustomersPage() {
   }, [searchQuery, activeTab]);
 
   const handleEditClick = (customer) => {
-  const sanitizedCustomer = Object.fromEntries(
-    Object.entries(customer).map(([key, value]) => [key, value ?? ""])
-  );
-
-  setEditCustomer(sanitizedCustomer);
-  setIsEditModalOpen(true);
-};
-
-  const handleSaveEdit = async (updatedCustomer) => {
-  try {
-    // Clean up values before sending to backend
-    const payload = {
-      ...updatedCustomer,
-      email: updatedCustomer.email?.trim() || null,
-      customerId: updatedCustomer.customerId?.trim() || null,
-      birthday:
-        updatedCustomer.birthday?.trim() && updatedCustomer.birthday !== "0000-00-00"
-          ? updatedCustomer.birthday
-          : null,
-    };
-
-    const res = await fetch(
-      `http://localhost/API/customers.php?action=update&id=${updatedCustomer.id}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }
+    const sanitizedCustomer = Object.fromEntries(
+      Object.entries(customer).map(([key, value]) => [key, value ?? ""])
     );
 
-    const result = await res.json();
+    setEditCustomer(sanitizedCustomer);
+    setIsEditModalOpen(true);
+  };
 
-    if (result.success) {
-      // Update local state
-      const updatedList = customers.map((cust) =>
-        cust.id === updatedCustomer.id ? { ...cust, ...payload } : cust
+  const handleSaveEdit = async (updatedCustomer) => {
+    try {
+      // Clean up values before sending to backend
+      const payload = {
+        ...updatedCustomer,
+        email: updatedCustomer.email?.trim() || null,
+        customerId: updatedCustomer.customerId?.trim() || null,
+        birthday:
+          updatedCustomer.birthday?.trim() &&
+            updatedCustomer.birthday !== "0000-00-00"
+            ? updatedCustomer.birthday
+            : null,
+      };
+
+      const res = await fetch(
+        `http://localhost/API/customers.php?action=update&id=${updatedCustomer.id}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
       );
-      setCustomers(updatedList);
-      toast.success("Customer updated successfully.");
-      setIsEditModalOpen(false);
-    } else {
-      toast.error(result.message || "Failed to update.");
+
+      const result = await res.json();
+
+      if (result.success) {
+        // Update local state
+        const updatedList = customers.map((cust) =>
+          cust.id === updatedCustomer.id ? { ...cust, ...payload } : cust
+        );
+        setCustomers(updatedList);
+        toast.success("Customer updated successfully.");
+        setIsEditModalOpen(false);
+      } else {
+        toast.error(result.message || "Failed to update.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("An error occurred.");
     }
-  } catch (err) {
-    console.error(err);
-    toast.error("An error occurred.");
-  }
-};
+  };
 
   const indexOfLastCustomer = currentPage * customersPerPage;
   const indexOfFirstCustomer = indexOfLastCustomer - customersPerPage;
@@ -588,24 +680,26 @@ export default function CustomersPage() {
           <AnimatePresence>
             {isProfileOpen && (
               <motion.div
-                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden"
+                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden z-50"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <Link href="/profiles">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <User size={16} /> Profile
-                  </button>
+                <Link
+                  href="/profiles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <User size={16} /> Profile
                 </Link>
-                <Link href="/roles">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <Settings size={16} /> Settings
-                  </button>
+                <Link
+                  href="/roles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <Settings size={16} /> Settings
                 </Link>
                 <button
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-left text-red-500"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-red-500"
                   onClick={handleLogout}
                 >
                   <LogOut size={16} /> Logout
@@ -818,13 +912,13 @@ export default function CustomersPage() {
                             href: "/customers",
                             label: "Customers",
                             icon: <Users size={16} />,
-                            count: 3,
+                            count: 6,
                           },
                           {
                             href: "/invoices",
                             label: "Invoices",
                             icon: <FileText size={16} />,
-                            count: 17,
+                            count: 30,
                           },
                         ].map((link, index) => (
                           <Menu.Item key={link.href}>
@@ -897,52 +991,106 @@ export default function CustomersPage() {
         </nav>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 bg-gray-50 ml-64">
+        <main className="flex-1 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white ml-0 lg:ml-64 min-h-screen transition-all duration-300">
           {/* Header Section */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6"
+            className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8"
           >
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-800 bg-gradient-to-r from-gray-800 to-gray-800 bg-clip-text text-transparent">
                 Customer Management
               </h1>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-xs md:text-sm text-gray-600 mt-1 md:mt-2 flex items-center">
+                <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
                 Manage your clinic's customers and memberships
               </p>
             </div>
 
-            <div className="mt-4 md:mt-0">
+            <div className="mt-3 md:mt-0">
               <motion.button
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-4 py-2 md:px-5 md:py-2.5 rounded-lg md:rounded-xl transition-all duration-300 text-sm md:text-base"
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <Plus size={18} />
+                <Plus size={16} />
                 <span>New Customer</span>
               </motion.button>
             </div>
           </motion.div>
 
+          {/* Stats Overview */}
+          <motion.div
+            className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 mb-5 md:mb-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="bg-white p-3 md:p-5 rounded-xl md:rounded-2xl shadow-sm border border-gray-100 flex items-center">
+              <div className="bg-blue-100 p-2 md:p-3 rounded-lg md:rounded-xl mr-3 md:mr-4">
+                <Users className="text-blue-600" size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg md:text-2xl font-bold text-gray-800">{filteredCustomers.length}</h3>
+                <p className="text-xs md:text-sm text-gray-600">Total Customers</p>
+              </div>
+            </div>
+
+            <div className="bg-white p-3 md:p-5 rounded-xl md:rounded-2xl shadow-sm border border-gray-100 flex items-center">
+              <div className="bg-green-100 p-2 md:p-3 rounded-lg md:rounded-xl mr-3 md:mr-4">
+                <UserCheck className="text-green-600" size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg md:text-2xl font-bold text-gray-800">
+                  {filteredCustomers.filter(c => c.membership_status && c.membership_status.toLowerCase() !== "none").length}
+                </h3>
+                <p className="text-xs md:text-sm text-gray-600">Members</p>
+              </div>
+            </div>
+
+            <div className="bg-white p-3 md:p-5 rounded-xl md:rounded-2xl shadow-sm border border-gray-100 flex items-center">
+              <div className="bg-gray-100 p-2 md:p-3 rounded-lg md:rounded-xl mr-3 md:mr-4">
+                <UserX className="text-gray-600" size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg md:text-2xl font-bold text-gray-800">
+                  {filteredCustomers.filter(c => !c.membership_status || c.membership_status.toLowerCase() === "none").length}
+                </h3>
+                <p className="text-xs md:text-sm text-gray-600">Non-Members</p>
+              </div>
+            </div>
+
+            <div className="bg-white p-3 md:p-5 rounded-xl md:rounded-2xl shadow-sm border border-gray-100 flex items-center">
+              <div className="bg-purple-100 p-2 md:p-3 rounded-lg md:rounded-xl mr-3 md:mr-4">
+                <Activity className="text-purple-600" size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg md:text-2xl font-bold text-gray-800">
+                  {filteredCustomers.reduce((acc, customer) => acc + (customer.recentActivity?.length || 0), 0)}
+                </h3>
+                <p className="text-xs md:text-sm text-gray-600">Recent Activities</p>
+              </div>
+            </div>
+          </motion.div>
+
           {/* Filter Tabs */}
           <motion.div
-            className="mb-6"
+            className="mb-5 md:mb-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
+            transition={{ delay: 0.3 }}
           >
-            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg md:rounded-xl">
               {["all", "member", "nonMember"].map((tab) => (
                 <motion.button
                   key={tab}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === tab
-                      ? "bg-white text-emerald-600 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
+                  className={`px-3 py-2 md:px-5 md:py-2.5 text-xs md:text-sm font-medium rounded-md md:rounded-lg transition-all duration-300 ${activeTab === tab
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                    }`}
                   onClick={() => {
                     setActiveTab(tab);
                     fetchCustomers(tab);
@@ -961,62 +1109,60 @@ export default function CustomersPage() {
           </motion.div>
 
           {/* Main Content Area */}
-          <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
             {/* Customer Table - Takes full width when no customer is selected */}
             <motion.div
-              className={`${selectedCustomer ? "lg:w-[calc(100%-350px)]" : "w-full"} transition-all duration-300`}
+              className={`${selectedCustomer ? "lg:w-[calc(100%-340px)] xl:w-[calc(100%-380px)]" : "w-full"} transition-all duration-300`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: 0.4 }}
             >
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-white rounded-xl md:rounded-2xl shadow-md border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Customer
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Contact
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Membership
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3 md:px-6 md:py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-gray-100">
                       <AnimatePresence>
                         {currentCustomers.map((customer) => (
                           <motion.tr
                             key={customer.id}
-                            className={`hover:bg-gray-50 cursor-pointer ${
-                              selectedCustomer?.id === customer.id
-                                ? "bg-emerald-50"
-                                : ""
-                            }`}
+                            className={`hover:bg-gray-50/80 cursor-pointer transition-all duration-300 ${selectedCustomer?.id === customer.id
+                              ? "bg-blue-50"
+                              : ""
+                              }`}
                             onClick={() => fetchCustomerDetails(customer.id)}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.2 }}
-                            whileHover={{ backgroundColor: "#f9fafb" }}
+                            whileHover={{ y: -2, backgroundColor: "#f9fafb" }}
                           >
                             {/* Customer Column */}
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                                  <User
-                                    className="text-emerald-600"
-                                    size={18}
-                                  />
-                                </div>
-                                <div className="ml-4">
+                                <div className="ml-3 md:ml-4">
                                   <div className="text-sm font-medium text-gray-900 flex items-center">
                                     {customer.name}
+                                    {customer.membership_status && customer.membership_status.toLowerCase() !== "none" && (
+                                      <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-1.5 py-0.5 rounded-full">
+                                        Member
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="text-xs text-gray-500">
                                     ID: {customer.customerId}
@@ -1026,42 +1172,42 @@ export default function CustomersPage() {
                             </td>
 
                             {/* Contact Column */}
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {customer.contact}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className="text-xs md:text-sm text-gray-500 truncate max-w-[120px] md:max-w-[160px]">
                                 {customer.email}
                               </div>
                             </td>
 
                             {/* Membership Column */}
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap">
                               <div className="flex flex-col">
                                 {(() => {
                                   const rawStatus = customer.membership_status;
                                   const type =
                                     rawStatus &&
-                                    rawStatus.trim().toLowerCase() !== "none"
+                                      rawStatus.trim().toLowerCase() !== "none"
                                       ? rawStatus.trim().toLowerCase()
                                       : null;
 
-                                  let badgeClass = "bg-gray-100 text-gray-800";
+                                  let badgeClass = "bg-gray-200 text-gray-800";
                                   if (type === "pro")
                                     badgeClass =
-                                      "bg-purple-100 text-purple-800";
+                                      "bg-gradient-to-r from-purple-200 to-purple-100 text-purple-800 border border-purple-200";
                                   else if (type === "basic")
-                                    badgeClass = "bg-blue-100 text-blue-800";
+                                    badgeClass = "bg-gradient-to-r from-blue-200 to-blue-100 text-blue-800 border border-blue-200";
                                   else if (type === "promo")
-                                    badgeClass = "bg-green-100 text-green-800";
+                                    badgeClass = "bg-gradient-to-r from-amber-200 to-amber-100 text-amber-800 border border-amber-200";
 
                                   return (
                                     <>
                                       <span
-                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}`}
+                                        className={`inline-flex items-center px-2 py-0.5 md:px-3 md:py-1 rounded-full text-xs font-medium ${badgeClass}`}
                                       >
                                         {type
-                                          ? type.toUpperCase()
+                                          ? type.charAt(0).toUpperCase() + type.slice(1)
                                           : "Non-Member"}
                                       </span>
                                       {customer.membershipDetails && (
@@ -1085,34 +1231,36 @@ export default function CustomersPage() {
                             </td>
 
                             {/* Actions Column */}
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <div className="flex space-x-3">
+                            <td className="px-4 py-3 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-500">
+                              <div className="flex space-x-2 md:space-x-3">
                                 {customer.membership_status === "None" ? (
+                                  // Add Membership
                                   <motion.button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleAddMembershipClick(customer);
                                     }}
-                                    className="text-emerald-600 hover:text-emerald-800"
+                                    className="text-blue-600 hover:text-blue-800 p-1 rounded-md hover:bg-blue-100 transition-colors"
                                     whileHover={{ scale: 1.2 }}
                                     whileTap={{ scale: 0.9 }}
                                     title="Add Membership"
                                   >
-                                    <UserPlus size={16} />
+                                    <UserPlus size={14} />
                                   </motion.button>
                                 ) : (
+                                  // Renew Membership (✅ always enabled now)
                                   <motion.button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleRenewMembershipClick(customer); // ✅ Set the selected customer here
-                                      setIsRenewModalOpen(true); // ✅ Then open the modal
+                                      handleRenewMembershipClick(customer);
+                                      setIsRenewModalOpen(true);
                                     }}
-                                    className="text-blue-600 hover:text-blue-800"
+                                    className="text-green-600 hover:text-green-800 p-1 rounded-md hover:bg-green-100 transition-colors"
                                     whileHover={{ scale: 1.2 }}
                                     whileTap={{ scale: 0.9 }}
                                     title="Renew Membership"
                                   >
-                                    <RefreshCw size={16} />
+                                    <RefreshCw size={14} />
                                   </motion.button>
                                 )}
                                 <motion.button
@@ -1120,12 +1268,12 @@ export default function CustomersPage() {
                                     e.stopPropagation();
                                     handleEditClick(customer);
                                   }}
-                                  className="text-gray-600 hover:text-gray-800"
+                                  className="text-gray-600 hover:text-gray-800 p-1 rounded-md hover:bg-gray-100 transition-colors"
                                   whileHover={{ scale: 1.2 }}
                                   whileTap={{ scale: 0.9 }}
                                   title="Edit"
                                 >
-                                  <Edit size={16} />
+                                  <Edit size={14} />
                                 </motion.button>
                                 <motion.button
                                   onClick={(e) => {
@@ -1133,12 +1281,12 @@ export default function CustomersPage() {
                                     setSelectedCustomer(customer);
                                     fetchCustomerDetails(customer.id);
                                   }}
-                                  className="text-gray-600 hover:text-gray-800"
+                                  className="text-purple-600 hover:text-purple-800 p-1 rounded-md hover:bg-purple-100 transition-colors"
                                   whileHover={{ scale: 1.2 }}
                                   whileTap={{ scale: 0.9 }}
                                   title="View Details"
                                 >
-                                  <Eye size={16} />
+                                  <Eye size={14} />
                                 </motion.button>
                               </div>
                             </td>
@@ -1149,26 +1297,26 @@ export default function CustomersPage() {
                   </table>
 
                   {/* Pagination Controls */}
-                  <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                  <div className="px-4 py-3 md:px-6 md:py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50/50">
                     <div className="flex-1 flex justify-between sm:hidden">
                       <button
                         onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 1}
-                        className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        className="relative inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                       >
                         Previous
                       </button>
                       <button
                         onClick={() => handlePageChange(currentPage + 1)}
                         disabled={currentPage === totalPages}
-                        className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        className="ml-2 relative inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                       >
                         Next
                       </button>
                     </div>
                     <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-sm text-gray-700">
+                        <p className="text-xs md:text-sm text-gray-700">
                           Showing{" "}
                           <span className="font-medium">
                             {(currentPage - 1) * customersPerPage + 1}
@@ -1195,18 +1343,18 @@ export default function CustomersPage() {
                           <button
                             onClick={() => handlePageChange(1)}
                             disabled={currentPage === 1}
-                            className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                            className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-xs md:text-sm font-medium text-gray-500 hover:bg-gray-50"
                           >
                             <span className="sr-only">First</span>
-                            <ChevronsLeft className="h-5 w-5" />
+                            <ChevronsLeft className="h-4 w-4 md:h-5 md:w-5" />
                           </button>
                           <button
                             onClick={() => handlePageChange(currentPage - 1)}
                             disabled={currentPage === 1}
-                            className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                            className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-xs md:text-sm font-medium text-gray-500 hover:bg-gray-50"
                           >
                             <span className="sr-only">Previous</span>
-                            <ChevronLeft className="h-5 w-5" />
+                            <ChevronLeft className="h-4 w-4 md:h-5 md:w-5" />
                           </button>
 
                           {/* Page numbers */}
@@ -1228,11 +1376,10 @@ export default function CustomersPage() {
                                 <button
                                   key={pageNum}
                                   onClick={() => handlePageChange(pageNum)}
-                                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                    currentPage === pageNum
-                                      ? "z-10 bg-emerald-50 border-emerald-500 text-emerald-600"
-                                      : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                                  }`}
+                                  className={`relative inline-flex items-center px-3 py-2 border text-xs md:text-sm font-medium ${currentPage === pageNum
+                                    ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                                    : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                                    }`}
                                 >
                                   {pageNum}
                                 </button>
@@ -1243,18 +1390,18 @@ export default function CustomersPage() {
                           <button
                             onClick={() => handlePageChange(currentPage + 1)}
                             disabled={currentPage === totalPages}
-                            className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                            className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-xs md:text-sm font-medium text-gray-500 hover:bg-gray-50"
                           >
                             <span className="sr-only">Next</span>
-                            <ChevronRight className="h-5 w-5" />
+                            <ChevronRight className="h-4 w-4 md:h-5 md:w-5" />
                           </button>
                           <button
                             onClick={() => handlePageChange(totalPages)}
                             disabled={currentPage === totalPages}
-                            className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                            className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-xs md:text-sm font-medium text-gray-500 hover:bg-gray-50"
                           >
                             <span className="sr-only">Last</span>
-                            <ChevronsRight className="h-5 w-5" />
+                            <ChevronsRight className="h-4 w-4 md:h-5 md:w-5" />
                           </button>
                         </nav>
                       </div>
@@ -1267,73 +1414,63 @@ export default function CustomersPage() {
             {/* Customer Details Panel */}
             {selectedCustomer && (
               <motion.div
-                className="lg:w-[350px]"
+                className="w-full lg:w-[350px] mt-4 lg:mt-0"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6 h-[calc(100vh-120px)] overflow-y-auto">
+                <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4 lg:sticky lg:top-4 max-h-[82vh] overflow-y-auto">
                   {/* Loading Indicator */}
                   {isLoadingDetails && (
-                    <div className="flex justify-center mb-4">
-                      <RefreshCw className="animate-spin h-5 w-5 text-emerald-600" />
+                    <div className="flex justify-center mb-3 py-2">
+                      <RefreshCw className="animate-spin h-5 w-5 text-blue-600" />
                     </div>
                   )}
 
                   {/* Panel Header */}
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-gray-800">
+                  <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
+                    <h2 className="text-lg font-bold text-gray-800 truncate pr-2">
                       {selectedCustomer.name}
                     </h2>
                     <button
                       onClick={() => setSelectedCustomer(null)}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors flex-shrink-0"
+                      aria-label="Close panel"
                     >
-                      <X size={20} />
+                      <X size={18} />
                     </button>
                   </div>
 
                   {/* Customer Information */}
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {/* Basic Info */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center">
+                        <User className="mr-2" size={14} />
                         Contact Information
                       </h3>
                       <div className="space-y-2">
-                        <div className="flex items-start">
-                          <Phone
-                            className="flex-shrink-0 mt-0.5 mr-2 text-gray-400"
-                            size={16}
-                          />
-                          <span className="text-sm">
+                        <div className="flex items-center p-2 bg-gray-50 rounded-lg">
+                          <Phone className="flex-shrink-0 text-gray-400 mr-2" size={14} />
+                          <span className="text-sm truncate">
                             {selectedCustomer.contact || "N/A"}
                           </span>
                         </div>
-                        <div className="flex items-start">
-                          <Mail
-                            className="flex-shrink-0 mt-0.5 mr-2 text-gray-400"
-                            size={16}
-                          />
-                          <span className="text-sm">
+                        <div className="flex items-center p-2 bg-gray-50 rounded-lg">
+                          <Mail className="flex-shrink-0 text-gray-400 mr-2" size={14} />
+                          <span className="text-sm truncate">
                             {selectedCustomer.email || "N/A"}
                           </span>
                         </div>
-                        <div className="flex items-start">
-                          <Home
-                            className="flex-shrink-0 mt-0.5 mr-2 text-gray-400"
-                            size={16}
-                          />
-                          <span className="text-sm">
+                        <div className="flex items-start p-2 bg-gray-50 rounded-lg">
+                          <Home className="flex-shrink-0 text-gray-400 mr-2 mt-0.5" size={14} />
+                          <span className="text-sm break-words flex-1">
                             {selectedCustomer.address || "N/A"}
                           </span>
                         </div>
-                        <div className="flex items-start">
-                          <Calendar
-                            className="flex-shrink-0 mt-0.5 mr-2 text-gray-400"
-                            size={16}
-                          />
+                        <div className="flex items-center p-2 bg-gray-50 rounded-lg">
+                          <Calendar className="flex-shrink-0 text-gray-400 mr-2" size={14} />
                           <span className="text-sm">
                             {selectedCustomer.birthday || "N/A"}
                           </span>
@@ -1343,28 +1480,29 @@ export default function CustomersPage() {
 
                     {/* Membership Status */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center">
+                        <Star className="mr-2" size={14} />
                         Membership Status
                       </h3>
                       <div
-                        className={`p-4 rounded-lg ${
-                          selectedCustomer.membership?.toLowerCase() === "pro"
-                            ? "bg-purple-200 border border-purple-500"
-                            : selectedCustomer.membership?.toLowerCase() ===
-                                "basic"
-                              ? "bg-blue-200 border border-blue-500"
-                              : "bg-gray-100 border border-gray-300"
-                        }`}
+                        className={`p-3 rounded-lg ${selectedCustomer.membership?.toLowerCase() === "pro"
+                            ? "bg-purple-100 border border-purple-200"
+                            : selectedCustomer.membership?.toLowerCase() === "basic"
+                              ? "bg-blue-100 border border-blue-200"
+                              : selectedCustomer.membership?.toLowerCase() === "promo"
+                                ? "bg-amber-100 border border-amber-200"
+                                : "bg-gray-100 border border-gray-200"
+                          }`}
                       >
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium">
-                            {selectedCustomer.membership?.toLowerCase() ===
-                            "pro"
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-medium text-sm">
+                            {selectedCustomer.membership?.toLowerCase() === "pro"
                               ? "PRO Member"
-                              : selectedCustomer.membership?.toLowerCase() ===
-                                  "basic"
+                              : selectedCustomer.membership?.toLowerCase() === "basic"
                                 ? "Basic Member"
-                                : "No Membership"}
+                                : selectedCustomer.membership?.toLowerCase() === "promo"
+                                  ? "Membership Promo"
+                                  : "No Membership"}
                           </span>
                           {selectedCustomer.membership !== "None" && (
                             <span className="text-xs text-gray-500">
@@ -1374,33 +1512,28 @@ export default function CustomersPage() {
                         </div>
 
                         {selectedCustomer.membership !== "None" && (
-                          <div className="mt-3 space-y-1">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-700">Coverage:</span>
-                              <span className="font-medium">
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <div className="text-gray-600">Coverage:</div>
+                              <div className="font-medium truncate">
                                 {selectedCustomer.membershipDetails?.coverage}
-                              </span>
+                              </div>
                             </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-700">Remaining:</span>
-                              <span className="font-medium text-emerald-700">
-                                {
-                                  selectedCustomer.membershipDetails
-                                    ?.remainingBalance
-                                }
-                              </span>
+                            <div>
+                              <div className="text-gray-600">Remaining:</div>
+                              <div className="font-medium text-green-700">
+                                ₱{selectedCustomer.membershipDetails?.remainingBalance}
+                              </div>
                             </div>
                           </div>
                         )}
                       </div>
 
-                      <div className="mt-4">
+                      <div className="mt-3">
                         {selectedCustomer.membership === "None" ? (
                           <motion.button
-                            onClick={() =>
-                              handleAddMembershipClick(selectedCustomer)
-                            }
-                            className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm"
+                            onClick={() => handleAddMembershipClick(selectedCustomer)}
+                            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                           >
@@ -1408,8 +1541,12 @@ export default function CustomersPage() {
                           </motion.button>
                         ) : (
                           <motion.button
-                            onClick={() => setIsRenewModalOpen(true)}
-                            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsRenewModalOpen(true);
+                              handleRenewMembershipClick(selectedCustomer);
+                            }}
+                            className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                           >
@@ -1421,41 +1558,34 @@ export default function CustomersPage() {
 
                     {/* Recent Activity */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center">
+                        <Activity className="mr-2" size={14} />
                         Recent Activity
                       </h3>
-                      <div className="space-y-3">
+                      <div className="space-y-2 max-h-[140px] overflow-y-auto">
                         {selectedCustomer.recentActivity?.length > 0 ? (
-                          selectedCustomer.recentActivity.map(
-                            (activity, index) => (
-                              <div key={index} className="flex items-start">
-                                <div className="flex-shrink-0 mt-0.5 mr-3">
-                                  {activity.type === "service" ? (
-                                    <Scissors
-                                      className="text-gray-400"
-                                      size={16}
-                                    />
-                                  ) : (
-                                    <CreditCard
-                                      className="text-gray-400"
-                                      size={16}
-                                    />
-                                  )}
+                          selectedCustomer.recentActivity.map((activity, index) => (
+                            <div key={index} className="flex items-start p-2 bg-gray-50 rounded-lg">
+                              <div className="flex-shrink-0 mt-0.5 mr-2">
+                                {activity.type === "service" ? (
+                                  <Scissors className="text-gray-400" size={14} />
+                                ) : (
+                                  <CreditCard className="text-gray-400" size={14} />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium truncate">
+                                  {activity.description}
                                 </div>
-                                <div className="text-sm">
-                                  <div className="font-medium">
-                                    {activity.description}
-                                  </div>
-                                  <div className="text-gray-500 text-xs mt-0.5">
-                                    {activity.date}
-                                  </div>
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  {activity.date}
                                 </div>
                               </div>
-                            )
-                          )
+                            </div>
+                          ))
                         ) : (
-                          <div className="text-sm text-gray-500">
-                            No recent activity found
+                          <div className="text-sm text-gray-500 p-2 bg-gray-50 rounded-lg text-center">
+                            No recent activity
                           </div>
                         )}
                       </div>
@@ -1497,19 +1627,35 @@ export default function CustomersPage() {
                     value={membershipForm.type}
                     onChange={(e) => {
                       const type = e.target.value;
+                      const template = membershipTemplates.find(
+                        (m) => m.type === type
+                      );
+
                       setMembershipForm({
                         ...membershipForm,
                         type,
-                        name:
-                          type === "basic"
+                        name: template
+                          ? template.name
+                          : type === "basic"
                             ? "Basic"
-                            : type === "pro"
-                              ? "Pro"
-                              : "Promo",
-                        fee:
-                          type === "basic" ? 3000 : type === "pro" ? 6000 : "",
-                        consumable:
-                          type === "basic" ? 5000 : type === "pro" ? 10000 : "",
+                            : "Pro",
+                        fee: template
+                          ? template.price
+                          : type === "basic"
+                            ? 3000
+                            : 6000,
+                        consumable: template
+                          ? template.consumable_amount
+                          : type === "basic"
+                            ? 5000
+                            : 10000,
+                        validTo:
+                          template && template.valid_until
+                            ? template.valid_until
+                            : "",
+                        noExpiration: template
+                          ? template.no_expiration === 1
+                          : false,
                       });
                     }}
                     className="w-full p-2 border rounded"
@@ -1520,7 +1666,13 @@ export default function CustomersPage() {
                     <option value="pro">
                       Pro (₱6,000 for 10,000 consumable)
                     </option>
-                    <option value="promo">Promo (Custom)</option>
+                    {membershipTemplates
+                      .filter((m) => m.type === "promo")
+                      .map((m) => (
+                        <option key={m.id} value="promo">
+                          {m.name} (Promo)
+                        </option>
+                      ))}
                   </select>
                 </div>
 
@@ -1579,23 +1731,6 @@ export default function CustomersPage() {
                         className="w-full p-2 border rounded"
                       />
                     </div>
-
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="noExpiration"
-                        checked={membershipForm.noExpiration || false}
-                        onChange={(e) =>
-                          setMembershipForm({
-                            ...membershipForm,
-                            noExpiration: e.target.checked,
-                          })
-                        }
-                        className="mr-2"
-                      />
-                      <label htmlFor="noExpiration">No Expiration</label>
-                    </div>
-
                     {!membershipForm.noExpiration && (
                       <div>
                         <label className="block mb-1 text-sm">
@@ -1795,21 +1930,57 @@ export default function CustomersPage() {
                   onClick={async () => {
                     if (!selectedCustomer) return;
                     setIsRenewing(true);
-                    await handleRenewMembership(
-                      selectedCustomer.id,
-                      selectedCustomer.membership_id,
-                      selectedType,
-                      paymentMethod,
-                      renewMembership
-                    );
-                    setIsRenewing(false);
-                    setIsRenewModalOpen(false);
+                    try {
+                      const latestMembership = selectedCustomer.membershipDetails
+                        ? {
+                          id: selectedCustomer.membershipDetails.id,
+                          type: selectedCustomer.membership,
+                          coverage: Number(selectedCustomer.membershipDetails.coverage),
+                          remaining_balance: Number(
+                            selectedCustomer.membershipDetails.remainingBalance
+                          ),
+                          date_registered: selectedCustomer.membershipDetails.dateRegistered,
+                          expire_date: selectedCustomer.membershipDetails.expireDate,
+                          customer_id: selectedCustomer.id,
+                        }
+                        : null;
+
+                      if (!latestMembership) {
+                        toast.error("❌ No membership found for this customer.");
+                        return;
+                      }
+
+                      // 🚫 Block renewals for promo type
+                      if (latestMembership.type.toLowerCase() === "promo") {
+                        toast.error("❌ Promo memberships cannot be renewed because they have fixed expiration.");
+                        return;
+                      }
+
+                      const renewMembershipPayload = {
+                        price: Number(latestMembership.coverage || 0),
+                        consumable_amount: Number(
+                          latestMembership.remaining_balance || 0
+                        ),
+                        valid_until: latestMembership.expire_date || null,
+                        no_expiration: false,
+                      };
+
+                      await handleRenewMembership(
+                        selectedCustomer.id,
+                        latestMembership.type || "basic",
+                        paymentMethod,
+                        renewMembershipPayload
+                      );
+
+                      setIsRenewModalOpen(false);
+                    } finally {
+                      setIsRenewing(false);
+                    }
                   }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-                    isRenewing
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg ${isRenewing
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    }`}
                 >
                   {isRenewing ? "Processing..." : "Confirm Renewal"}
                 </button>

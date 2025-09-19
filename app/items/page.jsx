@@ -20,7 +20,7 @@ import {
   ChevronDown,
   Search,
   User,
-  Calendar,
+  Percent,
 } from "lucide-react";
 import {
   Home,
@@ -221,9 +221,8 @@ export default function BeautyDeals() {
     e.preventDefault();
     try {
       // ✅ Construct endpoint with action in query string
-      const endpoint = `http://localhost/API/getPromosAndDiscounts.php?action=${
-        newItem.type === "promo" ? "addPromo" : "addDiscount"
-      }`;
+      const endpoint = `http://localhost/API/getPromosAndDiscounts.php?action=${newItem.type === "promo" ? "addPromo" : "addDiscount"
+        }`;
 
       // ✅ Build payload
       const payload = {
@@ -352,17 +351,17 @@ export default function BeautyDeals() {
         prev.map((deal) =>
           deal.id === selectedDeal.id
             ? {
-                ...deal,
-                type: selectedDeal.type,
-                name: selectedDeal.name,
-                description: selectedDeal.description,
-                validFrom: selectedDeal.validFrom,
-                validTo: selectedDeal.validTo,
-                status: selectedDeal.status,
-                discountType: selectedDeal.discountType, // ✅ keep type
-                discountedPrice: selectedDeal.discountedPrice, // ✅ keep value
-                services: selectedServices,
-              }
+              ...deal,
+              type: selectedDeal.type,
+              name: selectedDeal.name,
+              description: selectedDeal.description,
+              validFrom: selectedDeal.validFrom,
+              validTo: selectedDeal.validTo,
+              status: selectedDeal.status,
+              discountType: selectedDeal.discountType, // ✅ keep type
+              discountedPrice: selectedDeal.discountedPrice, // ✅ keep value
+              services: selectedServices,
+            }
             : deal
         )
       );
@@ -639,13 +638,13 @@ export default function BeautyDeals() {
                             href: "/customers",
                             label: "Customers",
                             icon: <Users size={16} />,
-                            count: 3,
+                            count: 6,
                           },
                           {
                             href: "/invoices",
                             label: "Invoices",
                             icon: <FileText size={16} />,
-                            count: 17,
+                            count: 30,
                           },
                         ].map((link, index) => (
                           <Menu.Item key={link.href}>
@@ -718,55 +717,90 @@ export default function BeautyDeals() {
         </nav>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 bg-gray-50 text-gray-900 ml-64">
+        <main className="flex-1 p-8 bg-gradient-to-br from-gray-50 to-white text-gray-800 ml-64 min-h-screen">
+          {/* Header Section */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex justify-between items-center mb-8"
+          >
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800 bg-gradient-to-r from-gray-800 to-gray-800 bg-clip-text text-transparent">
+                Beauty Deals & Promotions
+              </h1>
+              <p className="text-sm text-gray-600 mt-2 flex items-center">
+                <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+                Manage all your promotions and discounts in one place
+              </p>
+            </div>
+            <div className="flex space-x-4">
+              <motion.button
+                onClick={() => handleAddItem("promo")}
+                className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-2 px-4 rounded-xl transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Plus size={18} />
+                <span>New Promotion</span>
+              </motion.button>
+              <motion.button
+                onClick={() => handleAddItem("discount")}
+                className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-2 px-4 rounded-xl transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Percent size={18} />
+                <span>New Discount</span>
+              </motion.button>
+            </div>
+          </motion.div>
+
           {/* Promo Section */}
           <motion.section
-            className="mb-8"
+            className="mb-12"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
+            transition={{ delay: 0.3 }}
           >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-700">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <div className="bg-blue-100 p-2 rounded-lg mr-3">
+                  <Tag className="text-blue-600" size={20} />
+                </div>
                 Promotions
+                <span className="ml-3 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                  {deals.length}
+                </span>
               </h2>
-              <motion.button
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-2 text-sm"
-                onClick={() => handleAddItem("promo")}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <Plus size={16} />
-                Add Promotion
-              </motion.button>
             </div>
 
             <motion.div
-              className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+              className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
+              transition={{ duration: 0.4, delay: 0.4 }}
             >
-              <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border-b font-medium text-xs text-gray-500 uppercase tracking-wider">
+              <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-gray-50 border-b font-medium text-xs text-gray-600 uppercase tracking-wider">
                 <div className="col-span-4">Promo Details</div>
                 <div className="col-span-2">Valid From</div>
                 <div className="col-span-2">Valid To</div>
+                <div className="col-span-2">Discount</div>
                 <div className="col-span-2 text-center">Status</div>
-                <div className="col-span-2 text-right">Actions</div>
               </div>
 
-              <div className="divide-y divide-gray-200">
+              <div className="divide-y divide-gray-100">
                 <AnimatePresence>
                   {deals.length > 0 ? (
                     deals.map((deal, index) => (
                       <motion.div
                         key={index}
-                        className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 cursor-pointer"
+                        className="grid grid-cols-12 gap-4 px-6 py-5 items-center hover:bg-blue-50/50 cursor-pointer transition-all duration-300 group"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, x: -50 }}
                         transition={{ delay: index * 0.05, type: "spring" }}
-                        whileHover={{ backgroundColor: "#f8fafc" }}
+                        whileHover={{ y: -2, backgroundColor: "rgba(239, 246, 255, 0.7)" }}
                         onClick={() => {
                           setSelectedDeal(deal);
                           setSelectedDiscount(null);
@@ -774,66 +808,66 @@ export default function BeautyDeals() {
                           setIsOpen(true);
                         }}
                       >
-                        <div className="col-span-4">
-                          <div className="font-medium text-gray-900">
-                            {deal.type}
+                        <div className="col-span-4 flex items-center">
+                          <div className="bg-blue-100 p-2 rounded-lg mr-3 group-hover:bg-blue-200 transition-colors">
+                            <Tag className="text-blue-600" size={16} />
                           </div>
-                          <div className="text-sm text-gray-500 mt-1">
-                            {deal.description}
+                          <div>
+                            <div className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                              {deal.type}
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1 line-clamp-1">
+                              {deal.description}
+                            </div>
                           </div>
                         </div>
-                        <div className="col-span-2 text-sm text-gray-600">
+                        <div className="col-span-2 text-sm text-gray-700 font-medium">
                           {deal.validFrom}
                         </div>
-                        <div className="col-span-2 text-sm text-gray-600">
+                        <div className="col-span-2 text-sm text-gray-700 font-medium">
                           {deal.validTo}
+                        </div>
+                        <div className="col-span-2">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+                            {deal.discountValue}{deal.discountType === "percentage" ? "%" : ""} OFF
+                          </span>
                         </div>
                         <div className="col-span-2 flex justify-center">
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              deal.status === "active"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium ${deal.status === "active"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                              }`}
                           >
-                            {deal.status}
+                            {deal.status.charAt(0).toUpperCase() + deal.status.slice(1)}
                           </span>
-                        </div>
-                        <div className="col-span-2 flex justify-end">
-                          <motion.button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditDeal(index);
-                            }}
-                            className="text-gray-500 hover:text-emerald-600 p-1"
-                            whileHover={{ scale: 1.2 }}
-                            whileTap={{ scale: 0.9 }}
-                            title="Edit"
-                          >
-                            <Pencil size={16} />
-                          </motion.button>
                         </div>
                       </motion.div>
                     ))
                   ) : (
                     <motion.div
-                      className="px-6 py-12 text-center"
+                      className="px-6 py-16 text-center"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.3 }}
                     >
                       <div className="flex flex-col items-center justify-center text-gray-400">
-                        <Tag className="w-12 h-12 mb-4" />
-                        <p className="text-lg font-medium">No promotions yet</p>
-                        <p className="text-sm mt-1">
-                          Create your first promotion to attract customers
+                        <div className="bg-blue-100 p-4 rounded-2xl mb-4">
+                          <Tag className="w-12 h-12 text-blue-400" />
+                        </div>
+                        <p className="text-lg font-medium text-gray-500">No promotions yet</p>
+                        <p className="text-sm mt-2 text-gray-400 max-w-md">
+                          Create special promotions to attract more customers to your beauty services
                         </p>
-                        <button
+                        <motion.button
                           onClick={() => handleAddItem("promo")}
-                          className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
+                          className="mt-5 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 font-medium flex items-center space-x-2 shadow-md hover:shadow-lg"
+                          whileHover={{ scale: 1.05, y: -2 }}
+                          whileTap={{ scale: 0.98 }}
                         >
-                          Add Promotion
-                        </button>
+                          <Plus size={16} />
+                          <span>Create Your First Promotion</span>
+                        </motion.button>
                       </div>
                     </motion.div>
                   )}
@@ -846,46 +880,45 @@ export default function BeautyDeals() {
           <motion.section
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.5 }}
           >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-700">Discounts</h2>
-              <motion.button
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-2 text-sm"
-                onClick={() => handleAddItem("discount")}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <Plus size={16} />
-                Add Discount
-              </motion.button>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <div className="bg-green-100 p-2 rounded-lg mr-3">
+                  <Percent className="text-green-600" size={20} />
+                </div>
+                Discounts
+                <span className="ml-3 text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                  {discounts.length}
+                </span>
+              </h2>
             </div>
 
             <motion.div
-              className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+              className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.3, delay: 0.4 }}
+              transition={{ duration: 0.4, delay: 0.6 }}
             >
-              <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border-b font-medium text-xs text-gray-500 uppercase tracking-wider">
+              <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-gray-50 border-b font-medium text-xs text-gray-600 uppercase tracking-wider">
                 <div className="col-span-5">Discount Details</div>
                 <div className="col-span-3">Value</div>
+                <div className="col-span-2">Min. Spend</div>
                 <div className="col-span-2 text-center">Status</div>
-                <div className="col-span-2 text-right">Actions</div>
               </div>
 
-              <div className="divide-y divide-gray-200">
+              <div className="divide-y divide-gray-100">
                 <AnimatePresence>
                   {discounts.length > 0 ? (
                     discounts.map((discount, index) => (
                       <motion.div
                         key={index}
-                        className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 cursor-pointer"
+                        className="grid grid-cols-12 gap-4 px-6 py-5 items-center hover:bg-green-50/50 cursor-pointer transition-all duration-300 group"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, x: -50 }}
                         transition={{ delay: index * 0.05, type: "spring" }}
-                        whileHover={{ backgroundColor: "#f8fafc" }}
+                        whileHover={{ y: -2, backgroundColor: "rgba(240, 253, 244, 0.7)" }}
                         onClick={() => {
                           setSelectedDiscount(discount);
                           setSelectedDeal(null);
@@ -895,63 +928,63 @@ export default function BeautyDeals() {
                           setIsOpen(true);
                         }}
                       >
-                        <div className="col-span-5">
-                          <div className="font-medium text-gray-900">
-                            {discount.name}
+                        <div className="col-span-5 flex items-center">
+                          <div className="bg-green-100 p-2 rounded-lg mr-3 group-hover:bg-green-200 transition-colors">
+                            <Percent className="text-green-600" size={16} />
                           </div>
-                          <div className="text-sm text-gray-500 mt-1">
-                            {discount.description}
+                          <div>
+                            <div className="font-semibold text-gray-900 group-hover:text-green-700 transition-colors">
+                              {discount.name}
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1 line-clamp-1">
+                              {discount.description}
+                            </div>
                           </div>
                         </div>
-                        <div className="col-span-3 text-sm font-medium text-emerald-600">
-                          {discount.value}%
+                        <div className="col-span-3">
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold bg-gradient-to-r from-green-500 to-green-600 text-white">
+                            {discount.value}% OFF
+                          </span>
+                        </div>
+                        <div className="col-span-2 text-sm text-gray-700 font-medium">
+                          {discount.minSpend ? `₱${discount.minSpend}` : "None"}
                         </div>
                         <div className="col-span-2 flex justify-center">
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              discount.status === "active"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium ${discount.status === "active"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                              }`}
                           >
-                            {discount.status}
+                            {discount.status.charAt(0).toUpperCase() + discount.status.slice(1)}
                           </span>
-                        </div>
-                        <div className="col-span-2 flex justify-end">
-                          <motion.button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditDiscount(index);
-                            }}
-                            className="text-gray-500 hover:text-emerald-600 p-1"
-                            whileHover={{ scale: 1.2 }}
-                            whileTap={{ scale: 0.9 }}
-                            title="Edit"
-                          >
-                            <Pencil size={16} />
-                          </motion.button>
                         </div>
                       </motion.div>
                     ))
                   ) : (
                     <motion.div
-                      className="px-6 py-12 text-center"
+                      className="px-6 py-16 text-center"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.3 }}
                     >
                       <div className="flex flex-col items-center justify-center text-gray-400">
-                        <Percent className="w-12 h-12 mb-4" />
-                        <p className="text-lg font-medium">No discounts yet</p>
-                        <p className="text-sm mt-1">
-                          Create discounts to reward your customers
+                        <div className="bg-green-100 p-4 rounded-2xl mb-4">
+                          <Percent className="w-12 h-12 text-green-400" />
+                        </div>
+                        <p className="text-lg font-medium text-gray-500">No discounts yet</p>
+                        <p className="text-sm mt-2 text-gray-400 max-w-md">
+                          Create discounts to reward your customers and encourage more bookings
                         </p>
-                        <button
+                        <motion.button
                           onClick={() => handleAddItem("discount")}
-                          className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
+                          className="mt-5 px-5 py-2.5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 font-medium flex items-center space-x-2 shadow-md hover:shadow-lg"
+                          whileHover={{ scale: 1.05, y: -2 }}
+                          whileTap={{ scale: 0.98 }}
                         >
-                          Add Discount
-                        </button>
+                          <Percent size={16} />
+                          <span>Create Your First Discount</span>
+                        </motion.button>
                       </div>
                     </motion.div>
                   )}
@@ -1031,12 +1064,11 @@ export default function BeautyDeals() {
                         <div>
                           <h4 className="font-medium text-gray-900">Status</h4>
                           <span
-                            className={`mt-1 px-2 py-1 rounded-full text-xs ${
-                              selectedDeal?.status === "active" ||
+                            className={`mt-1 px-2 py-1 rounded-full text-xs ${selectedDeal?.status === "active" ||
                               selectedDiscount?.status === "active"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                              }`}
                           >
                             {selectedDeal?.status ||
                               selectedDiscount?.status ||
@@ -1090,29 +1122,22 @@ export default function BeautyDeals() {
                             </div>
                           </>
                         ) : (
-                          selectedDiscount && (
-                            <>
+                           selectedDiscount && (
+                            <div className="col-span-2 space-y-4">
                               <div>
-                                <h4 className="font-medium text-gray-900">
-                                  Discount Type
-                                </h4>
+                                <h4 className="font-medium text-gray-900">Discount Type</h4>
                                 <p className="text-sm text-gray-800 mt-1 capitalize">
                                   {selectedDiscount.discountType || "N/A"}
                                 </p>
                               </div>
                               <div>
-                                <h4 className="font-medium text-gray-900">
-                                  Value
-                                </h4>
+                                <h4 className="font-medium text-gray-900">Value</h4>
                                 <p className="text-sm text-gray-800 mt-1">
                                   {selectedDiscount.value || "N/A"}
-                                  {selectedDiscount.discountType ===
-                                  "percentage"
-                                    ? "%"
-                                    : ""}
+                                  {selectedDiscount.discountType === "percentage" ? "%" : ""}
                                 </p>
                               </div>
-                            </>
+                            </div>
                           )
                         )}
                       </div>
@@ -1125,76 +1150,70 @@ export default function BeautyDeals() {
                           Included Services
                         </h4>
                         <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
-                                  Service
-                                </th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
-                                  Category
-                                </th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
-                                  Original Price
-                                </th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
-                                  Discounted Price
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {selectedServices.length > 0 ? (
-                                selectedServices.map((service, index) => (
-                                  <tr key={index}>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                                      {service.name}
-                                    </td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                                      {service.category}
-                                    </td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                                      {service.originalPrice}
-                                    </td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-red-500">
-                                      {service.originalPrice &&
-                                      selectedDeal.discountValue
-                                        ? selectedDeal.discountType ===
-                                          "percentage"
-                                          ? (
-                                              parseFloat(
-                                                service.originalPrice
-                                              ) *
-                                              (1 -
-                                                selectedDeal.discountValue /
-                                                  100)
+                          {/* ✅ Add vertical scroll with a max height */}
+                          <div className="max-h-64 overflow-y-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
+                                    Service
+                                  </th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
+                                    Category
+                                  </th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
+                                    Original Price
+                                  </th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-800 uppercase tracking-wider">
+                                    Discounted Price
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {selectedServices.length > 0 ? (
+                                  selectedServices.map((service, index) => (
+                                    <tr key={index}>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                                        {service.name}
+                                      </td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                        {service.category}
+                                      </td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                        {service.originalPrice}
+                                      </td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-red-500">
+                                        {service.originalPrice && selectedDeal.discountValue
+                                          ? selectedDeal.discountType === "percentage"
+                                            ? (
+                                              parseFloat(service.originalPrice) *
+                                              (1 - selectedDeal.discountValue / 100)
                                             ).toFixed(2)
-                                          : (
-                                              parseFloat(
-                                                service.originalPrice
-                                              ) -
-                                              parseFloat(
-                                                selectedDeal.discountValue
-                                              )
+                                            : (
+                                              parseFloat(service.originalPrice) -
+                                              parseFloat(selectedDeal.discountValue)
                                             ).toFixed(2)
-                                        : "-"}
+                                          : "-"}
+                                      </td>
+                                    </tr>
+                                  ))
+                                ) : (
+                                  <tr>
+                                    <td
+                                      colSpan="4"
+                                      className="px-4 py-4 text-center text-sm text-gray-500"
+                                    >
+                                      No services included
                                     </td>
                                   </tr>
-                                ))
-                              ) : (
-                                <tr>
-                                  <td
-                                    colSpan="4"
-                                    className="px-4 py-4 text-center text-sm text-gray-500"
-                                  >
-                                    No services included
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       </div>
                     )}
+
                   </div>
 
                   {/* Action Buttons */}
@@ -1616,11 +1635,10 @@ export default function BeautyDeals() {
                                 discountedPrice: e.target.value,
                               })
                             }
-                            className={`w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
-                              selectedDeal.discountType === "percentage"
-                                ? "pr-8"
-                                : "pl-8"
-                            }`}
+                            className={`w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${selectedDeal.discountType === "percentage"
+                              ? "pr-8"
+                              : "pl-8"
+                              }`}
                             placeholder={
                               selectedDeal.discountType === "percentage"
                                 ? "0-100"
@@ -1703,10 +1721,10 @@ export default function BeautyDeals() {
                           .toLowerCase()
                           .includes(searchTerm.toLowerCase())
                     ).length === 0 && (
-                      <div className="text-center py-4 text-gray-500 text-sm">
-                        No services found matching your search
-                      </div>
-                    )}
+                        <div className="text-center py-4 text-gray-500 text-sm">
+                          No services found matching your search
+                        </div>
+                      )}
                   </div>
                 </div>
 
@@ -1855,13 +1873,14 @@ export default function BeautyDeals() {
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="bg-white p-6 rounded-xl shadow-xl w-[700px] max-h-[85vh] overflow-y-auto"
+              className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
               variants={slideUp}
               initial="hidden"
               animate="visible"
               exit="exit"
             >
-              <div className="flex justify-between items-center mb-6">
+              {/* Header */}
+              <div className="flex justify-between items-center p-6 border-b">
                 <h2 className="text-xl font-bold">Edit Discount</h2>
                 <button
                   onClick={() => setIsDiscountModalOpen(false)}
@@ -1871,8 +1890,9 @@ export default function BeautyDeals() {
                 </button>
               </div>
 
-              <form onSubmit={handleSaveEditDiscount}>
-                <div className="grid grid-cols-2 gap-6">
+              {/* Form */}
+              <form onSubmit={handleSaveEditDiscount} className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Left Column */}
                   <div className="space-y-4">
                     {/* Name */}
@@ -1907,18 +1927,18 @@ export default function BeautyDeals() {
                             description: e.target.value,
                           })
                         }
-                        className="w-full p-2 border border-gray-300 rounded-lg h-24 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        className="w-full p-2 border border-gray-300 rounded-lg h-28 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       />
                     </div>
                   </div>
 
                   {/* Right Column */}
                   <div className="space-y-4">
-                    {/* Discount Type and Value */}
+                    {/* Discount Type + Value */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Type
+                          Discount Type
                         </label>
                         <select
                           value={selectedDiscount.discountType}
@@ -1934,6 +1954,7 @@ export default function BeautyDeals() {
                           <option value="fixed">Fixed Amount</option>
                         </select>
                       </div>
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Value*
@@ -1957,11 +1978,10 @@ export default function BeautyDeals() {
                                 value: e.target.value,
                               })
                             }
-                            className={`w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
-                              selectedDiscount.discountType === "percentage"
-                                ? "pr-8"
-                                : "pl-8"
-                            }`}
+                            className={`w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${selectedDiscount.discountType === "percentage"
+                              ? "pr-8"
+                              : "pl-8"
+                              }`}
                             placeholder={
                               selectedDiscount.discountType === "percentage"
                                 ? "10"
@@ -1996,7 +2016,7 @@ export default function BeautyDeals() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                   <motion.button
                     type="button"
                     onClick={() => setIsDiscountModalOpen(false)}

@@ -203,7 +203,7 @@ export default function ViewProfile() {
                     >
                         <div>
                             <h1 className="text-2xl font-bold text-gray-800">
-                                Employee Profile
+                                User Profile
                             </h1>
                             <p className="text-sm text-gray-500 mt-1">
                                 {isEditing ? "Edit employee details" : "View employee details and information"}

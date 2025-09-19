@@ -133,6 +133,7 @@ export default function ServiceOrderPage() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const currentUser = { name: "Admin" }; // or hardcoded for now
   const [isCustomersLoading, setIsCustomersLoading] = useState(true);
+  const [membershipTemplates, setMembershipTemplates] = useState([]);
   const [customersError, setCustomersError] = useState(null);
   const [newCustomer, setNewCustomer] = useState({
     name: "",
@@ -344,6 +345,20 @@ export default function ServiceOrderPage() {
       loadServices();
     }
   }, [isMember, membershipType]);
+
+  useEffect(() => {
+    const fetchMembershipTemplates = async () => {
+      try {
+        const res = await fetch("http://localhost/API/memberships.php");
+        const data = await res.json();
+        setMembershipTemplates(data);
+      } catch (error) {
+        console.error("Failed to fetch memberships:", error);
+      }
+    };
+
+    fetchMembershipTemplates();
+  }, []);
 
   const totalAmount = selectedServices.reduce(
     (sum, s) => sum + parseFloat(s.price),
@@ -868,13 +883,13 @@ export default function ServiceOrderPage() {
                             href: "/customers",
                             label: "Customers",
                             icon: <Users size={16} />,
-                            count: 3,
+                            count: 6,
                           },
                           {
                             href: "/invoices",
                             label: "Invoices",
                             icon: <FileText size={16} />,
-                            count: 17,
+                            count: 30,
                           },
                         ].map((link, index) => (
                           <Menu.Item key={link.href}>
@@ -1181,6 +1196,7 @@ export default function ServiceOrderPage() {
                         className="mt-4 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm"
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
+                        onClick={() => setShowMembershipSignup(true)} // 👈 open modal here
                       >
                         Upgrade to Membership
                       </motion.button>
@@ -2188,6 +2204,197 @@ export default function ServiceOrderPage() {
               )}
             </AnimatePresence>
 
+            {/* Membership Signup Modal */}
+            <AnimatePresence>
+              {showMembershipSignup && (
+                <motion.div
+                  className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <motion.div
+                    className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col p-6"
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  >
+                    <div className="flex justify-between items-center border-b pb-3 mb-4">
+                      <h4 className="font-medium text-emerald-700 flex items-center">
+                        <Star className="mr-2" size={16} />
+                        Membership Details
+                      </h4>
+                      <button
+                        onClick={() => setShowMembershipSignup(false)}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    <form className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-y-auto">
+                      {/* Membership Type */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Membership Type{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={membershipForm.type}
+                          onChange={(e) => {
+                            const type = e.target.value;
+                            const template = membershipTemplates.find(
+                              (m) => m.type === type
+                            );
+
+                            setMembershipForm({
+                              ...membershipForm,
+                              type,
+                              name: template
+                                ? template.name
+                                : type === "basic"
+                                  ? "Basic"
+                                  : "Pro",
+                              fee: template
+                                ? template.price
+                                : type === "basic"
+                                  ? 3000
+                                  : 6000,
+                              consumable: template
+                                ? template.consumable_amount
+                                : type === "basic"
+                                  ? 5000
+                                  : 10000,
+                              validTo:
+                                template && template.valid_until
+                                  ? template.valid_until
+                                  : "",
+                              noExpiration: template
+                                ? template.no_expiration === 1
+                                : false,
+                            });
+                          }}
+                          className="w-full p-2 border rounded"
+                        >
+                          <option value="basic">
+                            Basic (₱3,000 for 5,000 consumable)
+                          </option>
+                          <option value="pro">
+                            Pro (₱6,000 for 10,000 consumable)
+                          </option>
+                          {membershipTemplates
+                            .filter((m) => m.type === "promo")
+                            .map((m) => (
+                              <option key={m.id} value="promo">
+                                {m.name} (Promo)
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      {/* Payment Method */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Payment Method <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={membershipForm.paymentMethod || ""}
+                          onChange={(e) =>
+                            setMembershipForm({
+                              ...membershipForm,
+                              paymentMethod: e.target.value,
+                            })
+                          }
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          required
+                        >
+                          <option value="">Select Method</option>
+                          <option value="Cash">Cash</option>
+                          <option value="GCash">GCash</option>
+                          <option value="Card">Card</option>
+                          <option value="Bank Transfer">Bank Transfer</option>
+                        </select>
+                      </div>
+
+                      {/* Promo fields */}
+                      {membershipForm.type === "promo" && (
+                        <>
+                          <div>
+                            <label className="block text-sm mb-1">
+                              Price (₱)
+                            </label>
+                            <input
+                              type="number"
+                              value={membershipForm.fee}
+                              onChange={(e) =>
+                                setMembershipForm({
+                                  ...membershipForm,
+                                  fee: e.target.value,
+                                })
+                              }
+                              className="w-full p-2 border rounded"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm mb-1">
+                              Consumable Amount
+                            </label>
+                            <input
+                              type="number"
+                              value={membershipForm.consumable}
+                              onChange={(e) =>
+                                setMembershipForm({
+                                  ...membershipForm,
+                                  consumable: e.target.value,
+                                })
+                              }
+                              className="w-full p-2 border rounded"
+                            />
+                          </div>
+                          {!membershipForm.noExpiration && (
+                            <div>
+                              <label className="block mb-1 text-sm">
+                                Valid Until
+                              </label>
+                              <input
+                                type="date"
+                                value={membershipForm.validTo}
+                                onChange={(e) =>
+                                  setMembershipForm({
+                                    ...membershipForm,
+                                    validTo: e.target.value,
+                                  })
+                                }
+                                className="w-full p-2 border rounded"
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </form>
+
+                    {/* Action buttons */}
+                    <div className="mt-6 flex justify-end space-x-3 border-t pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowMembershipSignup(false)}
+                        className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition"
+                      >
+                        Register as Member
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Combined Add Customer with Membership Modal */}
             <AnimatePresence>
               {(isModalOpen || isNewCustomerModalOpen) && (
@@ -2361,43 +2568,55 @@ export default function ServiceOrderPage() {
                                   <span className="text-red-500">*</span>
                                 </label>
                                 <select
-                                  value={membershipForm.type || ""}
+                                  value={membershipForm.type}
                                   onChange={(e) => {
                                     const type = e.target.value;
+                                    const template = membershipTemplates.find(
+                                      (m) => m.type === type
+                                    );
+
                                     setMembershipForm({
                                       ...membershipForm,
                                       type,
-                                      name:
-                                        type === "basic"
+                                      name: template
+                                        ? template.name
+                                        : type === "basic"
                                           ? "Basic"
-                                          : type === "pro"
-                                            ? "Pro"
-                                            : "Promo",
-                                      fee:
-                                        type === "basic"
+                                          : "Pro",
+                                      fee: template
+                                        ? template.price
+                                        : type === "basic"
                                           ? 3000
-                                          : type === "pro"
-                                            ? 6000
-                                            : "",
-                                      consumable:
-                                        type === "basic"
+                                          : 6000,
+                                      consumable: template
+                                        ? template.consumable_amount
+                                        : type === "basic"
                                           ? 5000
-                                          : type === "pro"
-                                            ? 10000
-                                            : "",
+                                          : 10000,
+                                      validTo:
+                                        template && template.valid_until
+                                          ? template.valid_until
+                                          : "",
+                                      noExpiration: template
+                                        ? template.no_expiration === 1
+                                        : false,
                                     });
                                   }}
-                                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                  required
+                                  className="w-full p-2 border rounded"
                                 >
-                                  <option value="">Select Membership</option>
                                   <option value="basic">
                                     Basic (₱3,000 for 5,000 consumable)
                                   </option>
                                   <option value="pro">
                                     Pro (₱6,000 for 10,000 consumable)
                                   </option>
-                                  <option value="promo">Promo (Custom)</option>
+                                  {membershipTemplates
+                                    .filter((m) => m.type === "promo")
+                                    .map((m) => (
+                                      <option key={m.id} value="promo">
+                                        {m.name} (Promo)
+                                      </option>
+                                    ))}
                                 </select>
                               </div>
 
@@ -2432,83 +2651,52 @@ export default function ServiceOrderPage() {
                               {membershipForm.type === "promo" && (
                                 <>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Price (₱){" "}
-                                      <span className="text-red-500">*</span>
+                                    <label className="block text-sm mb-1">
+                                      Price (₱)
                                     </label>
                                     <input
                                       type="number"
-                                      value={membershipForm.fee || ""}
+                                      value={membershipForm.fee}
                                       onChange={(e) =>
                                         setMembershipForm({
                                           ...membershipForm,
                                           fee: e.target.value,
                                         })
                                       }
-                                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                      required
+                                      className="w-full p-2 border rounded"
                                     />
                                   </div>
-
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Consumable Amount{" "}
-                                      <span className="text-red-500">*</span>
+                                    <label className="block text-sm mb-1">
+                                      Consumable Amount
                                     </label>
                                     <input
                                       type="number"
-                                      value={membershipForm.consumable || ""}
+                                      value={membershipForm.consumable}
                                       onChange={(e) =>
                                         setMembershipForm({
                                           ...membershipForm,
                                           consumable: e.target.value,
                                         })
                                       }
-                                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                      required
+                                      className="w-full p-2 border rounded"
                                     />
                                   </div>
-
-                                  <div className="flex items-center">
-                                    <input
-                                      type="checkbox"
-                                      id="noExpiration"
-                                      checked={
-                                        membershipForm.noExpiration || false
-                                      }
-                                      onChange={(e) =>
-                                        setMembershipForm({
-                                          ...membershipForm,
-                                          noExpiration: e.target.checked,
-                                        })
-                                      }
-                                      className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
-                                    />
-                                    <label
-                                      htmlFor="noExpiration"
-                                      className="ml-2 text-sm text-gray-700"
-                                    >
-                                      No Expiration
-                                    </label>
-                                  </div>
-
                                   {!membershipForm.noExpiration && (
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Valid Until{" "}
-                                        <span className="text-red-500">*</span>
+                                      <label className="block mb-1 text-sm">
+                                        Valid Until
                                       </label>
                                       <input
                                         type="date"
-                                        value={membershipForm.validTo || ""}
+                                        value={membershipForm.validTo}
                                         onChange={(e) =>
                                           setMembershipForm({
                                             ...membershipForm,
                                             validTo: e.target.value,
                                           })
                                         }
-                                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                        required
+                                        className="w-full p-2 border rounded"
                                       />
                                     </div>
                                   )}

@@ -269,11 +269,10 @@ export default function InvoicesPage() {
     // Peso formatting
     const formatPeso = (value) => {
       const number = Number(String(value).replace(/[^0-9.-]+/g, ""));
-      return new Intl.NumberFormat("en-PH", {
-        style: "currency",
-        currency: "PHP",
+      return "PHP " + number.toLocaleString("en-PH", {
         minimumFractionDigits: 2,
-      }).format(number);
+        maximumFractionDigits: 2,
+      });
     };
 
     // Header - Clinic Info
@@ -693,24 +692,26 @@ export default function InvoicesPage() {
           <AnimatePresence>
             {isProfileOpen && (
               <motion.div
-                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden"
+                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden z-50"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <Link href="/profiles">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <User size={16} /> Profile
-                  </button>
+                <Link
+                  href="/profiles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <User size={16} /> Profile
                 </Link>
-                <Link href="/roles">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <Settings size={16} /> Settings
-                  </button>
+                <Link
+                  href="/roles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <Settings size={16} /> Settings
                 </Link>
                 <button
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-left text-red-500"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-red-500"
                   onClick={handleLogout}
                 >
                   <LogOut size={16} /> Logout
@@ -923,13 +924,13 @@ export default function InvoicesPage() {
                             href: "/customers",
                             label: "Customers",
                             icon: <Users size={16} />,
-                            count: 3,
+                            count: 6,
                           },
                           {
                             href: "/invoices",
                             label: "Invoices",
                             icon: <FileText size={16} />,
-                            count: 17,
+                            count: 30,
                           },
                         ].map((link, index) => (
                           <Menu.Item key={link.href}>
@@ -1007,21 +1008,19 @@ export default function InvoicesPage() {
             <div className="flex border-b border-gray-200">
               <button
                 onClick={() => setActiveView("sales")}
-                className={`py-2 px-4 font-medium text-sm ${
-                  activeView === "sales"
+                className={`py-2 px-4 font-medium text-sm ${activeView === "sales"
                     ? "text-emerald-600 border-b-2 border-emerald-600"
                     : "text-gray-500 hover:text-gray-700"
-                }`}
+                  }`}
               >
                 Sales Report
               </button>
               <button
                 onClick={() => setActiveView("invoices")}
-                className={`py-2 px-4 font-medium text-sm ${
-                  activeView === "invoices"
+                className={`py-2 px-4 font-medium text-sm ${activeView === "invoices"
                     ? "text-emerald-600 border-b-2 border-emerald-600"
                     : "text-gray-500 hover:text-gray-700"
-                }`}
+                  }`}
               >
                 All Invoices
               </button>
@@ -1463,12 +1462,11 @@ export default function InvoicesPage() {
                             currentInvoices.map((invoice) => (
                               <motion.tr
                                 key={`invoice-${invoice.invoiceNumber}`}
-                                className={`hover:bg-gray-50 ${
-                                  selectedInvoice?.invoiceNumber ===
-                                  invoice.invoiceNumber
+                                className={`hover:bg-gray-50 ${selectedInvoice?.invoiceNumber ===
+                                    invoice.invoiceNumber
                                     ? "bg-emerald-50"
                                     : ""
-                                }`}
+                                  }`}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ duration: 0.2 }}
@@ -1487,11 +1485,10 @@ export default function InvoicesPage() {
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap">
                                   <span
-                                    className={`px-2 py-1 text-xs rounded-full ${
-                                      invoice.paymentStatus === "Paid"
+                                    className={`px-2 py-1 text-xs rounded-full ${invoice.paymentStatus === "Paid"
                                         ? "bg-green-100 text-green-800"
                                         : "bg-yellow-100 text-yellow-800"
-                                    }`}
+                                      }`}
                                   >
                                     {invoice.paymentStatus}
                                   </span>
@@ -1628,11 +1625,10 @@ export default function InvoicesPage() {
                                     <>
                                       <button
                                         onClick={() => paginate(1)}
-                                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                          1 === currentPage
+                                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${1 === currentPage
                                             ? "z-10 bg-emerald-50 border-emerald-500 text-emerald-600"
                                             : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                                        }`}
+                                          }`}
                                         key="page-1"
                                       >
                                         1
@@ -1653,11 +1649,10 @@ export default function InvoicesPage() {
                                       <button
                                         key={`page-${pageNumber}`} // Make sure this is unique
                                         onClick={() => paginate(pageNumber)}
-                                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                          pageNumber === currentPage
+                                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${pageNumber === currentPage
                                             ? "z-10 bg-emerald-50 border-emerald-500 text-emerald-600"
                                             : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                                        }`}
+                                          }`}
                                         aria-current={
                                           pageNumber === currentPage
                                             ? "page"
@@ -1678,11 +1673,10 @@ export default function InvoicesPage() {
                                       )}
                                       <button
                                         onClick={() => paginate(totalPages)}
-                                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                          totalPages === currentPage
+                                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${totalPages === currentPage
                                             ? "z-10 bg-emerald-50 border-emerald-500 text-emerald-600"
                                             : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                                        }`}
+                                          }`}
                                         key={`page-${totalPages}`}
                                       >
                                         {totalPages}
@@ -1732,17 +1726,16 @@ export default function InvoicesPage() {
                                 Invoice #{selectedInvoice.invoiceNumber}
                               </h2>
                               <p className="text-sm text-gray-500">
-                          {new Date(selectedInvoice.dateIssued).toLocaleString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            }
-                          )}
-                        </p>
+                                {new Date(
+                                  selectedInvoice.dateIssued
+                                ).toLocaleString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
                             </div>
                             <button
                               onClick={() => setSelectedInvoice(null)}
@@ -1767,11 +1760,10 @@ export default function InvoicesPage() {
                                   Status
                                 </h3>
                                 <span
-                                  className={`px-3 py-1 text-xs rounded-full font-medium ${
-                                    selectedInvoice.paymentStatus === "Paid"
+                                  className={`px-3 py-1 text-xs rounded-full font-medium ${selectedInvoice.paymentStatus === "Paid"
                                       ? "bg-green-100 text-green-800"
                                       : "bg-yellow-100 text-yellow-800"
-                                  }`}
+                                    }`}
                                 >
                                   {selectedInvoice.paymentStatus}
                                 </span>

@@ -297,14 +297,15 @@ export default function Memberships() {
               : editMembership.discount || "0",
       };
 
-      const res = await fetch(
-        `http://localhost/API/memberships.php/${editMembership.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(membershipToSend),
-        }
-      );
+      const res = await fetch(`http://localhost/API/memberships.php`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update", // ← important
+          membership_id: editMembership.id, // ← send the ID of the membership to update
+          ...membershipToSend,
+        }),
+      });
 
       const updated = await res.json();
 
@@ -334,32 +335,6 @@ export default function Memberships() {
     localStorage.removeItem("authToken");
     window.location.href = "/";
   };
-
-  // const handleToggleActive = async (id) => {
-  //   try {
-  //     const membershipToUpdate = memberships.find((m) => m.id === id);
-  //     const newStatus =
-  //       membershipToUpdate.status === "active" ? "inactive" : "active";
-
-  //     const updatedMemberships = memberships.map((membership) =>
-  //       membership.id === id ? { ...membership, status: newStatus } : membership
-  //     );
-  //     setMemberships(updatedMemberships);
-
-  //     await fetch(`http://localhost/API/memberships.php/${id}`, {
-  //       method: "PUT",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ ...membershipToUpdate, status: newStatus }),
-  //     });
-
-  //     toast.success(
-  //       `Membership ${newStatus === "active" ? "activated" : "deactivated"} successfully.`
-  //     );
-  //   } catch (error) {
-  //     toast.error("Failed to update membership status.");
-  //     console.error(error);
-  //   }
-  // };
 
   const handleRowClick = async (membership) => {
     // Determine membership type based on name or other attribute
@@ -408,79 +383,78 @@ export default function Memberships() {
   };
 
   const SummaryView = ({
-  services,
-  searchTerm,
-  categoryFilter,
-  membershipType,
-}) => {
-  const filteredServices = services.filter((service) => {
-    const name = service.name?.toLowerCase() || "";
-    const description = service.description?.toLowerCase() || "";
-    const category = service.category?.toLowerCase() || "";
-    const search = searchTerm.toLowerCase();
-    const filterCategory = categoryFilter.toLowerCase();
+    services,
+    searchTerm,
+    categoryFilter,
+    membershipType,
+  }) => {
+    const filteredServices = services.filter((service) => {
+      const name = service.name?.toLowerCase() || "";
+      const description = service.description?.toLowerCase() || "";
+      const category = service.category?.toLowerCase() || "";
+      const search = searchTerm.toLowerCase();
+      const filterCategory = categoryFilter.toLowerCase();
 
-    const matchesSearch =
-      name.includes(search) || description.includes(search);
+      const matchesSearch =
+        name.includes(search) || description.includes(search);
 
-    const matchesCategory =
-      filterCategory === "" || category === filterCategory;
+      const matchesCategory =
+        filterCategory === "" || category === filterCategory;
 
-    return matchesSearch && matchesCategory;
-  });
+      return matchesSearch && matchesCategory;
+    });
 
-  const categories = Array.from(
-    new Set(filteredServices.map((s) => s.category))
-  );
+    const categories = Array.from(
+      new Set(filteredServices.map((s) => s.category))
+    );
 
-  return (
-    <div className="space-y-4">
-      {categories.map((category) => {
-        const categoryServices = filteredServices.filter(
-          (s) => s.category?.toLowerCase() === category?.toLowerCase()
-        );
+    return (
+      <div className="space-y-4">
+        {categories.map((category) => {
+          const categoryServices = filteredServices.filter(
+            (s) => s.category?.toLowerCase() === category?.toLowerCase()
+          );
 
-        const categoryTotal = categoryServices.reduce(
-          (sum, s) => sum + (s.originalPrice || 0),
-          0
-        );
+          const categoryTotal = categoryServices.reduce(
+            (sum, s) => sum + (s.originalPrice || 0),
+            0
+          );
 
-        const categoryDiscountedTotal = categoryServices.reduce(
-          (sum, s) => sum + (s.discountedPrice || 0),
-          0
-        );
+          const categoryDiscountedTotal = categoryServices.reduce(
+            (sum, s) => sum + (s.discountedPrice || 0),
+            0
+          );
 
-        return (
-          <div key={category} className="border-b pb-3">
-            <div className="flex justify-between items-center">
-              <h4 className="font-medium">{category}</h4>
-              <span className="text-sm text-gray-600">
-                {categoryServices.length} services
-              </span>
+          return (
+            <div key={category} className="border-b pb-3">
+              <div className="flex justify-between items-center">
+                <h4 className="font-medium">{category}</h4>
+                <span className="text-sm text-gray-600">
+                  {categoryServices.length} services
+                </span>
+              </div>
+              <div className="flex justify-between text-sm mt-1">
+                <span className="text-gray-600">
+                  Original: ₱
+                  {Number(categoryTotal).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+                <span className="font-medium text-red-500">
+                  50% off: ₱
+                  {Number(categoryDiscountedTotal).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between text-sm mt-1">
-              <span className="text-gray-600">
-                Original: ₱
-                {Number(categoryTotal).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </span>
-              <span className="font-medium text-red-500">
-                50% off: ₱
-                {Number(categoryDiscountedTotal).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
+          );
+        })}
+      </div>
+    );
+  };
 
   const DetailedView = ({
     services,
@@ -585,23 +559,6 @@ export default function Memberships() {
           {/* Space for potential left-aligned elements */}
         </div>
 
-        <div className="flex items-center space-x-4 flex-grow justify-center">
-          <div className="relative">
-            <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 rounded-lg bg-white/90 text-gray-800 w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-            />
-          </div>
-        </div>
-
         <div className="flex items-center space-x-4 relative">
           <div
             className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-lg font-bold cursor-pointer hover:bg-amber-600 transition-colors"
@@ -612,24 +569,26 @@ export default function Memberships() {
           <AnimatePresence>
             {isProfileOpen && (
               <motion.div
-                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden"
+                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden z-50"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <Link href="/profiles">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <User size={16} /> Profile
-                  </button>
+                <Link
+                  href="/profiles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <User size={16} /> Profile
                 </Link>
-                <Link href="/roles">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <Settings size={16} /> Settings
-                  </button>
+                <Link
+                  href="/roles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <Settings size={16} /> Settings
                 </Link>
                 <button
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-left text-red-500"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-red-500"
                   onClick={handleLogout}
                 >
                   <LogOut size={16} /> Logout
@@ -842,13 +801,13 @@ export default function Memberships() {
                             href: "/customers",
                             label: "Customers",
                             icon: <Users size={16} />,
-                            count: 3,
+                            count: 6,
                           },
                           {
                             href: "/invoices",
                             label: "Invoices",
                             icon: <FileText size={16} />,
-                            count: 17,
+                            count: 30,
                           },
                         ].map((link, index) => (
                           <Menu.Item key={link.href}>
@@ -1004,7 +963,7 @@ export default function Memberships() {
                             <div className="flex items-center gap-2">
                               {membership.name}
                               {membership.type === "promo" && (
-                                <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
+                                <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-200 text-amber-800 rounded-full">
                                   Membership Promo
                                 </span>
                               )}
@@ -1207,21 +1166,6 @@ export default function Memberships() {
                             placeholder="Enter consumable amount"
                           />
                         </div>
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id="noExpiration"
-                            checked={newMembership.no_expiration}
-                            onChange={(e) =>
-                              setNewMembership({
-                                ...newMembership,
-                                no_expiration: e.target.checked,
-                              })
-                            }
-                            className="mr-2"
-                          />
-                          <label htmlFor="noExpiration">No Expiration</label>
-                        </div>
                         {!newMembership.no_expiration && (
                           <div>
                             <label className="block mb-1">Valid Until</label>
@@ -1373,26 +1317,6 @@ export default function Memberships() {
 
                     {/* Expiration Settings */}
                     <div className="space-y-2">
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id="editNoExpiration"
-                          checked={editMembership.no_expiration}
-                          onChange={(e) =>
-                            editMembership.type === "promo" &&
-                            setEditMembership({
-                              ...editMembership,
-                              no_expiration: e.target.checked,
-                            })
-                          }
-                          disabled={editMembership.type !== "promo"}
-                          className="mr-2"
-                        />
-                        <label htmlFor="editNoExpiration" className="text-sm">
-                          No Expiration
-                        </label>
-                      </div>
-
                       {!editMembership.no_expiration && (
                         <div>
                           <label className="block text-sm font-medium mb-1">
@@ -1663,7 +1587,13 @@ export default function Memberships() {
                           </p>
                           <p>
                             <span className="font-semibold">Expiration:</span>{" "}
-                            No expiration
+                            {selectedMembership.type?.toLowerCase() === "promo"
+                              ? selectedMembership.expire_date
+                                ? new Date(
+                                    selectedMembership.expire_date
+                                  ).toLocaleDateString()
+                                : "No expiration date set"
+                              : "No expiration"}
                           </p>
                         </div>
                       </div>

@@ -56,7 +56,6 @@ export default function BranchManagementPage() {
   const fetchBranches = async () => {
     try {
       setIsLoading(true);
-      // Replace with your actual API endpoint
       const response = await fetch("http://localhost/API/branches.php");
       if (!response.ok) throw new Error("Failed to fetch branches");
       const data = await response.json();

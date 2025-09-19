@@ -12,7 +12,7 @@ import {
   CreditCard,
   Package,
   Layers,
-  ShoppingCart,
+  BarChart2,
   UserPlus,
   Pencil,
   Trash2,
@@ -25,7 +25,6 @@ import {
   Tag,
   Plus,
   Search,
-  BarChart2,
   Leaf,
   ChevronDown,
 } from "lucide-react";
@@ -298,14 +297,15 @@ export default function Memberships() {
               : editMembership.discount || "0",
       };
 
-      const res = await fetch(
-        `http://localhost/API/memberships.php/${editMembership.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(membershipToSend),
-        }
-      );
+      const res = await fetch(`http://localhost/API/memberships.php`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update", // ← important
+          membership_id: editMembership.id, // ← send the ID of the membership to update
+          ...membershipToSend,
+        }),
+      });
 
       const updated = await res.json();
 
@@ -336,31 +336,31 @@ export default function Memberships() {
     window.location.href = "/";
   };
 
-  const handleToggleActive = async (id) => {
-    try {
-      const membershipToUpdate = memberships.find((m) => m.id === id);
-      const newStatus =
-        membershipToUpdate.status === "active" ? "inactive" : "active";
+  // const handleToggleActive = async (id) => {
+  //   try {
+  //     const membershipToUpdate = memberships.find((m) => m.id === id);
+  //     const newStatus =
+  //       membershipToUpdate.status === "active" ? "inactive" : "active";
 
-      const updatedMemberships = memberships.map((membership) =>
-        membership.id === id ? { ...membership, status: newStatus } : membership
-      );
-      setMemberships(updatedMemberships);
+  //     const updatedMemberships = memberships.map((membership) =>
+  //       membership.id === id ? { ...membership, status: newStatus } : membership
+  //     );
+  //     setMemberships(updatedMemberships);
 
-      await fetch(`http://localhost/API/memberships.php/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...membershipToUpdate, status: newStatus }),
-      });
+  //     await fetch(`http://localhost/API/memberships.php/${id}`, {
+  //       method: "PUT",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ ...membershipToUpdate, status: newStatus }),
+  //     });
 
-      toast.success(
-        `Membership ${newStatus === "active" ? "activated" : "deactivated"} successfully.`
-      );
-    } catch (error) {
-      toast.error("Failed to update membership status.");
-      console.error(error);
-    }
-  };
+  //     toast.success(
+  //       `Membership ${newStatus === "active" ? "activated" : "deactivated"} successfully.`
+  //     );
+  //   } catch (error) {
+  //     toast.error("Failed to update membership status.");
+  //     console.error(error);
+  //   }
+  // };
 
   const handleRowClick = async (membership) => {
     // Determine membership type based on name or other attribute
@@ -415,11 +415,18 @@ export default function Memberships() {
     membershipType,
   }) => {
     const filteredServices = services.filter((service) => {
+      const name = service.name?.toLowerCase() || "";
+      const description = service.description?.toLowerCase() || "";
+      const category = service.category?.toLowerCase() || "";
+      const search = searchTerm.toLowerCase();
+      const filterCategory = categoryFilter.toLowerCase();
+
       const matchesSearch =
-        service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        service.description.toLowerCase().includes(searchTerm.toLowerCase());
+        name.includes(search) || description.includes(search);
+
       const matchesCategory =
-        categoryFilter === "" || service.category === categoryFilter;
+        filterCategory === "" || category === filterCategory;
+
       return matchesSearch && matchesCategory;
     });
 
@@ -431,16 +438,16 @@ export default function Memberships() {
       <div className="space-y-4">
         {categories.map((category) => {
           const categoryServices = filteredServices.filter(
-            (s) => s.category === category
+            (s) => s.category?.toLowerCase() === category?.toLowerCase()
           );
 
           const categoryTotal = categoryServices.reduce(
-            (sum, s) => sum + s.originalPrice,
+            (sum, s) => sum + (s.originalPrice || 0),
             0
           );
 
           const categoryDiscountedTotal = categoryServices.reduce(
-            (sum, s) => sum + s.discountedPrice,
+            (sum, s) => sum + (s.discountedPrice || 0),
             0
           );
 
@@ -578,23 +585,6 @@ export default function Memberships() {
           {/* Space for potential left-aligned elements */}
         </div>
 
-        <div className="flex items-center space-x-4 flex-grow justify-center">
-          <div className="relative">
-            <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 rounded-lg bg-white/90 text-gray-800 w-64 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-            />
-          </div>
-        </div>
-
         <div className="flex items-center space-x-4 relative">
           <div
             className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-lg font-bold cursor-pointer hover:bg-amber-600 transition-colors"
@@ -605,24 +595,26 @@ export default function Memberships() {
           <AnimatePresence>
             {isProfileOpen && (
               <motion.div
-                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden"
+                className="absolute top-12 right-0 bg-white shadow-xl rounded-lg w-48 overflow-hidden z-50"
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <Link href="/edit-profile">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <User size={16} /> Profile
-                  </button>
+                <Link
+                  href="/profiles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <User size={16} /> Profile
                 </Link>
-                <Link href="/settings">
-                  <button className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700">
-                    <Settings size={16} /> Settings
-                  </button>
+                <Link
+                  href="/roles"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 w-full text-gray-700"
+                >
+                  <Settings size={16} /> Settings
                 </Link>
                 <button
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-left text-red-500"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 w-full text-red-500"
                   onClick={handleLogout}
                 >
                   <LogOut size={16} /> Logout
@@ -670,7 +662,7 @@ export default function Memberships() {
           <div className="w-full px-4 space-y-1 overflow-y-auto flex-grow custom-scrollbar">
             {/* Dashboard */}
             <Menu as="div" className="relative w-full">
-              <Link href="/home2" passHref>
+              <Link href="/home" passHref>
                 <Menu.Button
                   as="div"
                   className={`w-full p-3 rounded-lg text-left flex items-center cursor-pointer transition-all ${router.pathname === "/home" ? "bg-emerald-600 shadow-md" : "hover:bg-emerald-600/70"}`}
@@ -829,13 +821,13 @@ export default function Memberships() {
                             href: "/customers2",
                             label: "Customers",
                             icon: <Users size={16} />,
-                            count: 3,
+                            count: 6,
                           },
                           {
                             href: "/invoices2",
                             label: "Invoices",
                             icon: <FileText size={16} />,
-                            count: 17,
+                            count: 30,
                           },
                         ].map((link, index) => (
                           <Menu.Item key={link.href}>
@@ -925,8 +917,6 @@ export default function Memberships() {
                   Manage your clinic's membership offerings
                 </p>
               </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto"></div>
             </div>
 
             {/* Enhanced Table */}
@@ -954,7 +944,7 @@ export default function Memberships() {
                     </th>
                     <th
                       scope="col"
-                      className="px-9 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
                       Description
                     </th>
@@ -975,7 +965,7 @@ export default function Memberships() {
                             <div className="flex items-center gap-2">
                               {membership.name}
                               {membership.type === "promo" && (
-                                <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
+                                <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-200 text-amber-800 rounded-full">
                                   Membership Promo
                                 </span>
                               )}
@@ -1039,16 +1029,13 @@ export default function Memberships() {
                             {membership.discount} off
                           </div>
                         </td>
-                        <td className="px-8 py-4">
+                        <td className="px-6 py-4">
                           <div
                             className="text-sm text-gray-500 line-clamp-2"
                             title={membership.description}
                           >
                             {membership.description}
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex justify-center space-x-3"></div>
                         </td>
                       </motion.tr>
                     ))
@@ -1080,6 +1067,441 @@ export default function Memberships() {
               </table>
             </div>
           </motion.div>
+
+          {/* Add Membership Modal */}
+          <AnimatePresence>
+            {isModalOpen && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                  <h3 className="text-lg font-bold mb-4">New Membership</h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block mb-1">Membership Type</label>
+                      <select
+                        value={newMembership.type}
+                        onChange={(e) => {
+                          const type = e.target.value;
+                          setNewMembership({
+                            ...newMembership,
+                            type: type,
+                            name:
+                              type === "basic"
+                                ? "Basic"
+                                : type === "pro"
+                                  ? "Pro"
+                                  : "Promo", // Auto-set name based on type
+                            price:
+                              type === "basic"
+                                ? 3000
+                                : type === "pro"
+                                  ? 6000
+                                  : "",
+                            consumable_amount:
+                              type === "basic"
+                                ? 5000
+                                : type === "pro"
+                                  ? 10000
+                                  : "",
+                          });
+                        }}
+                        className="w-full p-2 border rounded"
+                      >
+                        <option value="basic">
+                          Basic (₱3,000 for 5,000 consumable)
+                        </option>
+                        <option value="pro">
+                          Pro (₱6,000 for 10,000 consumable)
+                        </option>
+                        <option value="promo">Promo (Custom)</option>
+                      </select>
+                    </div>
+
+                    {/* Show these fields only for promo memberships */}
+                    {newMembership.type === "promo" && (
+                      <>
+                        <div>
+                          <label className="block mb-1">Price (₱)</label>
+                          <input
+                            type="number"
+                            value={newMembership.price}
+                            onChange={(e) =>
+                              setNewMembership({
+                                ...newMembership,
+                                price: e.target.value,
+                              })
+                            }
+                            className="w-full p-2 border rounded"
+                            placeholder="Enter price"
+                          />
+                        </div>
+                        <div>
+                          <label className="block mb-1">
+                            Consumable Amount
+                          </label>
+                          <input
+                            type="number"
+                            value={newMembership.consumable_amount}
+                            onChange={(e) =>
+                              setNewMembership({
+                                ...newMembership,
+                                consumable_amount: e.target.value,
+                              })
+                            }
+                            className="w-full p-2 border rounded"
+                            placeholder="Enter consumable amount"
+                          />
+                        </div>
+                        {!newMembership.no_expiration && (
+                          <div>
+                            <label className="block mb-1">Valid Until</label>
+                            <input
+                              type="date"
+                              value={newMembership.valid_until}
+                              onChange={(e) =>
+                                setNewMembership({
+                                  ...newMembership,
+                                  valid_until: e.target.value,
+                                })
+                              }
+                              className="w-full p-2 border rounded"
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Common fields for all membership types */}
+                    <div>
+                      <label className="block mb-1">Description</label>
+                      <textarea
+                        value={newMembership.description}
+                        onChange={(e) =>
+                          setNewMembership({
+                            ...newMembership,
+                            description: e.target.value,
+                          })
+                        }
+                        className="w-full p-2 border rounded"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="flex justify-end space-x-2">
+                      <button
+                        onClick={() => setIsModalOpen(false)}
+                        className="px-4 py-2 bg-gray-300 rounded"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleAdd}
+                        className="px-4 py-2 bg-green-600 text-white rounded"
+                      >
+                        Create
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </AnimatePresence>
+
+          {/* Edit Membership Modal */}
+          <AnimatePresence>
+            {editMembership && (
+              <motion.div
+                className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <motion.div
+                  className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto hide-scrollbar"
+                  variants={slideUp}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  {/* Modal Header */}
+                  <div className="flex justify-between items-center mb-4 sticky top-0 bg-white py-2">
+                    <h3 className="font-bold text-lg">Edit Membership</h3>
+                    <button
+                      onClick={() => setEditMembership(null)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <X size={24} />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Membership Type */}
+                    <div>
+                      <label className="block font-medium mb-1">
+                        Membership Type
+                      </label>
+                      <div className="px-3 py-2 border rounded-lg bg-gray-50">
+                        {editMembership.type === "basic" && "Basic Membership"}
+                        {editMembership.type === "pro" && "Pro Membership"}
+                        {editMembership.type === "promo" && "Promo Membership"}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Membership type cannot be changed after creation
+                      </p>
+                    </div>
+
+                    {/* Pricing Section */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Price */}
+                      <div>
+                        <label className="block font-medium mb-1">
+                          Price (₱)
+                        </label>
+                        {editMembership.type === "promo" ? (
+                          <input
+                            type="number"
+                            value={editMembership.price ?? ""}
+                            onChange={(e) =>
+                              setEditMembership({
+                                ...editMembership,
+                                price: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 border rounded-lg text-sm"
+                          />
+                        ) : (
+                          <div className="px-3 py-2 bg-gray-100 rounded-lg text-sm">
+                            ₱{editMembership.price}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Consumable Amount */}
+                      <div>
+                        <label className="block font-medium mb-1">
+                          Consumable Amount
+                        </label>
+                        {editMembership.type === "promo" ? (
+                          <input
+                            type="number"
+                            value={editMembership.consumable_amount ?? ""}
+                            onChange={(e) =>
+                              setEditMembership({
+                                ...editMembership,
+                                consumable_amount: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 border rounded-lg text-sm"
+                          />
+                        ) : (
+                          <div className="px-3 py-2 bg-gray-100 rounded-lg text-sm">
+                            {editMembership.consumable_amount}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expiration Settings */}
+                    <div className="space-y-2">
+                      {!editMembership.no_expiration && (
+                        <div>
+                          <label className="block text-sm font-medium mb-1">
+                            Valid Until
+                          </label>
+                          {editMembership.type === "promo" ? (
+                            <input
+                              type="date"
+                              value={editMembership.valid_until ?? ""}
+                              onChange={(e) =>
+                                setEditMembership({
+                                  ...editMembership,
+                                  valid_until: e.target.value,
+                                })
+                              }
+                              className="w-full px-3 py-2 border rounded-lg text-sm"
+                            />
+                          ) : (
+                            <div className="px-3 py-2 bg-gray-100 rounded-lg text-sm">
+                              {editMembership.valid_until || "N/A"}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                      <label className="block font-medium mb-1">
+                        Description
+                      </label>
+                      <textarea
+                        value={editMembership.description ?? ""}
+                        onChange={(e) =>
+                          setEditMembership({
+                            ...editMembership,
+                            description: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                        rows={2}
+                      />
+                    </div>
+
+                    {/* Included Services */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block font-medium">
+                          Included Services
+                        </label>
+                        <button
+                          onClick={() => setSelectedServices(allServices)}
+                          className="text-xs text-blue-500 hover:underline"
+                        >
+                          Select All
+                        </button>
+                      </div>
+
+                      {/* Search bar */}
+                      <input
+                        type="text"
+                        placeholder="Search services..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-3 py-2 mb-2 border rounded-lg text-sm"
+                      />
+
+                      {/* Services Selection List */}
+                      <div className="max-h-[150px] overflow-y-auto border rounded-lg p-2 bg-gray-50">
+                        {allServices
+                          .filter(
+                            (service) =>
+                              service.name
+                                .toLowerCase()
+                                .includes(searchTerm.toLowerCase()) ||
+                              service.category
+                                .toLowerCase()
+                                .includes(searchTerm.toLowerCase())
+                          )
+                          .map((service) => (
+                            <label
+                              key={service.id}
+                              className="flex items-center space-x-2 p-1 text-sm hover:bg-gray-100 rounded"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedServices.some(
+                                  (s) => s.id === service.id
+                                )}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedServices((prev) => [
+                                      ...prev,
+                                      service,
+                                    ]);
+                                  } else {
+                                    setSelectedServices((prev) =>
+                                      prev.filter((s) => s.id !== service.id)
+                                    );
+                                  }
+                                }}
+                              />
+                              <span className="truncate">
+                                {service.name}{" "}
+                                <span className="text-gray-500">
+                                  ({service.category})
+                                </span>
+                              </span>
+                            </label>
+                          ))}
+
+                        {allServices.filter(
+                          (service) =>
+                            service.name
+                              .toLowerCase()
+                              .includes(searchTerm.toLowerCase()) ||
+                            service.category
+                              .toLowerCase()
+                              .includes(searchTerm.toLowerCase())
+                        ).length === 0 && (
+                          <div className="text-center py-2 text-gray-500 text-sm">
+                            No matching services found
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Display Selected Services with Remove Button */}
+                      {selectedServices.length > 0 && (
+                        <div className="mt-4">
+                          <h4 className="text-sm font-medium mb-2">
+                            Selected Services:
+                          </h4>
+                          <div className="flex flex-col gap-1 max-h-[150px] overflow-y-auto border rounded-lg p-2 bg-white">
+                            {selectedServices.map((service) => (
+                              <div
+                                key={service.id}
+                                className="flex justify-between items-center px-2 py-1 rounded hover:bg-gray-50 text-sm"
+                              >
+                                <div>
+                                  {service.name}{" "}
+                                  <span className="text-gray-400">
+                                    ({service.category})
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() =>
+                                    setSelectedServices((prev) =>
+                                      prev.filter((s) => s.id !== service.id)
+                                    )
+                                  }
+                                  className="text-red-500 hover:underline text-xs"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                      <label className="block font-medium mb-1">Status</label>
+                      <select
+                        value={editMembership.status ?? "active"}
+                        onChange={(e) =>
+                          setEditMembership({
+                            ...editMembership,
+                            status: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex justify-end space-x-3 pt-2">
+                      <button
+                        onClick={() => setEditMembership(null)}
+                        className="px-4 py-2 bg-gray-400 hover:bg-gray-500 rounded-lg text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveEdit}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm"
+                      >
+                        Save Changes
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Membership Details Modal */}
           <AnimatePresence>
@@ -1151,7 +1573,13 @@ export default function Memberships() {
                           </p>
                           <p>
                             <span className="font-semibold">Expiration:</span>{" "}
-                            No expiration
+                            {selectedMembership.type?.toLowerCase() === "promo"
+                              ? selectedMembership.expire_date
+                                ? new Date(
+                                    selectedMembership.expire_date
+                                  ).toLocaleDateString()
+                                : "No expiration date set"
+                              : "No expiration"}
                           </p>
                         </div>
                       </div>

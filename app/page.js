@@ -117,7 +117,7 @@ export default function Login() {
             Please sign in to continue accessing the Lizly Skin Care Clinic
             system.
           </p>
-<button
+{/* <button
   className="learn-more"
   onClick={() => router.push("/")}
 >
@@ -125,7 +125,7 @@ export default function Login() {
     <span className="icon arrow"></span>
   </span>
   <span className="button-text">Learn More</span>
-</button>
+</button> */}
 
         </div>
 
@@ -195,7 +195,8 @@ export default function Login() {
           </form>
 
           {/* Footer Links */}
-          <div className="mt-6 text-center text-sm text-white/80">
+
+          {/* <div className="mt-6 text-center text-sm text-white/80">
             <p>
               Don&apos;t have an account?{" "}
               <button
@@ -213,7 +214,7 @@ export default function Login() {
                 Forgot password?
               </button>
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

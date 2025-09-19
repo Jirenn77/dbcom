@@ -133,6 +133,7 @@ export default function ServiceOrderPage() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const currentUser = { name: "Admin" }; // or hardcoded for now
   const [isCustomersLoading, setIsCustomersLoading] = useState(true);
+  const [membershipTemplates, setMembershipTemplates] = useState([]);
   const [customersError, setCustomersError] = useState(null);
   const [newCustomer, setNewCustomer] = useState({
     name: "",
@@ -344,6 +345,20 @@ export default function ServiceOrderPage() {
       loadServices();
     }
   }, [isMember, membershipType]);
+
+  useEffect(() => {
+    const fetchMembershipTemplates = async () => {
+      try {
+        const res = await fetch("http://localhost/API/memberships.php");
+        const data = await res.json();
+        setMembershipTemplates(data);
+      } catch (error) {
+        console.error("Failed to fetch memberships:", error);
+      }
+    };
+
+    fetchMembershipTemplates();
+  }, []);
 
   const totalAmount = selectedServices.reduce(
     (sum, s) => sum + parseFloat(s.price),
@@ -667,278 +682,278 @@ export default function ServiceOrderPage() {
       <Toaster />
 
       {/* Enhanced Sidebar */}
-      <div className="flex flex-1">
-        <nav className="w-64 h-screen bg-gradient-to-b from-emerald-800 to-emerald-700 text-white flex flex-col items-start py-6 fixed top-0 left-0 shadow-lg z-10">
-          {/* Logo/Branding with subtle animation */}
-          <motion.div
-            className="flex items-center space-x-2 mb-8 px-6"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="p-2 bg-white/10 rounded-lg">
-              <Leaf size={24} className="text-emerald-300" />
-            </div>
-            <h1 className="text-xl font-bold text-white font-sans tracking-tight">
-              Lizly Skin Care Clinic
-            </h1>
-          </motion.div>
-
-          {/* Search for Mobile (hidden on desktop) */}
-          <div className="px-4 mb-4 w-full lg:hidden">
-            <div className="relative">
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-300"
-                size={18}
-              />
-              <input
-                type="text"
-                placeholder="Search menu..."
-                className="pl-10 pr-4 py-2 rounded-lg bg-emerald-900/50 text-white w-full focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-emerald-300"
-              />
-            </div>
-          </div>
-
-          {/* Menu Items with Active State Highlight */}
-          <div className="w-full px-4 space-y-1 overflow-y-auto flex-grow custom-scrollbar">
-            {/* Dashboard */}
-            <Menu as="div" className="relative w-full">
-              <Link href="/home2" passHref>
-                <Menu.Button
-                  as="div"
-                  className={`w-full p-3 rounded-lg text-left flex items-center cursor-pointer transition-all ${router.pathname === "/home" ? "bg-emerald-600 shadow-md" : "hover:bg-emerald-600/70"}`}
+            <div className="flex flex-1">
+              <nav className="w-64 h-screen bg-gradient-to-b from-emerald-800 to-emerald-700 text-white flex flex-col items-start py-6 fixed top-0 left-0 shadow-lg z-10">
+                {/* Logo/Branding with subtle animation */}
+                <motion.div
+                  className="flex items-center space-x-2 mb-8 px-6"
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  <div
-                    className={`p-1.5 mr-3 rounded-lg ${router.pathname === "/home" ? "bg-white text-emerald-700" : "bg-emerald-900/30 text-white"}`}
-                  >
-                    <Home size={18} />
+                  <div className="p-2 bg-white/10 rounded-lg">
+                    <Leaf size={24} className="text-emerald-300" />
                   </div>
-                  <span>Dashboard</span>
-                  {router.pathname === "/home2" && (
-                    <motion.div
-                      className="ml-auto w-2 h-2 bg-white rounded-full"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
+                  <h1 className="text-xl font-bold text-white font-sans tracking-tight">
+                    Lizly Skin Care Clinic
+                  </h1>
+                </motion.div>
+      
+                {/* Search for Mobile (hidden on desktop) */}
+                <div className="px-4 mb-4 w-full lg:hidden">
+                  <div className="relative">
+                    <Search
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-300"
+                      size={18}
                     />
-                  )}
-                </Menu.Button>
-              </Link>
-            </Menu>
-
-            {/* Services Dropdown - Enhanced */}
-            <Menu as="div" className="relative w-full">
-              {({ open }) => (
-                <>
-                  <Menu.Button
-                    className={`w-full p-3 rounded-lg text-left flex items-center justify-between transition-all ${open ? "bg-emerald-600" : "hover:bg-emerald-600/70"}`}
-                  >
-                    <div className="flex items-center">
-                      <div
-                        className={`p-1.5 mr-3 rounded-lg ${open ? "bg-white text-emerald-700" : "bg-emerald-900/30 text-white"}`}
-                      >
-                        <Layers size={18} />
-                      </div>
-                      <span>Services</span>
-                    </div>
-                    <motion.div
-                      animate={{ rotate: open ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="text-emerald-300"
-                    >
-                      <ChevronDown size={18} />
-                    </motion.div>
-                  </Menu.Button>
-
-                  <AnimatePresence>
-                    {open && (
-                      <Menu.Items
-                        as={motion.div}
-                        static
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="mt-1 ml-3 w-full bg-emerald-700/90 text-white rounded-lg shadow-lg overflow-hidden"
-                      >
-                        {[
-                          {
-                            href: "/servicess2",
-                            label: "All Services",
-                            icon: <Layers size={16} />,
-                          },
-                          {
-                            href: "/membership2",
-                            label: "Memberships",
-                            icon: <UserPlus size={16} />,
-                            badge: 3,
-                          },
-                          {
-                            href: "/items2",
-                            label: "Beauty Deals",
-                            icon: <Tag size={16} />,
-                            badge: "New",
-                          },
-                          {
-                            href: "/serviceorder2",
-                            label: "Service Acquire",
-                            icon: <ClipboardList size={16} />,
-                          },
-                        ].map((link, index) => (
-                          <Menu.Item key={link.href}>
-                            {({ active }) => (
-                              <motion.div
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                              >
-                                <Link
-                                  href={link.href}
-                                  className={`flex items-center justify-between space-x-3 p-3 ${active ? "bg-emerald-600" : ""} ${router.pathname === link.href ? "bg-emerald-600 font-medium" : ""}`}
-                                >
-                                  <div className="flex items-center">
-                                    <span
-                                      className={`mr-3 ${router.pathname === link.href ? "text-white" : "text-emerald-300"}`}
-                                    >
-                                      {link.icon}
-                                    </span>
-                                    <span>{link.label}</span>
-                                  </div>
-                                  {link.badge && (
-                                    <span
-                                      className={`text-xs px-2 py-0.5 rounded-full ${typeof link.badge === "number" ? "bg-amber-500" : "bg-emerald-500"}`}
-                                    >
-                                      {link.badge}
-                                    </span>
-                                  )}
-                                </Link>
-                              </motion.div>
-                            )}
-                          </Menu.Item>
-                        ))}
-                      </Menu.Items>
-                    )}
-                  </AnimatePresence>
-                </>
-              )}
-            </Menu>
-
-            {/* Sales Dropdown - Enhanced */}
-            <Menu as="div" className="relative w-full">
-              {({ open }) => (
-                <>
-                  <Menu.Button
-                    className={`w-full p-3 rounded-lg text-left flex items-center justify-between transition-all ${open ? "bg-emerald-600" : "hover:bg-emerald-600/70"}`}
-                  >
-                    <div className="flex items-center">
-                      <div
-                        className={`p-1.5 mr-3 rounded-lg ${open ? "bg-white text-emerald-700" : "bg-emerald-900/30 text-white"}`}
-                      >
-                        <BarChart2 size={18} />
-                      </div>
-                      <span>Sales</span>
-                    </div>
-                    <motion.div
-                      animate={{ rotate: open ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="text-emerald-300"
-                    >
-                      <ChevronDown size={18} />
-                    </motion.div>
-                  </Menu.Button>
-
-                  <AnimatePresence>
-                    {open && (
-                      <Menu.Items
-                        as={motion.div}
-                        static
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="mt-1 ml-3 w-full bg-emerald-700/90 text-white rounded-lg shadow-lg overflow-hidden"
-                      >
-                        {[
-                          {
-                            href: "/customers2",
-                            label: "Customers",
-                            icon: <Users size={16} />,
-                            count: 3,
-                          },
-                          {
-                            href: "/invoices2",
-                            label: "Invoices",
-                            icon: <FileText size={16} />,
-                            count: 17,
-                          },
-                        ].map((link, index) => (
-                          <Menu.Item key={link.href}>
-                            {({ active }) => (
-                              <motion.div
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                              >
-                                <Link
-                                  href={link.href}
-                                  className={`flex items-center justify-between space-x-3 p-3 ${active ? "bg-emerald-600" : ""} ${router.pathname === link.href ? "bg-emerald-600 font-medium" : ""}`}
-                                >
-                                  <div className="flex items-center">
-                                    <span
-                                      className={`mr-3 ${router.pathname === link.href ? "text-white" : "text-emerald-300"}`}
-                                    >
-                                      {link.icon}
-                                    </span>
-                                    <span>{link.label}</span>
-                                  </div>
-                                  {link.count && (
-                                    <span className="text-xs text-emerald-200">
-                                      {link.count}
-                                    </span>
-                                  )}
-                                </Link>
-                              </motion.div>
-                            )}
-                          </Menu.Item>
-                        ))}
-                      </Menu.Items>
-                    )}
-                  </AnimatePresence>
-                </>
-              )}
-            </Menu>
-          </div>
-
-          {/* Enhanced Sidebar Footer */}
-          <motion.div
-            className="mt-auto px-6 w-full"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-          >
-            <div className="border-t border-emerald-600 pt-4 pb-2">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center">
-                    <User size={16} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Reception User</p>
-                    <p className="text-xs text-emerald-300">Receptionist</p>
+                    <input
+                      type="text"
+                      placeholder="Search menu..."
+                      className="pl-10 pr-4 py-2 rounded-lg bg-emerald-900/50 text-white w-full focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-emerald-300"
+                    />
                   </div>
                 </div>
-                <button className="text-emerald-300 hover:text-white transition-colors">
-                  <LogOut size={18} />
-                </button>
-              </div>
-              <p className="text-xs text-emerald-200 mt-3">
-                Lizly Skin Care Clinic v1.2.0
-              </p>
-              <p className="text-xs text-emerald-300 mt-1">
-                © {new Date().getFullYear()} All Rights Reserved
-              </p>
-            </div>
-          </motion.div>
-        </nav>
+      
+                {/* Menu Items with Active State Highlight */}
+                <div className="w-full px-4 space-y-1 overflow-y-auto flex-grow custom-scrollbar">
+                  {/* Dashboard */}
+                  <Menu as="div" className="relative w-full">
+                    <Link href="/home" passHref>
+                      <Menu.Button
+                        as="div"
+                        className={`w-full p-3 rounded-lg text-left flex items-center cursor-pointer transition-all ${router.pathname === "/home" ? "bg-emerald-600 shadow-md" : "hover:bg-emerald-600/70"}`}
+                      >
+                        <div
+                          className={`p-1.5 mr-3 rounded-lg ${router.pathname === "/home" ? "bg-white text-emerald-700" : "bg-emerald-900/30 text-white"}`}
+                        >
+                          <Home size={18} />
+                        </div>
+                        <span>Dashboard</span>
+                        {router.pathname === "/home2" && (
+                          <motion.div
+                            className="ml-auto w-2 h-2 bg-white rounded-full"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                          />
+                        )}
+                      </Menu.Button>
+                    </Link>
+                  </Menu>
+      
+                  {/* Services Dropdown - Enhanced */}
+                  <Menu as="div" className="relative w-full">
+                    {({ open }) => (
+                      <>
+                        <Menu.Button
+                          className={`w-full p-3 rounded-lg text-left flex items-center justify-between transition-all ${open ? "bg-emerald-600" : "hover:bg-emerald-600/70"}`}
+                        >
+                          <div className="flex items-center">
+                            <div
+                              className={`p-1.5 mr-3 rounded-lg ${open ? "bg-white text-emerald-700" : "bg-emerald-900/30 text-white"}`}
+                            >
+                              <Layers size={18} />
+                            </div>
+                            <span>Services</span>
+                          </div>
+                          <motion.div
+                            animate={{ rotate: open ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="text-emerald-300"
+                          >
+                            <ChevronDown size={18} />
+                          </motion.div>
+                        </Menu.Button>
+      
+                        <AnimatePresence>
+                          {open && (
+                            <Menu.Items
+                              as={motion.div}
+                              static
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="mt-1 ml-3 w-full bg-emerald-700/90 text-white rounded-lg shadow-lg overflow-hidden"
+                            >
+                              {[
+                                {
+                                  href: "/servicess2",
+                                  label: "All Services",
+                                  icon: <Layers size={16} />,
+                                },
+                                {
+                                  href: "/membership2",
+                                  label: "Memberships",
+                                  icon: <UserPlus size={16} />,
+                                  badge: 3,
+                                },
+                                {
+                                  href: "/items2",
+                                  label: "Beauty Deals",
+                                  icon: <Tag size={16} />,
+                                  badge: "New",
+                                },
+                                {
+                                  href: "/serviceorder2",
+                                  label: "Service Acquire",
+                                  icon: <ClipboardList size={16} />,
+                                },
+                              ].map((link, index) => (
+                                <Menu.Item key={link.href}>
+                                  {({ active }) => (
+                                    <motion.div
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      transition={{ delay: index * 0.05 }}
+                                    >
+                                      <Link
+                                        href={link.href}
+                                        className={`flex items-center justify-between space-x-3 p-3 ${active ? "bg-emerald-600" : ""} ${router.pathname === link.href ? "bg-emerald-600 font-medium" : ""}`}
+                                      >
+                                        <div className="flex items-center">
+                                          <span
+                                            className={`mr-3 ${router.pathname === link.href ? "text-white" : "text-emerald-300"}`}
+                                          >
+                                            {link.icon}
+                                          </span>
+                                          <span>{link.label}</span>
+                                        </div>
+                                        {link.badge && (
+                                          <span
+                                            className={`text-xs px-2 py-0.5 rounded-full ${typeof link.badge === "number" ? "bg-amber-500" : "bg-emerald-500"}`}
+                                          >
+                                            {link.badge}
+                                          </span>
+                                        )}
+                                      </Link>
+                                    </motion.div>
+                                  )}
+                                </Menu.Item>
+                              ))}
+                            </Menu.Items>
+                          )}
+                        </AnimatePresence>
+                      </>
+                    )}
+                  </Menu>
+      
+                  {/* Sales Dropdown - Enhanced */}
+                  <Menu as="div" className="relative w-full">
+                    {({ open }) => (
+                      <>
+                        <Menu.Button
+                          className={`w-full p-3 rounded-lg text-left flex items-center justify-between transition-all ${open ? "bg-emerald-600" : "hover:bg-emerald-600/70"}`}
+                        >
+                          <div className="flex items-center">
+                            <div
+                              className={`p-1.5 mr-3 rounded-lg ${open ? "bg-white text-emerald-700" : "bg-emerald-900/30 text-white"}`}
+                            >
+                              <BarChart2 size={18} />
+                            </div>
+                            <span>Sales</span>
+                          </div>
+                          <motion.div
+                            animate={{ rotate: open ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="text-emerald-300"
+                          >
+                            <ChevronDown size={18} />
+                          </motion.div>
+                        </Menu.Button>
+      
+                        <AnimatePresence>
+                          {open && (
+                            <Menu.Items
+                              as={motion.div}
+                              static
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="mt-1 ml-3 w-full bg-emerald-700/90 text-white rounded-lg shadow-lg overflow-hidden"
+                            >
+                              {[
+                                {
+                                  href: "/customers2",
+                                  label: "Customers",
+                                  icon: <Users size={16} />,
+                                  count: 6,
+                                },
+                                {
+                                  href: "/invoices2",
+                                  label: "Invoices",
+                                  icon: <FileText size={16} />,
+                                  count: 30,
+                                },
+                              ].map((link, index) => (
+                                <Menu.Item key={link.href}>
+                                  {({ active }) => (
+                                    <motion.div
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      transition={{ delay: index * 0.05 }}
+                                    >
+                                      <Link
+                                        href={link.href}
+                                        className={`flex items-center justify-between space-x-3 p-3 ${active ? "bg-emerald-600" : ""} ${router.pathname === link.href ? "bg-emerald-600 font-medium" : ""}`}
+                                      >
+                                        <div className="flex items-center">
+                                          <span
+                                            className={`mr-3 ${router.pathname === link.href ? "text-white" : "text-emerald-300"}`}
+                                          >
+                                            {link.icon}
+                                          </span>
+                                          <span>{link.label}</span>
+                                        </div>
+                                        {link.count && (
+                                          <span className="text-xs text-emerald-200">
+                                            {link.count}
+                                          </span>
+                                        )}
+                                      </Link>
+                                    </motion.div>
+                                  )}
+                                </Menu.Item>
+                              ))}
+                            </Menu.Items>
+                          )}
+                        </AnimatePresence>
+                      </>
+                    )}
+                  </Menu>
+                </div>
+      
+                {/* Enhanced Sidebar Footer */}
+                <motion.div
+                  className="mt-auto px-6 w-full"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <div className="border-t border-emerald-600 pt-4 pb-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center">
+                          <User size={16} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Reception User</p>
+                          <p className="text-xs text-emerald-300">Receptionist</p>
+                        </div>
+                      </div>
+                      <button className="text-emerald-300 hover:text-white transition-colors">
+                        <LogOut size={18} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-emerald-200 mt-3">
+                      Lizly Skin Care Clinic v1.2.0
+                    </p>
+                    <p className="text-xs text-emerald-300 mt-1">
+                      © {new Date().getFullYear()} All Rights Reserved
+                    </p>
+                  </div>
+                </motion.div>
+              </nav>
 
         {/* Main Content - Service Order */}
         <main className="flex-1 p-6 bg-gray-50 text-gray-900 ml-64">
@@ -1175,6 +1190,7 @@ export default function ServiceOrderPage() {
                         className="mt-4 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm"
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
+                        onClick={() => setShowMembershipSignup(true)} // 👈 open modal here
                       >
                         Upgrade to Membership
                       </motion.button>
@@ -2182,6 +2198,197 @@ export default function ServiceOrderPage() {
               )}
             </AnimatePresence>
 
+            {/* Membership Signup Modal */}
+            <AnimatePresence>
+              {showMembershipSignup && (
+                <motion.div
+                  className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <motion.div
+                    className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col p-6"
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  >
+                    <div className="flex justify-between items-center border-b pb-3 mb-4">
+                      <h4 className="font-medium text-emerald-700 flex items-center">
+                        <Star className="mr-2" size={16} />
+                        Membership Details
+                      </h4>
+                      <button
+                        onClick={() => setShowMembershipSignup(false)}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    <form className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-y-auto">
+                      {/* Membership Type */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Membership Type{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={membershipForm.type}
+                          onChange={(e) => {
+                            const type = e.target.value;
+                            const template = membershipTemplates.find(
+                              (m) => m.type === type
+                            );
+
+                            setMembershipForm({
+                              ...membershipForm,
+                              type,
+                              name: template
+                                ? template.name
+                                : type === "basic"
+                                  ? "Basic"
+                                  : "Pro",
+                              fee: template
+                                ? template.price
+                                : type === "basic"
+                                  ? 3000
+                                  : 6000,
+                              consumable: template
+                                ? template.consumable_amount
+                                : type === "basic"
+                                  ? 5000
+                                  : 10000,
+                              validTo:
+                                template && template.valid_until
+                                  ? template.valid_until
+                                  : "",
+                              noExpiration: template
+                                ? template.no_expiration === 1
+                                : false,
+                            });
+                          }}
+                          className="w-full p-2 border rounded"
+                        >
+                          <option value="basic">
+                            Basic (₱3,000 for 5,000 consumable)
+                          </option>
+                          <option value="pro">
+                            Pro (₱6,000 for 10,000 consumable)
+                          </option>
+                          {membershipTemplates
+                            .filter((m) => m.type === "promo")
+                            .map((m) => (
+                              <option key={m.id} value="promo">
+                                {m.name} (Promo)
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      {/* Payment Method */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Payment Method <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={membershipForm.paymentMethod || ""}
+                          onChange={(e) =>
+                            setMembershipForm({
+                              ...membershipForm,
+                              paymentMethod: e.target.value,
+                            })
+                          }
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          required
+                        >
+                          <option value="">Select Method</option>
+                          <option value="Cash">Cash</option>
+                          <option value="GCash">GCash</option>
+                          <option value="Card">Card</option>
+                          <option value="Bank Transfer">Bank Transfer</option>
+                        </select>
+                      </div>
+
+                      {/* Promo fields */}
+                      {membershipForm.type === "promo" && (
+                        <>
+                          <div>
+                            <label className="block text-sm mb-1">
+                              Price (₱)
+                            </label>
+                            <input
+                              type="number"
+                              value={membershipForm.fee}
+                              onChange={(e) =>
+                                setMembershipForm({
+                                  ...membershipForm,
+                                  fee: e.target.value,
+                                })
+                              }
+                              className="w-full p-2 border rounded"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm mb-1">
+                              Consumable Amount
+                            </label>
+                            <input
+                              type="number"
+                              value={membershipForm.consumable}
+                              onChange={(e) =>
+                                setMembershipForm({
+                                  ...membershipForm,
+                                  consumable: e.target.value,
+                                })
+                              }
+                              className="w-full p-2 border rounded"
+                            />
+                          </div>
+                          {!membershipForm.noExpiration && (
+                            <div>
+                              <label className="block mb-1 text-sm">
+                                Valid Until
+                              </label>
+                              <input
+                                type="date"
+                                value={membershipForm.validTo}
+                                onChange={(e) =>
+                                  setMembershipForm({
+                                    ...membershipForm,
+                                    validTo: e.target.value,
+                                  })
+                                }
+                                className="w-full p-2 border rounded"
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </form>
+
+                    {/* Action buttons */}
+                    <div className="mt-6 flex justify-end space-x-3 border-t pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowMembershipSignup(false)}
+                        className="px-5 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition"
+                      >
+                        Register as Member
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Combined Add Customer with Membership Modal */}
             <AnimatePresence>
               {(isModalOpen || isNewCustomerModalOpen) && (
@@ -2355,43 +2562,55 @@ export default function ServiceOrderPage() {
                                   <span className="text-red-500">*</span>
                                 </label>
                                 <select
-                                  value={membershipForm.type || ""}
+                                  value={membershipForm.type}
                                   onChange={(e) => {
                                     const type = e.target.value;
+                                    const template = membershipTemplates.find(
+                                      (m) => m.type === type
+                                    );
+
                                     setMembershipForm({
                                       ...membershipForm,
                                       type,
-                                      name:
-                                        type === "basic"
+                                      name: template
+                                        ? template.name
+                                        : type === "basic"
                                           ? "Basic"
-                                          : type === "pro"
-                                            ? "Pro"
-                                            : "Promo",
-                                      fee:
-                                        type === "basic"
+                                          : "Pro",
+                                      fee: template
+                                        ? template.price
+                                        : type === "basic"
                                           ? 3000
-                                          : type === "pro"
-                                            ? 6000
-                                            : "",
-                                      consumable:
-                                        type === "basic"
+                                          : 6000,
+                                      consumable: template
+                                        ? template.consumable_amount
+                                        : type === "basic"
                                           ? 5000
-                                          : type === "pro"
-                                            ? 10000
-                                            : "",
+                                          : 10000,
+                                      validTo:
+                                        template && template.valid_until
+                                          ? template.valid_until
+                                          : "",
+                                      noExpiration: template
+                                        ? template.no_expiration === 1
+                                        : false,
                                     });
                                   }}
-                                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                  required
+                                  className="w-full p-2 border rounded"
                                 >
-                                  <option value="">Select Membership</option>
                                   <option value="basic">
                                     Basic (₱3,000 for 5,000 consumable)
                                   </option>
                                   <option value="pro">
                                     Pro (₱6,000 for 10,000 consumable)
                                   </option>
-                                  <option value="promo">Promo (Custom)</option>
+                                  {membershipTemplates
+                                    .filter((m) => m.type === "promo")
+                                    .map((m) => (
+                                      <option key={m.id} value="promo">
+                                        {m.name} (Promo)
+                                      </option>
+                                    ))}
                                 </select>
                               </div>
 
@@ -2426,83 +2645,52 @@ export default function ServiceOrderPage() {
                               {membershipForm.type === "promo" && (
                                 <>
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Price (₱){" "}
-                                      <span className="text-red-500">*</span>
+                                    <label className="block text-sm mb-1">
+                                      Price (₱)
                                     </label>
                                     <input
                                       type="number"
-                                      value={membershipForm.fee || ""}
+                                      value={membershipForm.fee}
                                       onChange={(e) =>
                                         setMembershipForm({
                                           ...membershipForm,
                                           fee: e.target.value,
                                         })
                                       }
-                                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                      required
+                                      className="w-full p-2 border rounded"
                                     />
                                   </div>
-
                                   <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                      Consumable Amount{" "}
-                                      <span className="text-red-500">*</span>
+                                    <label className="block text-sm mb-1">
+                                      Consumable Amount
                                     </label>
                                     <input
                                       type="number"
-                                      value={membershipForm.consumable || ""}
+                                      value={membershipForm.consumable}
                                       onChange={(e) =>
                                         setMembershipForm({
                                           ...membershipForm,
                                           consumable: e.target.value,
                                         })
                                       }
-                                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                      required
+                                      className="w-full p-2 border rounded"
                                     />
                                   </div>
-
-                                  <div className="flex items-center">
-                                    <input
-                                      type="checkbox"
-                                      id="noExpiration"
-                                      checked={
-                                        membershipForm.noExpiration || false
-                                      }
-                                      onChange={(e) =>
-                                        setMembershipForm({
-                                          ...membershipForm,
-                                          noExpiration: e.target.checked,
-                                        })
-                                      }
-                                      className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
-                                    />
-                                    <label
-                                      htmlFor="noExpiration"
-                                      className="ml-2 text-sm text-gray-700"
-                                    >
-                                      No Expiration
-                                    </label>
-                                  </div>
-
                                   {!membershipForm.noExpiration && (
                                     <div>
-                                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Valid Until{" "}
-                                        <span className="text-red-500">*</span>
+                                      <label className="block mb-1 text-sm">
+                                        Valid Until
                                       </label>
                                       <input
                                         type="date"
-                                        value={membershipForm.validTo || ""}
+                                        value={membershipForm.validTo}
                                         onChange={(e) =>
                                           setMembershipForm({
                                             ...membershipForm,
                                             validTo: e.target.value,
                                           })
                                         }
-                                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                        required
+                                        className="w-full p-2 border rounded"
                                       />
                                     </div>
                                   )}
