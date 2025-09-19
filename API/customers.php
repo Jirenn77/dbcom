@@ -24,7 +24,8 @@ try {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
-            if (!$data) throw new Exception("Invalid or missing JSON payload.");
+            if (!$data)
+                throw new Exception("Invalid or missing JSON payload.");
 
             $name = trim($data['name'] ?? '');
             $contact = trim($data['phone'] ?? ''); // frontend sends "phone", but DB column is "contact"
@@ -50,7 +51,8 @@ try {
                     default => 0
                 };
 
-                if ($coverage === 0) throw new Exception("Invalid membership type: $membershipType");
+                if ($coverage === 0)
+                    throw new Exception("Invalid membership type: $membershipType");
 
                 $stmtMem = $pdo->prepare("INSERT INTO memberships (customer_id, type, coverage, remaining_balance, date_registered, expire_date) VALUES (?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 YEAR))");
                 $stmtMem->execute([$customerId, $membershipType, $coverage, $coverage]);
@@ -60,7 +62,8 @@ try {
             echo json_encode(['success' => true, 'message' => 'Customer added successfully.', 'customer_id' => $customerId]);
 
         } catch (Exception $e) {
-            if ($pdo->inTransaction()) $pdo->rollBack();
+            if ($pdo->inTransaction())
+                $pdo->rollBack();
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Failed to add customer: ' . $e->getMessage()]);
         }
@@ -71,10 +74,12 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['action'] === 'update') {
         try {
             $id = $_GET['id'] ?? null;
-            if (!$id) throw new Exception("Missing customer ID.");
+            if (!$id)
+                throw new Exception("Missing customer ID.");
 
             $data = json_decode(file_get_contents('php://input'), true);
-            if (!$data) throw new Exception("Invalid or missing JSON payload.");
+            if (!$data)
+                throw new Exception("Invalid or missing JSON payload.");
 
             $name = trim($data['name'] ?? '');
             $contact = trim($data['contact'] ?? '');
@@ -127,9 +132,17 @@ try {
             $customer['birthday'] = date("F d, Y", strtotime($customer['birthday']));
         }
 
-        $stmtMem = $pdo->prepare("SELECT type, coverage, remaining_balance, date_registered, expire_date FROM memberships WHERE customer_id = ?");
-        $stmtMem->execute([$customerId]);
-        $membership = $stmtMem->fetch(PDO::FETCH_ASSOC);
+        $stmtMem = $pdo->prepare("
+    SELECT type, coverage, remaining_balance, date_registered, expire_date
+    FROM memberships
+    WHERE customer_id = ?
+    ORDER BY date_registered DESC, id DESC
+    LIMIT 1
+");
+$stmtMem->execute([$customer['id']]); // for list loop, or [$customerId] for single customer
+$membership = $stmtMem->fetch(PDO::FETCH_ASSOC);
+
+
 
         if ($membership) {
             $customer['membership'] = $membership['type'];
@@ -161,7 +174,7 @@ try {
         exit;
     }
 
-    
+
     // -------------------- LIST CUSTOMERS --------------------
     $filter = $_GET['filter'] ?? 'all';
     $stmt = $pdo->prepare("SELECT * FROM customers ORDER BY id");

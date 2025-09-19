@@ -21,40 +21,56 @@ try {
     }
 
     // ==============================
-    // GET - Fetch membership logs
-    // ==============================
-    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-        $sql = "
-    SELECT ml.*, 
-           c.name AS name, 
-           b.name AS branch_name, 
-           u.name AS performed_by_name
-    FROM membership_logs ml
-    LEFT JOIN customers c ON ml.customer_id = c.id
-    LEFT JOIN branches b ON ml.branch_id = b.id
-    LEFT JOIN users u ON ml.performed_by = u.user_id
-";
+// GET - Fetch membership logs
+// ==============================
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $filter = $_GET['filter'] ?? 'all';
 
-        if (isset($_GET['customer_id'])) {
-            $sql .= " WHERE ml.customer_id = :customer_id";
-        }
+    $sql = "
+        SELECT ml.*, 
+               c.name AS name, 
+               b.name AS branch_name, 
+               u.name AS performed_by_name
+        FROM membership_logs ml
+        LEFT JOIN customers c ON ml.customer_id = c.id
+        LEFT JOIN branches b ON ml.branch_id = b.id
+        LEFT JOIN users u ON ml.performed_by = u.user_id
+    ";
 
-        $sql .= " ORDER BY ml.timestamp DESC";
+    $conditions = [];
 
-        $stmt = $pdo->prepare($sql);
-
-        if (isset($_GET['customer_id'])) {
-            $stmt->bindValue(':customer_id', (int) $_GET['customer_id'], PDO::PARAM_INT);
-        }
-
-        $stmt->execute();
-        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
-        exit;
+    if (isset($_GET['customer_id'])) {
+        $conditions[] = "ml.customer_id = :customer_id";
     }
 
+    // ✅ Apply filter mapping
+    if ($filter === 'new') {
+        $conditions[] = "ml.action = 'New member'";
+    } elseif ($filter === 'renewal') {
+        $conditions[] = "ml.action = 'renewed'";
+    }
+
+    if (!empty($conditions)) {
+        $sql .= " WHERE " . implode(" AND ", $conditions);
+    }
+
+    $sql .= " ORDER BY ml.timestamp DESC";
+
+    $stmt = $pdo->prepare($sql);
+
+    if (isset($_GET['customer_id'])) {
+        $stmt->bindValue(':customer_id', (int) $_GET['customer_id'], PDO::PARAM_INT);
+    }
+
+    $stmt->execute();
+    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+    exit;
+}
+
+
     // ==============================
-    // POST - Insert membership log
-    // ==============================
+// POST - Insert membership log
+// ==============================
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $input = json_decode(file_get_contents('php://input'), true);
 
@@ -69,7 +85,7 @@ try {
 
         $customerId = (int) $input['customer_id'];
         $membershipId = isset($input['membership_id']) ? (int) $input['membership_id'] : null;
-        $action = $input['action'];
+        $action = strtolower(trim($input['action'])); // normalize to lowercase
         $type = $input['type'];
         $amount = (float) $input['amount'];
         $paymentMethod = $input['payment_method'];
@@ -77,25 +93,32 @@ try {
         $performedBy = (int) $input['performed_by'];
         $timestamp = date('Y-m-d H:i:s');
 
+        // ✅ Normalize action values
+        if ($action === 'create') {
+            $action = 'new member';
+        } elseif ($action === 'renew') {
+            $action = 'renewed';
+        }
+
         // Skip logging if amount is zero and not a new membership creation
-        if ($amount == 0 && $action !== 'new') {
+        if ($amount == 0 && $action !== 'new member') {
             echo json_encode(['skipped' => true, 'message' => 'Log skipped: zero amount for non-new action']);
             exit;
         }
 
         // Duplicate check
         $check = $pdo->prepare("
-            SELECT COUNT(*) FROM membership_logs
-            WHERE customer_id = :customer_id
-              AND membership_id <=> :membership_id
-              AND action = :action
-              AND type = :type
-              AND amount = :amount
-              AND payment_method = :payment_method
-              AND branch_id = :branch_id
-              AND performed_by = :performed_by
-              AND DATE(timestamp) = CURDATE()
-        ");
+        SELECT COUNT(*) FROM membership_logs
+        WHERE customer_id = :customer_id
+          AND membership_id <=> :membership_id
+          AND action = :action
+          AND type = :type
+          AND amount = :amount
+          AND payment_method = :payment_method
+          AND branch_id = :branch_id
+          AND performed_by = :performed_by
+          AND DATE(timestamp) = CURDATE()
+    ");
         $check->execute([
             ':customer_id' => $customerId,
             ':membership_id' => $membershipId,
@@ -114,11 +137,11 @@ try {
 
         // Insert log
         $stmt = $pdo->prepare("
-            INSERT INTO membership_logs 
-            (customer_id, membership_id, action, type, amount, payment_method, branch_id, performed_by, timestamp)
-            VALUES 
-            (:customer_id, :membership_id, :action, :type, :amount, :payment_method, :branch_id, :performed_by, :timestamp)
-        ");
+        INSERT INTO membership_logs 
+        (customer_id, membership_id, action, type, amount, payment_method, branch_id, performed_by, timestamp)
+        VALUES 
+        (:customer_id, :membership_id, :action, :type, :amount, :payment_method, :branch_id, :performed_by, :timestamp)
+    ");
         $stmt->execute([
             ':customer_id' => $customerId,
             ':membership_id' => $membershipId,
@@ -134,6 +157,7 @@ try {
         echo json_encode(['success' => true, 'message' => 'Membership log saved']);
         exit;
     }
+
 
     // Method not allowed
     http_response_code(405);

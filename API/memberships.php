@@ -19,9 +19,34 @@ try {
         exit;
     }
 
+    // ===== HANDLE POST (CREATE OR UPDATE) =====
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = json_decode(file_get_contents('php://input'), true);
-        
+
+        // If action = update, perform an UPDATE
+        if (isset($data['action']) && $data['action'] === 'update' && !empty($data['membership_id'])) {
+            $id = intval($data['membership_id']);
+            $name = $data['name'] ?? '';
+            $type = $data['type'] ?? '';
+            $description = $data['description'] ?? '';
+            $price = $data['price'] ?? 0;
+            $consumable = $data['consumable_amount'] ?? 0;
+            $valid_until = $data['valid_until'] ?? null;
+            $status = $data['status'] ?? 'active';
+
+            $stmt = $pdo->prepare("
+                UPDATE membership 
+                SET name = ?, type = ?, description = ?, price = ?, consumable_amount = ?, valid_until = ?, status = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([$name, $type, $description, $price, $consumable, $valid_until, $status, $id]);
+
+            $updatedMembership = $pdo->query("SELECT * FROM membership WHERE id = $id")->fetch(PDO::FETCH_ASSOC);
+            echo json_encode($updatedMembership);
+            exit;
+        }
+
+        // ===== HANDLE CREATE =====
         // Validate required fields
         if (empty($data['name']) || empty($data['type']) || empty($data['description'])) {
             http_response_code(400);
@@ -29,7 +54,6 @@ try {
             exit;
         }
 
-        // Set values based on membership type
         if ($data['type'] === 'basic') {
             $consumable = 5000;
             $price = 3000;
@@ -41,30 +65,10 @@ try {
             $no_expiration = 1;
             $valid_until = null;
         } elseif ($data['type'] === 'promo') {
-            // Validate required fields for promo
-            if (!isset($data['price']) || !isset($data['consumable_amount'])) {
-                http_response_code(400);
-                echo json_encode(["error" => "Price and consumable amount are required for promo memberships"]);
-                exit;
-            }
-            
-            $consumable = (int)$data['consumable_amount'];
-            $price = (float)$data['price'];
+            $consumable = (int)($data['consumable_amount'] ?? 0);
+            $price = (float)($data['price'] ?? 0);
             $no_expiration = isset($data['no_expiration']) && $data['no_expiration'] ? 1 : 0;
             $valid_until = $no_expiration ? null : ($data['valid_until'] ?? null);
-            
-            // Additional validation for promo memberships
-            if ($price <= 0 || $consumable <= 0) {
-                http_response_code(400);
-                echo json_encode(["error" => "Price and consumable amount must be positive values"]);
-                exit;
-            }
-            
-            if (!$no_expiration && empty($valid_until)) {
-                http_response_code(400);
-                echo json_encode(["error" => "Valid until date is required for expiring promos"]);
-                exit;
-            }
         } else {
             http_response_code(400);
             echo json_encode(["error" => "Invalid membership type"]);
@@ -76,11 +80,10 @@ try {
             (name, type, discount, description, consumable_amount, price, no_expiration, valid_until, status) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
         ");
-        
         $stmt->execute([
             $data['name'],
             $data['type'],
-            '50%', // Fixed 50% discount
+            '50%', // fixed discount for now
             $data['description'],
             $consumable,
             $price,
@@ -94,7 +97,7 @@ try {
         exit;
     }
 
-    // Handle GET requests
+    // ===== HANDLE GET =====
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt = $pdo->prepare("
             SELECT 

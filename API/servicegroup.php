@@ -138,11 +138,18 @@ function addServices($pdo, $service, $groupId)
             return ['success' => false, 'message' => 'Missing required service fields.'];
         }
 
+        // 🔹 Get the next service_id manually
+        $stmt = $pdo->query("SELECT MAX(service_id) AS max_id FROM services");
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $nextId = $row && $row['max_id'] ? $row['max_id'] + 1 : 1;
+
+        // 🔹 Insert new service with manual service_id
         $stmt = $pdo->prepare("
-            INSERT INTO services (name, price, description, duration, category)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO services (service_id, name, price, description, duration, category)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([
+            $nextId,
             $service['name'],
             $service['price'],
             $service['description'] ?? null,
@@ -150,19 +157,19 @@ function addServices($pdo, $service, $groupId)
             $service['category']
         ]);
 
-        $serviceId = $pdo->lastInsertId();
-
+        // 🔹 Map service to group
         $stmtMapping = $pdo->prepare("
             INSERT INTO service_group_mappings (group_id, service_id)
             VALUES (?, ?)
         ");
-        $stmtMapping->execute([$groupId, $serviceId]);
+        $stmtMapping->execute([$groupId, $nextId]);
 
-        return ['success' => true, 'service_id' => $serviceId];
+        return ['success' => true, 'service_id' => $nextId];
     } catch (PDOException $e) {
         return ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
     }
 }
+
 
 function getAllServices($pdo)
 {
@@ -441,38 +448,19 @@ function saveGroup($pdo, $data)
             ]);
             $groupId = $pdo->lastInsertId();
         } else {
-            // Check if group exists
-            $stmt = $pdo->prepare("SELECT * FROM service_groups WHERE group_id = ?");
-            $stmt->execute([$data['group_id']]);
-
-            if ($stmt->rowCount() === 0) {
-                // Insert new row if not found
-                $stmtInsert = $pdo->prepare("
-                    INSERT INTO service_groups (group_id, group_name, description, status, group_type) 
-                    VALUES (?, ?, ?, ?, ?)
-                ");
-                $stmtInsert->execute([
-                    $data['group_id'],
-                    $data['group_name'],
-                    $data['description'] ?? null,
-                    $data['status'] ?? 'Active',
-                    $groupType
-                ]);
-            } else {
-                // Update existing group
-                $stmtUpdate = $pdo->prepare("
-                    UPDATE service_groups 
-                    SET group_name = ?, description = ?, status = ?, group_type = ?
-                    WHERE group_id = ?
-                ");
-                $stmtUpdate->execute([
-                    $data['group_name'],
-                    $data['description'] ?? null,
-                    $data['status'] ?? 'Active',
-                    $groupType,
-                    $data['group_id']
-                ]);
-            }
+            // Update existing group
+            $stmtUpdate = $pdo->prepare("
+                UPDATE service_groups 
+                SET group_name = ?, description = ?, status = ?, group_type = ?
+                WHERE group_id = ?
+            ");
+            $stmtUpdate->execute([
+                $data['group_name'],
+                $data['description'] ?? null,
+                $data['status'] ?? 'Active',
+                $groupType,
+                $data['group_id']
+            ]);
 
             $groupId = $data['group_id'];
         }
@@ -491,8 +479,31 @@ function saveGroup($pdo, $data)
             }
         }
 
+        // ✅ Fetch updated group with services
+        $stmtGroup = $pdo->prepare("
+            SELECT group_id, group_name, description, status, group_type, created_at, updated_at
+            FROM service_groups
+            WHERE group_id = ?
+        ");
+        $stmtGroup->execute([$groupId]);
+        $group = $stmtGroup->fetch(PDO::FETCH_ASSOC);
+
+        // Fetch services
+        $stmtServices = $pdo->prepare("
+            SELECT s.service_id, s.name, s.price, s.description, s.duration, s.category
+            FROM services s
+            INNER JOIN service_group_mappings m ON s.service_id = m.service_id
+            WHERE m.group_id = ?
+        ");
+        $stmtServices->execute([$groupId]);
+        $services = $stmtServices->fetchAll(PDO::FETCH_ASSOC);
+
+        $group['services'] = $services;
+        $group['servicesCount'] = count($services);
+
         $pdo->commit();
-        return ['success' => true, 'group_id' => $groupId];
+
+        return ['success' => true, 'group' => $group];
     } catch (PDOException $e) {
         $pdo->rollBack();
         return ['success' => false, 'error' => $e->getMessage()];

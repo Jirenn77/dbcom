@@ -45,42 +45,42 @@ try {
 
         // GET /memberships?customer_id=1
         if (isset($queryParams['customer_id'])) {
-    $customerId = (int) $queryParams['customer_id'];
+            $customerId = (int) $queryParams['customer_id'];
 
-    $stmt = $pdo->prepare("
+            $stmt = $pdo->prepare("
         SELECT * FROM memberships
         WHERE customer_id = :customer_id
         ORDER BY date_registered DESC, id DESC
     ");
-    $stmt->bindValue(':customer_id', $customerId, PDO::PARAM_INT);
-    $stmt->execute();
-    $memberships = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $stmt->bindValue(':customer_id', $customerId, PDO::PARAM_INT);
+            $stmt->execute();
+            $memberships = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Debug log
-    error_log("Memberships fetched for customer_id=$customerId: " . json_encode($memberships));
+            // Debug log
+            error_log("Memberships fetched for customer_id=$customerId: " . json_encode($memberships));
 
-    echo json_encode($memberships); // Return the array directly
-    exit;
+            echo json_encode($memberships); // Return the array directly
+            exit;
 
 
-    if ($membership) {
-        echo json_encode([
-            'membershipDetails' => [
-                'id' => (int) $membership['id'],
-                'customer_id' => (int) $membership['customer_id'],
-                'type' => $membership['type'],
-                'coverage' => (float) $membership['coverage'],
-                'remaining_balance' => (float) $membership['remaining_balance'],
-                'date_registered' => $membership['date_registered'],
-                'expire_date' => $membership['expire_date'] ?? null
-            ]
-        ]);
-    } else {
-        echo json_encode(['membershipDetails' => null]);
-    }
+            if ($membership) {
+                echo json_encode([
+                    'membershipDetails' => [
+                        'id' => (int) $membership['id'],
+                        'customer_id' => (int) $membership['customer_id'],
+                        'type' => $membership['type'],
+                        'coverage' => (float) $membership['coverage'],
+                        'remaining_balance' => (float) $membership['remaining_balance'],
+                        'date_registered' => $membership['date_registered'],
+                        'expire_date' => $membership['expire_date'] ?? null
+                    ]
+                ]);
+            } else {
+                echo json_encode(['membershipDetails' => null]);
+            }
 
-    exit;
-}
+            exit;
+        }
 
 
         // GET /memberships?expiring=7
@@ -131,108 +131,129 @@ ORDER BY m1.date_registered DESC
     // POST MEMBERSHIP (Create or Renew)
     // ================================
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $input = json_decode(file_get_contents('php://input'), true);
+        $input = json_decode(file_get_contents('php://input'), true);
 
-    if (!isset($input['customer_id'])) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Customer ID is required']);
-        exit;
-    }
-
-    $customerId = (int) $input['customer_id'];
-    $membershipId = isset($input['membership_id']) ? (int) $input['membership_id'] : null;
-    $action = $input['action'] ?? 'create';
-    $type = strtolower($input['type'] ?? 'basic');
-    $coverage = (float) ($input['coverage'] ?? 5000);
-    $duration = (int) ($input['duration'] ?? 1); // for promo/vip
-    $paymentMethod = $input['payment_method'] ?? 'cash';
-    $note = $input['note'] ?? null;
-
-    $currentDate = date('Y-m-d');
-
-    // Only promo/vip types get expiration
-    $expireDate = null;
-    if (in_array($type, ['promo', 'vip'])) {
-        if (!empty($input['expire_date'])) {
-            $expireDate = $input['expire_date'];
-        } else {
-            $expireDate = date('Y-m-d', strtotime("+$duration months"));
+        if (!isset($input['customer_id'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Customer ID is required']);
+            exit;
         }
-    }
 
-    // ========================
-    // RENEW MEMBERSHIP
-    // ========================
-    if ($action === 'renew' && $membershipId !== null) {
-        $stmt = $pdo->prepare("
-            UPDATE memberships
-            SET 
-                expire_date = :expire_date,
-                date_registered = :current_date,
-                remaining_balance = :coverage,
-                type = :type,
-                coverage = :coverage
-            WHERE customer_id = :customer_id AND id = :membership_id
-        ");
-        $stmt->execute([
-            ':expire_date' => $expireDate,
-            ':current_date' => $currentDate,
-            ':coverage' => $coverage,
-            ':type' => $type,
-            ':customer_id' => $customerId,
-            ':membership_id' => $membershipId
-        ]);
+        $customerId = (int) $input['customer_id'];
+        $membershipId = isset($input['membership_id']) ? (int) $input['membership_id'] : null;
+        $action = $input['action'] ?? 'create';
+        $type = strtolower($input['type'] ?? 'basic');
+        $coverage = (float) ($input['coverage'] ?? 5000);
+        $duration = (int) ($input['duration'] ?? 1); // for promo/vip
+        $paymentMethod = $input['payment_method'] ?? 'cash';
+        $note = $input['note'] ?? null;
 
-        logMembershipAction($pdo, [
-            'customer_id' => $customerId,
-            'membership_id' => $membershipId,
-            'action' => 'renew',
-            'type' => $type,
-            'amount' => $coverage,
-            'payment_method' => $paymentMethod
-        ]);
+        $currentDate = date('Y-m-d');
 
-        $stmt = $pdo->prepare("SELECT * FROM memberships WHERE id = :id");
-        $stmt->execute([':id' => $membershipId]);
-        echo json_encode($stmt->fetch(PDO::FETCH_ASSOC));
-        exit;
+        // Only promo/vip types get expiration
+        $expireDate = null;
+        if (in_array($type, ['promo', 'vip'])) {
+            if (!empty($input['expire_date'])) {
+                $expireDate = $input['expire_date'];
+            } else {
+                $expireDate = date('Y-m-d', strtotime("+$duration months"));
+            }
+        }
 
-    } else {
         // ========================
-        // CREATE MEMBERSHIP
+        // RENEW MEMBERSHIP
         // ========================
-        $stmt = $pdo->prepare("
+        if ($action === 'renew' && $membershipId !== null) {
+            // Get the current membership first
+            $stmt = $pdo->prepare("SELECT type, remaining_balance FROM memberships WHERE id = :id");
+            $stmt->execute([':id' => $membershipId]);
+            $current = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$current) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Membership not found']);
+                exit;
+            }
+
+            // 🚫 Prevent renewal of promo memberships
+            if (strtolower($current['type']) === 'promo') {
+                http_response_code(400);
+                echo json_encode(['error' => 'Promo memberships cannot be renewed because they have a fixed expiration.']);
+                exit;
+            }
+
+            $oldRemaining = (float) $current['remaining_balance'];
+            $newBalance = $oldRemaining + $coverage; // ✅ carry over old balance
+
+            $stmt = $pdo->prepare("
+        UPDATE memberships
+        SET 
+            expire_date = :expire_date,
+            date_registered = :current_date,
+            remaining_balance = :remaining_balance,
+            type = :type,
+            coverage = :coverage
+        WHERE customer_id = :customer_id AND id = :membership_id
+    ");
+            $stmt->execute([
+                ':expire_date' => $expireDate,
+                ':current_date' => $currentDate,
+                ':remaining_balance' => $newBalance,
+                ':type' => $type,
+                ':coverage' => $coverage,
+                ':customer_id' => $customerId,
+                ':membership_id' => $membershipId
+            ]);
+
+            logMembershipAction($pdo, [
+                'customer_id' => $customerId,
+                'membership_id' => $membershipId,
+                'action' => 'renew',
+                'type' => $type,
+                'amount' => $coverage, // only log the new coverage
+                'payment_method' => $paymentMethod
+            ]);
+
+            $stmt = $pdo->prepare("SELECT * FROM memberships WHERE id = :id");
+            $stmt->execute([':id' => $membershipId]);
+            echo json_encode($stmt->fetch(PDO::FETCH_ASSOC));
+            exit;
+        } else {
+            // ========================
+            // CREATE MEMBERSHIP
+            // ========================
+            $stmt = $pdo->prepare("
             INSERT INTO memberships 
                 (customer_id, type, coverage, remaining_balance, date_registered, expire_date)
             VALUES 
                 (:customer_id, :type, :coverage, :remaining_balance, :date_registered, :expire_date)
         ");
-        $stmt->execute([
-            ':customer_id' => $customerId,
-            ':type' => $type,
-            ':coverage' => $coverage,
-            ':remaining_balance' => $coverage,
-            ':date_registered' => $currentDate,
-            ':expire_date' => $expireDate
-        ]);
+            $stmt->execute([
+                ':customer_id' => $customerId,
+                ':type' => $type,
+                ':coverage' => $coverage,
+                ':remaining_balance' => $coverage,
+                ':date_registered' => $currentDate,
+                ':expire_date' => $expireDate
+            ]);
 
-        $newId = $pdo->lastInsertId();
+            $newId = $pdo->lastInsertId();
 
-        logMembershipAction($pdo, [
-            'customer_id' => $customerId,
-            'membership_id' => $newId,
-            'action' => 'create',
-            'type' => $type,
-            'amount' => $coverage,
-            'payment_method' => $paymentMethod
-        ]);
+            logMembershipAction($pdo, [
+                'customer_id' => $customerId,
+                'membership_id' => $newId,
+                'action' => 'create',
+                'type' => $type,
+                'amount' => $coverage,
+                'payment_method' => $paymentMethod
+            ]);
 
-        $stmt = $pdo->prepare("SELECT * FROM memberships WHERE id = :id");
-        $stmt->execute([':id' => $newId]);
-        echo json_encode($stmt->fetch(PDO::FETCH_ASSOC));
-        exit;
+            $stmt = $pdo->prepare("SELECT * FROM memberships WHERE id = :id");
+            $stmt->execute([':id' => $newId]);
+            echo json_encode($stmt->fetch(PDO::FETCH_ASSOC));
+            exit;
+        }
     }
-}
 
 
     // Unsupported Method
